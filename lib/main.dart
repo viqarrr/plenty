@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:plenty/constants/app_theme.dart';
-import 'package:plenty/features/splash_screen/views/splash_screen.dart';
-import 'package:plenty/services/preference_handler.dart';
+import 'package:plenty/core/constants/app_theme.dart';
+import 'package:plenty/core/database/preference_handler.dart';
+import 'package:plenty/features/splash/presentation/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PreferenceHandler.init();
-  // await initializeDateFormatting("id_ID", null);
-  runApp(const MyApp());
+  runApp(const PlentyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+/// Root application widget configuring Theme and navigation router.
+class PlentyApp extends StatelessWidget {
+  const PlentyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Plenty',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      home: SplashScreen(),
+      home: const SplashScreen(),
     );
   }
 }
