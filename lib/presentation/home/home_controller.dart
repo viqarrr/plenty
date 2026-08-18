@@ -1,0 +1,177 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:plenty/data/datasources/preference_handler.dart';
+import 'package:plenty/data/models/care_task_model.dart';
+import 'package:plenty/data/models/plant_model.dart';
+import 'package:plenty/data/repositories/care_repository.dart';
+import 'package:plenty/data/repositories/plant_repository.dart';
+
+enum HomeStatus { empty, populated }
+
+class HomeState {
+  final HomeStatus status;
+  final List<PlantModel> userPlants;
+  final List<CareTaskModel> dailyTasks;
+  final String selectedRoomFilter;
+  final int streakCount;
+  final String profileName;
+  final bool isLoading;
+  final String? errorMessage;
+
+  const HomeState({
+    this.status = HomeStatus.empty,
+    this.userPlants = const [],
+    this.dailyTasks = const [],
+    this.selectedRoomFilter = 'Semua',
+    this.streakCount = 0,
+    this.profileName = 'User',
+    this.isLoading = false,
+    this.errorMessage,
+  });
+
+  HomeState copyWith({
+    HomeStatus? status,
+    List<PlantModel>? userPlants,
+    List<CareTaskModel>? dailyTasks,
+    String? selectedRoomFilter,
+    int? streakCount,
+    String? profileName,
+    bool? isLoading,
+    String? errorMessage,
+  }) {
+    return HomeState(
+      status: status ?? this.status,
+      userPlants: userPlants ?? this.userPlants,
+      dailyTasks: dailyTasks ?? this.dailyTasks,
+      selectedRoomFilter: selectedRoomFilter ?? this.selectedRoomFilter,
+      streakCount: streakCount ?? this.streakCount,
+      profileName: profileName ?? this.profileName,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: errorMessage,
+    );
+  }
+
+  List<PlantModel> get filteredPlants {
+    if (selectedRoomFilter == 'Semua') return userPlants;
+    return userPlants.where((p) {
+      if (selectedRoomFilter == 'Ruang Tamu') return p.isIndoor;
+      if (selectedRoomFilter == 'Balkon') return !p.isIndoor;
+      return true;
+    }).toList();
+  }
+}
+
+class HomeController extends StateNotifier<HomeState> {
+  final PlantRepository _plantRepo;
+  final CareRepository _careRepo;
+  final String userId;
+
+  HomeController({
+    PlantRepository? plantRepo,
+    CareRepository? careRepo,
+    this.userId = 'usr_default',
+  }) : _plantRepo = plantRepo ?? PlantRepository(),
+       _careRepo =
+           careRepo ??
+           CareRepository(dbHelper: (plantRepo ?? PlantRepository()).dbHelper),
+       super(const HomeState(isLoading: true)) {
+    loadDashboard();
+  }
+
+  Future<void> loadDashboard() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    try {
+      final plants = await _plantRepo.getUserPlants(userId);
+      final streak = PreferenceHandler.streakCount;
+      final user = await PreferenceHandler.getUser();
+      final name = (user?.displayName.trim().isNotEmpty ?? false)
+          ? user!.displayName
+          : 'Teman Plenty';
+
+      if (plants.isEmpty) {
+        state = state.copyWith(
+          status: HomeStatus.empty,
+          userPlants: [],
+          dailyTasks: [],
+          streakCount: streak,
+          profileName: name,
+          isLoading: false,
+        );
+        return;
+      }
+
+      final tasks = <CareTaskModel>[];
+      for (final plant in plants) {
+        final taskTypes = await _careRepo.getTodaysTaskTypes(plant.id);
+        for (final typeStr in taskTypes) {
+          final type = TaskType.fromDbString(typeStr);
+          tasks.add(
+            CareTaskModel(
+              plant: plant,
+              type: type,
+              description: switch (type) {
+                TaskType.siram => 'Siram tanah sampai lembap merata',
+                TaskType.bersihBersih => 'Bersihkan debu dari permukaan daun',
+                TaskType.monitorTinggi => 'Catat perkembangan tinggi tanaman',
+              },
+            ),
+          );
+        }
+      }
+
+      state = state.copyWith(
+        status: HomeStatus.populated,
+        userPlants: plants,
+        dailyTasks: tasks,
+        streakCount: streak > 0 ? streak : 1,
+        profileName: name,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  void setRoomFilter(String filter) {
+    state = state.copyWith(selectedRoomFilter: filter);
+  }
+
+  Future<void> completeTask({
+    required CareTaskModel task,
+    double? heightCm,
+    String? note,
+    String? photoPath,
+  }) async {
+    try {
+      if (task.type == TaskType.monitorTinggi && heightCm != null) {
+        await _careRepo.completeHeightTask(
+          userPlantId: task.userPlantId,
+          heightCm: heightCm,
+          note: note,
+          photoPath: photoPath,
+        );
+      } else {
+        await _careRepo.completeRoutineTask(
+          userPlantId: task.userPlantId,
+          taskType: task.type.dbString,
+        );
+      }
+
+      final updatedTasks = state.dailyTasks
+          .where((t) => t.id != task.id)
+          .toList();
+      state = state.copyWith(dailyTasks: updatedTasks);
+
+      final plants = await _plantRepo.getUserPlants(userId);
+      state = state.copyWith(userPlants: plants);
+    } catch (e) {
+      state = state.copyWith(errorMessage: e.toString());
+    }
+  }
+}
+
+final homeControllerProvider = StateNotifierProvider<HomeController, HomeState>(
+  (ref) {
+    return HomeController();
+  },
+);

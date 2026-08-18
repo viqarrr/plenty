@@ -1,0 +1,90 @@
+[
+  {
+    "id": "cat_monstera",
+    "common_name": "Monstera Deliciosa",
+    "scientific_name": "Monstera deliciosa",
+    "family": "Araceae",
+    "default_watering_interval": 7,
+    "sunlight_level": "Sinar Tidak Langsung Terang",
+    "care_level": "EASY CARE",
+    "image_url": "https://perenual.com/storage/species_image/1_monstera_deliciosa/regular/monstera.jpg",
+    "local_image_path": null
+  },
+  {
+    "id": "cat_snake_plant",
+    "common_name": "Snake Plant (Sansevieria)",
+    "scientific_name": "Dracaena trifasciata",
+    "family": "Asparagaceae",
+    "default_watering_interval": 14,
+    "sunlight_level": "Pencahayaan Rendah s/d Terang",
+    "care_level": "EASY CARE",
+    "image_url": null,
+    "local_image_path": null
+  },
+  {
+    "id": "cat_pothos",
+    "common_name": "Golden Pothos (Sirih Gading)",
+    "scientific_name": "Epipremnum aureum",
+    "family": "Araceae",
+    "default_watering_interval": 5,
+    "sunlight_level": "Pencahayaan Rendah s/d Sedang",
+    "care_level": "EASY CARE",
+    "image_url": null,
+    "local_image_path": null
+  },
+  {
+    "id": "cat_calathea",
+    "common_name": "Calathea Orbifolia",
+    "scientific_name": "Calathea orbifolia",
+    "family": "Marantaceae",
+    "default_watering_interval": 4,
+    "sunlight_level": "Sinar Tidak Langsung Sedang",
+    "care_level": "INTERMEDIATE",
+    "image_url": null,
+    "local_image_path": null
+  },
+  {
+    "id": "cat_peace_lily",
+    "common_name": "Peace Lily (Spathiphyllum)",
+    "scientific_name": "Spathiphyllum wallisii",
+    "family": "Araceae",
+    "default_watering_interval": 4,
+    "sunlight_level": "Pencahayaan Rendah s/d Sedang",
+    "care_level": "EASY CARE",
+    "image_url": null,
+    "local_image_path": null
+  },
+  {
+    "id": "cat_zz_plant",
+    "common_name": "ZZ Plant (Zamioculcas)",
+    "scientific_name": "Zamioculcas zamiifolia",
+    "family": "Araceae",
+    "default_watering_interval": 14,
+    "sunlight_level": "Pencahayaan Rendah",
+    "care_level": "EASY CARE",
+    "image_url": null,
+    "local_image_path": null
+  },
+  {
+    "id": "cat_fiddle_leaf",
+    "common_name": "Fiddle Leaf Fig",
+    "scientific_name": "Ficus lyrata",
+    "family": "Moraceae",
+    "default_watering_interval": 7,
+    "sunlight_level": "Sinar Terang Tidak Langsung",
+    "care_level": "INTERMEDIATE",
+    "image_url": null,
+    "local_image_path": null
+  },
+  {
+    "id": "cat_aloe_vera",
+    "common_name": "Lidah Buaya (Aloe Vera)",
+    "scientific_name": "Aloe barbadensis miller",
+    "family": "Asphodelaceae",
+    "default_watering_interval": 14,
+    "sunlight_level": "Sinar Matahari Penuh s/d Terang",
+    "care_level": "EASY CARE",
+    "image_url": null,
+    "local_image_path": null
+  }
+]

@@ -7,4 +7,5 @@ abstract final class AppImages {
 
   static const String logoLight = '$imagePath/light_logo_plenty.png';
   static const String logoDark = '$imagePath/dark_logo_plenty.png';
+  static const String googleIcon = '$iconPath/google.png';
 }

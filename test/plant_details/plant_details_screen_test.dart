@@ -1,0 +1,156 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:plenty/data/datasources/database_helper.dart';
+import 'package:plenty/data/models/growth_log_model.dart';
+import 'package:plenty/data/models/plant_model.dart';
+import 'package:plenty/data/models/time_capsule_model.dart';
+import 'package:plenty/data/repositories/growth_repository.dart';
+import 'package:plenty/data/repositories/plant_repository.dart';
+import 'package:plenty/presentation/plant_details/plant_details_screen.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late DatabaseHelper dbHelper;
+  late GrowthRepository growthRepo;
+  late PlantRepository plantRepo;
+
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  });
+
+  setUp(() async {
+    final uniqueName = 'pdetails_${DateTime.now().microsecondsSinceEpoch}.db';
+    dbHelper = DatabaseHelper.forTesting(uniqueName);
+    await dbHelper.deleteDb();
+
+    // Seed default user
+    final db = await dbHelper.database;
+    await db.insert(DatabaseHelper.tableUsers, {
+      'id': 'usr_default',
+      'email': 'user@plenty.app',
+      'display_name': 'Test User',
+      'created_at': DateTime.now().toIso8601String(),
+    });
+
+    growthRepo = GrowthRepository(dbHelper: dbHelper);
+    plantRepo = PlantRepository(dbHelper: dbHelper);
+  });
+
+  tearDown(() async {
+    await dbHelper.close();
+  });
+
+  group('PlantDetailsScreen Rendering Tests', () {
+    testWidgets('Renders plant nickname, Level/XP, and None Time Capsule CTA', (
+      tester,
+    ) async {
+      final plant = PlantModel(
+        id: 'plant_test_1',
+        userId: 'usr_default',
+        nickname: 'Super Pothos',
+        isIndoor: true,
+        initialHeightCm: 25.0,
+        level: 2,
+        xp: 130,
+        adoptedAt: DateTime.now(),
+      );
+
+      await tester.runAsync(() async {
+        final db = await dbHelper.database;
+        await db.insert(DatabaseHelper.tableUserPlants, plant.toMap());
+        await db.insert(
+          DatabaseHelper.tableGrowthLogs,
+          GrowthLogModel(
+            id: 'log_1',
+            userPlantId: plant.id,
+            heightCm: 25.0,
+            source: 'initial',
+            loggedAt: DateTime.now().subtract(const Duration(days: 5)),
+          ).toMap(),
+        );
+        await db.insert(
+          DatabaseHelper.tableGrowthLogs,
+          GrowthLogModel(
+            id: 'log_2',
+            userPlantId: plant.id,
+            heightCm: 28.5,
+            source: 'daily_task',
+            loggedAt: DateTime.now(),
+          ).toMap(),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: PlantDetailsScreen(
+              plant: plant,
+              growthRepository: growthRepo,
+              plantRepository: plantRepo,
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+
+      await tester.pump();
+
+      expect(find.text('Super Pothos'), findsOneWidget);
+      expect(find.text('Level 2'), findsWidgets);
+      expect(find.text('30 / 100 XP'), findsOneWidget);
+      expect(find.text('Grafik Pertumbuhan Tinggi'), findsOneWidget);
+      expect(find.text('Kapsul Waktu (Time Capsule)'), findsOneWidget);
+      expect(find.text('Buat'), findsOneWidget);
+    });
+
+    testWidgets(
+      'Renders Locked Time Capsule countdown when capsule is locked',
+      (tester) async {
+        final plant = PlantModel(
+          id: 'plant_test_2',
+          userId: 'usr_default',
+          nickname: 'Locked Calathea',
+          isIndoor: true,
+          initialHeightCm: 20.0,
+          level: 1,
+          xp: 40,
+          adoptedAt: DateTime.now(),
+        );
+
+        await tester.runAsync(() async {
+          final db = await dbHelper.database;
+          await db.insert(DatabaseHelper.tableUserPlants, plant.toMap());
+          await db.insert(
+            DatabaseHelper.tableTimeCapsules,
+            TimeCapsuleModel(
+              id: 'capsule_test_locked',
+              userPlantId: plant.id,
+              photoPath: 'assets/images/capsule.png',
+              note: 'Pesan rahasia',
+              createdAt: DateTime.now(),
+              unlockAt: DateTime.now().add(const Duration(days: 45)),
+              isUnlocked: false,
+            ).toMap(),
+          );
+
+          await tester.pumpWidget(
+            MaterialApp(
+              home: PlantDetailsScreen(
+                plant: plant,
+                growthRepository: growthRepo,
+                plantRepository: plantRepo,
+              ),
+            ),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+
+        await tester.pump();
+
+        expect(find.text('Locked Calathea'), findsOneWidget);
+        expect(find.text('Time Capsule Terkunci ⏳'), findsOneWidget);
+      },
+    );
+  });
+}

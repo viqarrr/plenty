@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plenty/core/constants/app_theme.dart';
-import 'package:plenty/core/database/preference_handler.dart';
-import 'package:plenty/features/splash/presentation/splash_screen.dart';
+import 'package:plenty/data/datasources/preference_handler.dart';
+import 'package:plenty/presentation/onboarding/splash.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PreferenceHandler.init();
-  runApp(const PlentyApp());
+  await dotenv.load(fileName: ".env");
+  runApp(const ProviderScope(child: PlentyApp()));
 }
 
-/// Root application widget configuring Theme and navigation router.
 class PlentyApp extends StatelessWidget {
   const PlentyApp({super.key});
 
