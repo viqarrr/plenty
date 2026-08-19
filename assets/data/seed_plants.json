@@ -8,7 +8,16 @@
     "sunlight_level": "Sinar Tidak Langsung Terang",
     "care_level": "EASY CARE",
     "image_url": "https://perenual.com/storage/species_image/1_monstera_deliciosa/regular/monstera.jpg",
-    "local_image_path": null
+    "local_image_path": null,
+    "toxicity": "Beracun jika tertelan oleh anjing atau kucing (kalsium oksalat).",
+    "is_toxic": 1,
+    "dimension": "Tinggi 2,5 - 3 Meter",
+    "growth_rate": "Sedang",
+    "cycle": "Perenial (Abadi)",
+    "pruning_month": "Musim Semi, Panas",
+    "flowering_season": "Jarang di Dalam Ruangan",
+    "description": "Monstera Deliciosa adalah tanaman hias tropis ikonik dari famili Araceae yang terkenal dengan daun lebar berlubang alami (fenestrasi). Sangat populer untuk mempercantik sudut ruangan dengan pencahayaan tidak langsung.",
+    "origin": "Amerika Tengah & Meksiko"
   },
   {
     "id": "cat_snake_plant",
@@ -19,7 +28,16 @@
     "sunlight_level": "Pencahayaan Rendah s/d Terang",
     "care_level": "EASY CARE",
     "image_url": null,
-    "local_image_path": null
+    "local_image_path": null,
+    "toxicity": "Beracun ringan bagi kucing & anjing karena mengandung saponin.",
+    "is_toxic": 1,
+    "dimension": "Tinggi 60 - 120 cm",
+    "growth_rate": "Lambat",
+    "cycle": "Perenial (Abadi)",
+    "pruning_month": "Musim Semi",
+    "flowering_season": "Jarang di Dalam Ruangan",
+    "description": "Snake Plant (Sansevieria) adalah tanaman hias pemurni udara tangguh yang ideal bagi pemula. Tahan terhadap kondisi cahaya rendah dan penyiraman minimal berkat daun tebalnya yang mampu menyimpan air.",
+    "origin": "Afrika Barat Tropis"
   },
   {
     "id": "cat_pothos",
@@ -30,7 +48,16 @@
     "sunlight_level": "Pencahayaan Rendah s/d Sedang",
     "care_level": "EASY CARE",
     "image_url": null,
-    "local_image_path": null
+    "local_image_path": null,
+    "toxicity": "Beracun bagi hewan peliharaan jika daun tertelan.",
+    "is_toxic": 1,
+    "dimension": "Panjang 1,5 - 3 Meter",
+    "growth_rate": "Cepat",
+    "cycle": "Perenial (Abadi)",
+    "pruning_month": "Sepanjang Tahun",
+    "flowering_season": "Jarang di Dalam Ruangan",
+    "description": "Golden Pothos (Sirih Gading) adalah tanaman merambat populer dengan daun bercorak cerah berbentuk hati. Sangat adaptif dan mampu tumbuh subur di berbagai kondisi pencahayaan dalam ruangan.",
+    "origin": "Polinesia Prancis"
   },
   {
     "id": "cat_calathea",
@@ -41,7 +68,16 @@
     "sunlight_level": "Sinar Tidak Langsung Sedang",
     "care_level": "INTERMEDIATE",
     "image_url": null,
-    "local_image_path": null
+    "local_image_path": null,
+    "toxicity": "Aman untuk kucing dan anjing (Non-toxic / Pet-friendly).",
+    "is_toxic": 0,
+    "dimension": "Tinggi 40 - 80 cm",
+    "growth_rate": "Sedang",
+    "cycle": "Perenial (Abadi)",
+    "pruning_month": "Musim Semi",
+    "flowering_season": "Jarang di Dalam Ruangan",
+    "description": "Calathea Orbifolia memiliki corak daun lebar bergaris perak yang memukau. Dikenal dengan sebutan \"Prayer Plant\" karena daunnya bergerak menutup di malam hari, serta aman bagi hewan peliharaan.",
+    "origin": "Bolivia & Amerika Selatan"
   },
   {
     "id": "cat_peace_lily",
@@ -52,7 +88,16 @@
     "sunlight_level": "Pencahayaan Rendah s/d Sedang",
     "care_level": "EASY CARE",
     "image_url": null,
-    "local_image_path": null
+    "local_image_path": null,
+    "toxicity": "Beracun jika tertelan oleh hewan peliharaan.",
+    "is_toxic": 1,
+    "dimension": "Tinggi 50 - 100 cm",
+    "growth_rate": "Sedang",
+    "cycle": "Perenial (Abadi)",
+    "pruning_month": "Setelah Berbunga",
+    "flowering_season": "Musim Semi & Panas",
+    "description": "Peace Lily adalah tanaman hias tropis yang anggun dengan bunga putih elegan. Efektif menyaring polutan udara dan memberikan sinyal visual ketika membutuhkan penyiraman.",
+    "origin": "Amerika Tengah & Tropis"
   },
   {
     "id": "cat_zz_plant",
@@ -60,31 +105,18 @@
     "scientific_name": "Zamioculcas zamiifolia",
     "family": "Araceae",
     "default_watering_interval": 14,
-    "sunlight_level": "Pencahayaan Rendah",
+    "sunlight_level": "Pencahayaan Rendah s/d Terang",
     "care_level": "EASY CARE",
     "image_url": null,
-    "local_image_path": null
-  },
-  {
-    "id": "cat_fiddle_leaf",
-    "common_name": "Fiddle Leaf Fig",
-    "scientific_name": "Ficus lyrata",
-    "family": "Moraceae",
-    "default_watering_interval": 7,
-    "sunlight_level": "Sinar Terang Tidak Langsung",
-    "care_level": "INTERMEDIATE",
-    "image_url": null,
-    "local_image_path": null
-  },
-  {
-    "id": "cat_aloe_vera",
-    "common_name": "Lidah Buaya (Aloe Vera)",
-    "scientific_name": "Aloe barbadensis miller",
-    "family": "Asphodelaceae",
-    "default_watering_interval": 14,
-    "sunlight_level": "Sinar Matahari Penuh s/d Terang",
-    "care_level": "EASY CARE",
-    "image_url": null,
-    "local_image_path": null
+    "local_image_path": null,
+    "toxicity": "Beracun jika tertelan, jauhkan dari jangkauan anak dan hewan.",
+    "is_toxic": 1,
+    "dimension": "Tinggi 60 - 90 cm",
+    "growth_rate": "Lambat",
+    "cycle": "Perenial (Abadi)",
+    "pruning_month": "Musim Semi",
+    "flowering_season": "Jarang di Dalam Ruangan",
+    "description": "ZZ Plant memiliki daun hijau mengkilap yang sangat kokoh. Memiliki umbi rimpang penyimpan air sehingga dapat bertahan berminggu-minggu tanpa disiram.",
+    "origin": "Afrika Timur"
   }
 ]

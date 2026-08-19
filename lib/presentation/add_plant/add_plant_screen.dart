@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
-import 'package:plenty/data/models/plant_model.dart';
+import 'package:plenty/data/models/plant_catalog_model.dart';
 import 'package:plenty/data/repositories/plant_repository.dart';
+import 'package:plenty/presentation/add_plant/add_plant_flow_screen.dart';
 import 'package:plenty/presentation/add_plant/catalog_plant_card.dart';
 import 'package:plenty/presentation/add_plant/catalog_search_bar.dart';
-import 'package:plenty/presentation/plant_details/plant_details_screen.dart';
+import 'package:plenty/presentation/add_plant/species_detail_preview_screen.dart';
 
 class AddPlantScreen extends StatefulWidget {
   final PlantRepository? plantRepository;
@@ -24,7 +25,7 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
   late final PlantRepository _plantRepository;
   Timer? _debounceTimer;
 
-  List<PlantModel> _catalog = [];
+  List<PlantCatalogModel> _catalog = [];
   String _selectedCareFilter = 'Semua';
   String _searchQuery = '';
 
@@ -46,22 +47,7 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
     final catalogList = await _plantRepository.getCatalogPlants(query: query);
     if (!mounted) return;
     setState(() {
-      _catalog = catalogList
-          .map(
-            (c) => PlantModel(
-              id: c.id,
-              userId: 'usr_default',
-              catalogId: c.id,
-              nickname: c.commonName,
-              commonName: c.commonName,
-              defaultWateringInterval: c.defaultWateringInterval,
-              careLevel: c.careLevel,
-              sunlightCondition: c.sunlightLevel,
-              coverPhotoPath: c.imageUrl,
-              adoptedAt: DateTime.now(),
-            ),
-          )
-          .toList();
+      _catalog = catalogList;
     });
   }
 
@@ -74,18 +60,21 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
     });
   }
 
-  List<PlantModel> get _filteredCatalog {
-    return _catalog.where((plant) {
+  List<PlantCatalogModel> get _filteredCatalog {
+    return _catalog.where((species) {
       final matchesSearch =
           _searchQuery.isEmpty ||
-          plant.name.toLowerCase().contains(_searchQuery) ||
-          plant.scientificName.toLowerCase().contains(_searchQuery);
+          species.commonName.toLowerCase().contains(_searchQuery) ||
+          (species.scientificName?.toLowerCase().contains(_searchQuery) ??
+              false);
 
       bool matchesCare = true;
       if (_selectedCareFilter == 'Easy Care') {
-        matchesCare = plant.careLevel.toLowerCase().contains('easy');
+        final care = (species.careLevel ?? '').toLowerCase();
+        matchesCare = care.contains('easy') || care.contains('mudah');
       } else if (_selectedCareFilter == 'Pencahayaan Rendah') {
-        matchesCare = plant.lightIntensity.toLowerCase().contains('rendah');
+        final sun = (species.sunlightLevel ?? '').toLowerCase();
+        matchesCare = sun.contains('low') || sun.contains('rendah');
       }
 
       return matchesSearch && matchesCare;
@@ -144,11 +133,18 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20.0),
                       itemCount: _filteredCatalog.length,
                       itemBuilder: (context, index) {
-                        final plant = _filteredCatalog[index];
+                        final species = _filteredCatalog[index];
                         return CatalogPlantCard(
-                          plant: plant,
+                          species: species,
                           onTap: () {
-                            context.push(PlantDetailsScreen(plant: plant));
+                            context.push(
+                              SpeciesDetailPreviewScreen(
+                                species: species,
+                                onAddToCollection: () {
+                                  context.push(const AddPlantFlowScreen());
+                                },
+                              ),
+                            );
                           },
                         );
                       },

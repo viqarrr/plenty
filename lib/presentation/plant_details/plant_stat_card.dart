@@ -19,7 +19,7 @@ class PlantStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -28,18 +28,20 @@ class PlantStatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: iconColor, size: 24),
+          Icon(icon, color: iconColor, size: 22),
           const SizedBox(height: 12),
-          Text(
-            value,
-            style: AppTypography.title2Bold.copyWith(fontSize: 16),
-          ),
-          const SizedBox(height: 2),
           Text(
             label,
             style: AppTypography.caption1Regular.copyWith(
               color: AppColors.muted,
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: AppTypography.title2Bold.copyWith(fontSize: 16),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

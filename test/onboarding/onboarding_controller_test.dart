@@ -28,17 +28,21 @@ void main() {
     await dbHelper.deleteDb();
 
     final db = await dbHelper.database;
-    await db.insert(DatabaseHelper.tableUsers, {
-      'id': 'usr_default',
-      'email': 'user@plenty.app',
-      'display_name': 'Test User',
-      'created_at': DateTime.now().toIso8601String(),
-    });
+    await db.insert(
+      DatabaseHelper.tableUsers,
+      {
+        'id': 1,
+        'email': 'user@plenty.app',
+        'display_name': 'Test User',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
 
     userRepo = UserRepository(dbHelper: dbHelper);
     controller = OnboardingController(
       userRepo: userRepo,
-      userId: 'usr_default',
+      userId: '1',
     );
   });
 
@@ -77,7 +81,7 @@ void main() {
         expect(controller.state.currentStep, 3);
 
         // Check SQLite persistence
-        final savedPrefs = await userRepo.getUserPreferences('usr_default');
+        final savedPrefs = await userRepo.getUserPreferences('1');
         expect(savedPrefs, isNotNull);
         expect(savedPrefs!.experienceLevel, 'intermediate');
         expect(savedPrefs.dailyTimeMinutes, 30.0);
@@ -97,7 +101,7 @@ void main() {
 
         expect(controller.state.isCompleted, true);
 
-        final savedPrefs = await userRepo.getUserPreferences('usr_default');
+        final savedPrefs = await userRepo.getUserPreferences('1');
         expect(savedPrefs, isNotNull);
         expect(savedPrefs!.hasCompletedOnboarding, true);
         expect(savedPrefs.hasPets, true);

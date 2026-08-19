@@ -32,14 +32,31 @@ void main() {
     dbHelper = DatabaseHelper.forTesting(uniqueName);
     await dbHelper.deleteDb();
 
-    // Seed default user
+    // Seed default user and streak
     final db = await dbHelper.database;
-    await db.insert(DatabaseHelper.tableUsers, {
-      'id': 'usr_default',
-      'email': 'user@plenty.app',
-      'display_name': 'Alice',
-      'created_at': DateTime.now().toIso8601String(),
-    });
+    await db.insert(
+      DatabaseHelper.tableUsers,
+      {
+        'id': 1,
+        'email': 'user@plenty.app',
+        'display_name': 'Alice',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    await db.insert(
+      DatabaseHelper.tableUserStreaks,
+      {
+        'id': 'streak_1',
+        'user_id': 1,
+        'current_streak': 3,
+        'longest_streak': 3,
+        'current_tier': 2,
+        'last_streak_date': '2026-08-19',
+        'freeze_tokens_available': 1,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
 
     plantRepo = PlantRepository(dbHelper: dbHelper);
     careRepo = CareRepository(dbHelper: dbHelper);
@@ -48,7 +65,7 @@ void main() {
     controller = HomeController(
       plantRepo: plantRepo,
       careRepo: careRepo,
-      userId: 'usr_default',
+      userId: '1',
     );
   });
 
@@ -71,7 +88,7 @@ void main() {
       () async {
         // Add a plant
         await plantRepo.addPlant(
-          userId: 'usr_default',
+          userId: '1',
           species: PlantCatalogModel(
             id: 'cat_monstera',
             commonName: 'Monstera Deliciosa',
@@ -93,7 +110,7 @@ void main() {
 
     test('Room filter updates filtered plants', () async {
       await plantRepo.addPlant(
-        userId: 'usr_default',
+        userId: '1',
         species: PlantCatalogModel(
           id: 'cat_monstera',
           commonName: 'Monstera Deliciosa',

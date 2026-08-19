@@ -11,10 +11,7 @@ class AddPlantResult {
   final PlantModel plant;
   final bool isFirstPlant;
 
-  const AddPlantResult({
-    required this.plant,
-    required this.isFirstPlant,
-  });
+  const AddPlantResult({required this.plant, required this.isFirstPlant});
 }
 
 /// Repository managing user plants, botanical catalog data, and adoption transactions.
@@ -27,8 +24,8 @@ class PlantRepository {
   PlantRepository({
     DatabaseHelper? dbHelper,
     PlantRemoteDataSource? remoteDataSource,
-  })  : _dbHelper = dbHelper ?? DatabaseHelper.instance,
-        _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl() {
+  }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
+       _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl() {
     _impl = PlantRepositoryImpl(
       dbHelper: _dbHelper,
       remoteDataSource: _remoteDataSource,
@@ -70,21 +67,23 @@ class PlantRepository {
       defaultWateringInterval: defaultWateringInterval,
     );
 
-    return result.dataOrNull!;
+    return result.when(
+      success: (data) => data,
+      error: (failure) => throw Exception(failure.message),
+    );
   }
 
-  /// Retrieves all active (non-archived) user plants for a user.
-  Future<List<PlantModel>> getUserPlants([
-    String userId = 'usr_default',
-  ]) async {
-    final result = await _impl.getUserPlants(userId);
+  Future<List<PlantModel>> getUserPlants([String? userId]) async {
+    final result = await _impl.getUserPlants(userId ?? 'usr_default');
     return result.dataOrNull ?? [];
   }
 
-  /// Retrieves a specific plant by its ID.
   Future<PlantModel?> getPlantById(String plantId) async {
     final result = await _impl.getPlantById(plantId);
-    return result.dataOrNull;
+    return result.when(
+      success: (data) => data,
+      error: (failure) => throw Exception(failure.message),
+    );
   }
 
   /// Archives a plant by setting is_archived = 1.
@@ -116,8 +115,7 @@ class PlantRepository {
     required String query,
     int page = 1,
     bool forceRefresh = false,
-  }) =>
-      getCatalogPlants(query: query, page: page, forceRefresh: forceRefresh);
+  }) => getCatalogPlants(query: query, page: page, forceRefresh: forceRefresh);
 
   /// Retrieves detailed species information by ID with Cache-First strategy.
   Future<PlantCatalogModel?> getSpeciesDetails(

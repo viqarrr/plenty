@@ -69,7 +69,7 @@ class UserPreferenceModel {
   factory UserPreferenceModel.fromMap(Map<String, dynamic> map) {
     return UserPreferenceModel(
       id: (map['id'] as String?) ?? '',
-      userId: (map['user_id'] as String?) ?? '',
+      userId: map['user_id']?.toString() ?? '1',
       experienceLevel: (map['experience_level'] as String?) ?? 'beginner',
       dailyTimeMinutes: (map['daily_time_minutes'] as num?)?.toDouble() ?? 15.0,
       hasPets: map['has_pets'] == 1 || map['has_pets'] == true,
@@ -84,7 +84,7 @@ class UserPreferenceModel {
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'id': id.isEmpty ? 'pref_${DateTime.now().millisecondsSinceEpoch}' : id,
-      'user_id': userId,
+      'user_id': int.tryParse(userId) ?? 1,
       'experience_level': experienceLevel,
       'daily_time_minutes': dailyTimeMinutes,
       'has_pets': hasPets ? 1 : 0,

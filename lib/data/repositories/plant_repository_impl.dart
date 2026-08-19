@@ -185,7 +185,7 @@ class PlantRepositoryImpl implements IPlantRepository {
       try {
         final jsonString =
             await rootBundle.loadString('assets/data/seed_plants.json');
-        final List<dynamic> jsonList = jsonDecode(jsonString);
+        final jsonList = jsonDecode(jsonString) as List<dynamic>;
         seeds = jsonList
             .whereType<Map<String, dynamic>>()
             .map((m) => PlantCatalogModel.fromMap({
@@ -244,11 +244,56 @@ class PlantRepositoryImpl implements IPlantRepository {
     try {
       final db = await _dbHelper.database;
 
+      final int parsedUserId = int.tryParse(userId.toString()) ?? 1;
+
       final result = await db.transaction<AddPlantResult>((txn) async {
+        // 1. Ensure user exists to satisfy foreign key constraint
+        final userRows = await txn.query(
+          DatabaseHelper.tableUsers,
+          where: 'id = ?',
+          whereArgs: [parsedUserId],
+          limit: 1,
+        );
+        if (userRows.isEmpty) {
+          await txn.insert(
+            DatabaseHelper.tableUsers,
+            {
+              'id': parsedUserId,
+              'email': 'user_$parsedUserId@plenty.app',
+              'username': 'user_$parsedUserId',
+              'password': '',
+              'display_name': 'Pecinta Tanaman',
+              'created_at': DateTime.now().toIso8601String(),
+            },
+            conflictAlgorithm: ConflictAlgorithm.ignore,
+          );
+        }
+
+        // 2. Ensure species exists in plant_catalog to satisfy foreign key constraint
+        String? finalCatalogId = catalogId ?? species?.id;
+        if (species != null) {
+          await txn.insert(
+            DatabaseHelper.tablePlantCatalog,
+            species.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          finalCatalogId = species.id;
+        } else if (finalCatalogId != null) {
+          final catRows = await txn.query(
+            DatabaseHelper.tablePlantCatalog,
+            where: 'id = ?',
+            whereArgs: [finalCatalogId],
+            limit: 1,
+          );
+          if (catRows.isEmpty) {
+            finalCatalogId = null; // Prevent FK failure if catalog id does not exist
+          }
+        }
+
         final existingPlants = await txn.query(
           DatabaseHelper.tableUserPlants,
           where: 'user_id = ? AND is_archived = 0',
-          whereArgs: [userId],
+          whereArgs: [parsedUserId],
         );
         final isFirstPlant = existingPlants.isEmpty;
 
@@ -259,7 +304,7 @@ class PlantRepositoryImpl implements IPlantRepository {
         final plant = PlantModel(
           id: plantId,
           userId: userId,
-          catalogId: catalogId ?? species?.id,
+          catalogId: finalCatalogId,
           nickname: nickname,
           isIndoor: isIndoor,
           sunlightCondition: sunlightCondition,
@@ -267,7 +312,7 @@ class PlantRepositoryImpl implements IPlantRepository {
           windowDistance: windowDistance,
           initialHeightCm: initialHeightCm ?? 30.0,
           adoptedAt: adoptedAt,
-          coverPhotoPath: coverPhotoPath ?? species?.localImagePath,
+          coverPhotoPath: coverPhotoPath ?? species?.imageUrl ?? species?.localImagePath,
           healthStatus: 'healthy',
           level: 1,
           xp: 0,
@@ -363,13 +408,14 @@ class PlantRepositoryImpl implements IPlantRepository {
   ]) async {
     try {
       final db = await _dbHelper.database;
+      final parsedUserId = int.tryParse(userId.toString()) ?? 1;
       final maps = await db.rawQuery('''
         SELECT up.*, pc.common_name, pc.default_watering_interval
         FROM ${DatabaseHelper.tableUserPlants} up
         LEFT JOIN ${DatabaseHelper.tablePlantCatalog} pc ON up.catalog_id = pc.id
         WHERE up.user_id = ? AND up.is_archived = 0
         ORDER BY up.adopted_at DESC
-      ''', [userId]);
+      ''', [parsedUserId]);
 
       final plants = maps.map((m) => PlantModel.fromMap(m)).toList();
       return Success(plants);
@@ -438,6 +484,16 @@ class PlantRepositoryImpl implements IPlantRepository {
         defaultWateringInterval: 7,
         sunlightLevel: 'Sinar Tidak Langsung Terang',
         careLevel: 'EASY CARE',
+        dimension: 'Tinggi 2,5 - 3 Meter',
+        growthRate: 'Sedang',
+        cycle: 'Perenial (Abadi)',
+        pruningMonth: 'Musim Semi, Panas',
+        floweringSeason: 'Jarang di Dalam Ruangan',
+        description:
+            'Monstera Deliciosa adalah tanaman hias tropis ikonik dari famili Araceae yang terkenal dengan daun lebar berlubang alami (fenestrasi).',
+        toxicity:
+            'Beracun jika tertelan oleh anjing atau kucing (kalsium oksalat).',
+        isToxicToPets: true,
         cachedAt: DateTime.now(),
       ),
       PlantCatalogModel(
@@ -448,6 +504,15 @@ class PlantRepositoryImpl implements IPlantRepository {
         defaultWateringInterval: 14,
         sunlightLevel: 'Pencahayaan Rendah s/d Terang',
         careLevel: 'EASY CARE',
+        dimension: 'Tinggi 60 - 120 cm',
+        growthRate: 'Lambat',
+        cycle: 'Perenial (Abadi)',
+        pruningMonth: 'Musim Semi',
+        floweringSeason: 'Jarang di Dalam Ruangan',
+        description:
+            'Snake Plant (Sansevieria) adalah tanaman hias pemurni udara tangguh yang ideal bagi pemula.',
+        toxicity: 'Beracun ringan bagi kucing & anjing.',
+        isToxicToPets: true,
         cachedAt: DateTime.now(),
       ),
       PlantCatalogModel(
@@ -458,6 +523,15 @@ class PlantRepositoryImpl implements IPlantRepository {
         defaultWateringInterval: 5,
         sunlightLevel: 'Pencahayaan Rendah s/d Sedang',
         careLevel: 'EASY CARE',
+        dimension: 'Panjang 1,5 - 3 Meter',
+        growthRate: 'Cepat',
+        cycle: 'Perenial (Abadi)',
+        pruningMonth: 'Sepanjang Tahun',
+        floweringSeason: 'Jarang di Dalam Ruangan',
+        description:
+            'Golden Pothos (Sirih Gading) adalah tanaman merambat populer dengan daun bercorak cerah berbentuk hati.',
+        toxicity: 'Beracun bagi hewan peliharaan jika daun tertelan.',
+        isToxicToPets: true,
         cachedAt: DateTime.now(),
       ),
       PlantCatalogModel(
@@ -468,6 +542,15 @@ class PlantRepositoryImpl implements IPlantRepository {
         defaultWateringInterval: 4,
         sunlightLevel: 'Sinar Tidak Langsung Sedang',
         careLevel: 'INTERMEDIATE',
+        dimension: 'Tinggi 40 - 80 cm',
+        growthRate: 'Sedang',
+        cycle: 'Perenial (Abadi)',
+        pruningMonth: 'Musim Semi',
+        floweringSeason: 'Jarang di Dalam Ruangan',
+        description:
+            'Calathea Orbifolia memiliki corak daun lebar bergaris perak yang memukau dan aman bagi hewan peliharaan.',
+        toxicity: 'Aman untuk kucing dan anjing (Non-toxic / Pet-friendly).',
+        isToxicToPets: false,
         cachedAt: DateTime.now(),
       ),
     ];

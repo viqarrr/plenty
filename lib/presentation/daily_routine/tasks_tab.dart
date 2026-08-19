@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/data/models/care_task_model.dart';
+import 'package:plenty/presentation/daily_routine/monitor_tinggi_input_sheet.dart';
 import 'package:plenty/presentation/daily_routine/task_card.dart';
+
+typedef TaskCompletionCallback = void Function(
+  CareTaskModel task, {
+  double? heightCm,
+  String? note,
+  String? photoPath,
+});
 
 class TasksTab extends StatelessWidget {
   final List<CareTaskModel> tasks;
-  final ValueChanged<CareTaskModel> onCompleteTask;
+  final TaskCompletionCallback onCompleteTask;
 
   const TasksTab({
     super.key,
@@ -64,7 +72,28 @@ class TasksTab extends StatelessWidget {
                 final task = tasks[index];
                 return TaskCard(
                   task: task,
-                  onAction: () => onCompleteTask(task),
+                  onAction: () {
+                    if (task.type == TaskType.monitorTinggi) {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => MonitorTinggiInputSheet(
+                          plant: task.plant,
+                          onSubmit: (heightCm, note, photoPath) {
+                            onCompleteTask(
+                              task,
+                              heightCm: heightCm,
+                              note: note,
+                              photoPath: photoPath,
+                            );
+                          },
+                        ),
+                      );
+                    } else {
+                      onCompleteTask(task);
+                    }
+                  },
                 );
               },
             ),

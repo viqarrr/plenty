@@ -29,16 +29,20 @@ void main() {
     test('addPlant performs atomic insertion across user_plants, initial growth_logs, care_schedules, and time_capsules', () async {
       // 1. Insert user first
       final db = await dbHelper.database;
-      await db.insert(DatabaseHelper.tableUsers, {
-        'id': 'user_1',
-        'email': 'test@plenty.app',
-        'display_name': 'Test User',
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      await db.insert(
+        DatabaseHelper.tableUsers,
+        {
+          'id': 1,
+          'email': 'test@plenty.app',
+          'display_name': 'Test User',
+          'created_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
 
       final unlockDate = DateTime.now().add(const Duration(days: 60));
       final result = await plantRepository.addPlant(
-        userId: 'user_1',
+        userId: '1',
         nickname: 'Monsty Deliciosa',
         isIndoor: true,
         sunlightCondition: 'Sinar Tidak Langsung',
@@ -61,9 +65,10 @@ void main() {
       expect(result.plant.level, 1);
       expect(result.plant.xp, 0);
 
-      // Verify user_plants table row
+      // Verify saved in SQLite
+      final userPlants = await plantRepository.getUserPlants('1');
+      expect(userPlants.length, 1);
       final plantRows = await db.query(DatabaseHelper.tableUserPlants);
-      expect(plantRows.length, 1);
       expect(plantRows.first['nickname'], 'Monsty Deliciosa');
       expect(plantRows.first['initial_height_cm'], 28.5);
 

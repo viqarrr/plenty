@@ -120,8 +120,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
                 CustomTextField(
                   controller: _emailController,
-                  label: 'Email / Username',
-                  hintText: 'budihartono / nama@gmail.com',
+                  label: 'Email',
+                  hintText: 'nama@gmail.com',
                   keyboardType: TextInputType.emailAddress,
                   supportingText: 'Gunakan email atau username terdaftar',
                   prefixIcon: const Icon(

@@ -28,12 +28,16 @@ void main() {
 
     // Seed default user
     final db = await dbHelper.database;
-    await db.insert(DatabaseHelper.tableUsers, {
-      'id': 'usr_default',
-      'email': 'user@plenty.app',
-      'display_name': 'Test User',
-      'created_at': DateTime.now().toIso8601String(),
-    });
+    await db.insert(
+      DatabaseHelper.tableUsers,
+      {
+        'id': 1,
+        'email': 'user@plenty.app',
+        'display_name': 'Test User',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
 
     growthRepo = GrowthRepository(dbHelper: dbHelper);
     plantRepo = PlantRepository(dbHelper: dbHelper);
@@ -48,8 +52,8 @@ void main() {
       tester,
     ) async {
       final plant = PlantModel(
-        id: 'plant_test_1',
-        userId: 'usr_default',
+        id: 'plt_monstera_1',
+        userId: '1',
         nickname: 'Super Pothos',
         isIndoor: true,
         initialHeightCm: 25.0,
@@ -101,7 +105,7 @@ void main() {
       expect(find.text('30 / 100 XP'), findsOneWidget);
       expect(find.text('Grafik Pertumbuhan Tinggi'), findsOneWidget);
       expect(find.text('Kapsul Waktu (Time Capsule)'), findsOneWidget);
-      expect(find.text('Buat'), findsOneWidget);
+      expect(find.text('Buat Kapsul Waktu'), findsOneWidget);
     });
 
     testWidgets(
@@ -109,7 +113,7 @@ void main() {
       (tester) async {
         final plant = PlantModel(
           id: 'plant_test_2',
-          userId: 'usr_default',
+          userId: '1',
           nickname: 'Locked Calathea',
           isIndoor: true,
           initialHeightCm: 20.0,

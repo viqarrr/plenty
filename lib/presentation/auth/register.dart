@@ -7,7 +7,6 @@ import 'package:plenty/core/widgets/custom_text_field.dart';
 import 'package:plenty/data/models/user_model.dart';
 import 'package:plenty/data/repositories/auth_repository_impl.dart';
 import 'package:plenty/presentation/auth/login.dart';
-import 'package:sqlite_viewer2/sqlite_viewer.dart';
 
 class RegisterScreen extends StatefulWidget {
   final AuthRepositoryImpl? authRepository;
@@ -35,7 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   int _currentStep = 0;
   bool _isLoading = false;
   bool _obscurePassword = true;
-  final bool _obscureConfirmPassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void initState() {
@@ -172,12 +171,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 : Icons.visibility_outlined,
             color: AppColors.mutedGray,
           ),
-          // onPressed: () => setState(
-          //   () => _obscureConfirmPassword = !_obscureConfirmPassword,
-          // ),
-          onPressed: () {
-            context.push(DatabaseList());
-          },
+          onPressed: () => setState(
+            () => _obscureConfirmPassword = !_obscureConfirmPassword,
+          ),
+          // onPressed: () {
+          //   context.push(DatabaseList());
+          // },
         ),
         supportingText: 'Ulangi kata sandi yang sama',
         validator: (v) {

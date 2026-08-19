@@ -3,11 +3,11 @@ import 'package:sqflite/sqflite.dart';
 
 /// Singleton Database Helper for PLENTY local SQLite database management.
 ///
-/// Implements SQLite database initialization, lifecycle management, foreign key
-/// constraints enforcement, and database schema creation according to the ERD specification.
+/// Implements complete SQLite database schema creation in `_onCreate` with
+/// INTEGER PRIMARY KEY AUTOINCREMENT on users table and integer user_id foreign keys across tables.
 class DatabaseHelper {
   static const String _databaseName = 'plenty.db';
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 1;
 
   // Table Names
   static const String tableUsers = 'users';
@@ -34,12 +34,16 @@ class DatabaseHelper {
   DatabaseHelper.forTesting([String? dbName])
       : _dbName = dbName ?? 'test_${DateTime.now().microsecondsSinceEpoch}.db';
 
+  DatabaseHelper.withDatabase(Database db)
+      : _dbName = 'in_memory',
+        _customDb = db;
+
   static Database? _database;
 
   /// Returns the database instance, initializing it if necessary.
   Future<Database> get database async {
+    if (_customDb != null && _customDb!.isOpen) return _customDb!;
     if (_dbName != _databaseName) {
-      if (_customDb != null && _customDb!.isOpen) return _customDb!;
       _customDb = await _initDatabaseForName(_dbName);
       return _customDb!;
     }
@@ -57,8 +61,6 @@ class DatabaseHelper {
       version: _databaseVersion,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-      onOpen: _onOpen,
     );
   }
 
@@ -72,8 +74,6 @@ class DatabaseHelper {
       version: _databaseVersion,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-      onOpen: _onOpen,
     );
   }
 
@@ -83,96 +83,17 @@ class DatabaseHelper {
     await db.execute('PRAGMA foreign_keys = ON;');
   }
 
-  /// Handles schema migrations across database versions.
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      try {
-        await db.execute('ALTER TABLE $tableUsers ADD COLUMN username TEXT;');
-      } catch (_) {}
-      try {
-        await db.execute(
-          'ALTER TABLE $tableUsers ADD COLUMN password TEXT NOT NULL DEFAULT "";',
-        );
-      } catch (_) {}
-    }
-    if (oldVersion < 3) {
-      try {
-        await db.execute('ALTER TABLE $tablePlantCatalog ADD COLUMN cached_at TEXT;');
-      } catch (_) {}
-      try {
-        await db.execute(
-          'ALTER TABLE $tableUserPreferences ADD COLUMN daily_time_minutes REAL DEFAULT 15.0;',
-        );
-      } catch (_) {}
-      try {
-        await db.execute(
-          'ALTER TABLE $tableUserPreferences ADD COLUMN has_pets INTEGER DEFAULT 0;',
-        );
-      } catch (_) {}
-      try {
-        await db.execute(
-          'ALTER TABLE $tableUserPreferences ADD COLUMN has_kids INTEGER DEFAULT 0;',
-        );
-      } catch (_) {}
-      try {
-        await db.execute('ALTER TABLE $tableGrowthLogs ADD COLUMN leaf_count INTEGER;');
-      } catch (_) {}
-      try {
-        await db.execute('ALTER TABLE $tableCareActionLogs ADD COLUMN log_date TEXT;');
-      } catch (_) {}
-      try {
-        await db.execute(
-          'ALTER TABLE $tableCareActionLogs ADD COLUMN xp_awarded INTEGER DEFAULT 0;',
-        );
-      } catch (_) {}
-    }
-  }
-
-  /// Runs idempotent column checks to ensure existing installed databases
-  /// automatically adapt to any missing columns.
-  Future<void> _onOpen(Database db) async {
-    try {
-      await db.execute('ALTER TABLE $tablePlantCatalog ADD COLUMN cached_at TEXT;');
-    } catch (_) {}
-    try {
-      await db.execute(
-        'ALTER TABLE $tableUserPreferences ADD COLUMN daily_time_minutes REAL DEFAULT 15.0;',
-      );
-    } catch (_) {}
-    try {
-      await db.execute(
-        'ALTER TABLE $tableUserPreferences ADD COLUMN has_pets INTEGER DEFAULT 0;',
-      );
-    } catch (_) {}
-    try {
-      await db.execute(
-        'ALTER TABLE $tableUserPreferences ADD COLUMN has_kids INTEGER DEFAULT 0;',
-      );
-    } catch (_) {}
-    try {
-      await db.execute('ALTER TABLE $tableGrowthLogs ADD COLUMN leaf_count INTEGER;');
-    } catch (_) {}
-    try {
-      await db.execute('ALTER TABLE $tableCareActionLogs ADD COLUMN log_date TEXT;');
-    } catch (_) {}
-    try {
-      await db.execute(
-        'ALTER TABLE $tableCareActionLogs ADD COLUMN xp_awarded INTEGER DEFAULT 0;',
-      );
-    } catch (_) {}
-  }
-
-  /// Creates all 13 ERD tables and high-frequency query indexes.
+  /// Creates all 13 ERD tables and default indexes directly in _onCreate without migrations.
   Future<void> _onCreate(Database db, int version) async {
     final batch = db.batch();
 
-    // 1. users
+    // 1. users: INTEGER PRIMARY KEY AUTOINCREMENT
     batch.execute('''
       CREATE TABLE $tableUsers (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
         username TEXT UNIQUE,
-        password TEXT,
+        password TEXT NOT NULL DEFAULT '',
         display_name TEXT NOT NULL,
         bio TEXT,
         avatar_url TEXT,
@@ -184,7 +105,7 @@ class DatabaseHelper {
     batch.execute('''
       CREATE TABLE $tableUserPreferences (
         id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
         experience_level TEXT NOT NULL,
         daily_time_minutes REAL DEFAULT 15.0,
         has_pets INTEGER DEFAULT 0,
@@ -208,6 +129,15 @@ class DatabaseHelper {
         care_level TEXT,
         image_url TEXT,
         local_image_path TEXT,
+        toxicity TEXT,
+        dimension TEXT,
+        growth_rate TEXT,
+        cycle TEXT,
+        pruning_month TEXT,
+        flowering_season TEXT,
+        description TEXT,
+        origin TEXT,
+        is_toxic INTEGER DEFAULT 0,
         cached_at TEXT
       );
     ''');
@@ -216,7 +146,7 @@ class DatabaseHelper {
     batch.execute('''
       CREATE TABLE $tableUserPlants (
         id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
         catalog_id TEXT,
         nickname TEXT NOT NULL,
         is_indoor INTEGER NOT NULL DEFAULT 1,
@@ -270,12 +200,12 @@ class DatabaseHelper {
       CREATE TABLE $tableGrowthLogs (
         id TEXT PRIMARY KEY,
         user_plant_id TEXT NOT NULL,
-        photo_path TEXT,
-        height_cm REAL,
+        logged_at TEXT NOT NULL,
+        height_cm REAL NOT NULL,
         leaf_count INTEGER,
+        photo_path TEXT,
         source TEXT NOT NULL DEFAULT 'manual',
         note TEXT,
-        logged_at TEXT NOT NULL,
         FOREIGN KEY (user_plant_id) REFERENCES $tableUserPlants (id) ON DELETE CASCADE
       );
     ''');
@@ -297,11 +227,15 @@ class DatabaseHelper {
     // 9. user_streaks
     batch.execute('''
       CREATE TABLE $tableUserStreaks (
-        user_id TEXT PRIMARY KEY,
-        current_streak INTEGER DEFAULT 0,
-        longest_streak INTEGER DEFAULT 0,
-        current_tier INTEGER DEFAULT 1,
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL UNIQUE,
+        current_streak INTEGER NOT NULL DEFAULT 0,
+        longest_streak INTEGER NOT NULL DEFAULT 0,
+        current_tier INTEGER NOT NULL DEFAULT 1,
         last_streak_date TEXT,
+        last_completed_date TEXT,
+        freeze_tokens_available INTEGER DEFAULT 1,
+        freeze_used_on TEXT,
         FOREIGN KEY (user_id) REFERENCES $tableUsers (id) ON DELETE CASCADE
       );
     ''');
@@ -320,9 +254,10 @@ class DatabaseHelper {
     batch.execute('''
       CREATE TABLE $tableUserBadges (
         id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
         badge_id TEXT NOT NULL,
         unlocked_at TEXT NOT NULL,
+        UNIQUE(user_id, badge_id),
         FOREIGN KEY (user_id) REFERENCES $tableUsers (id) ON DELETE CASCADE,
         FOREIGN KEY (badge_id) REFERENCES $tableBadges (id) ON DELETE CASCADE
       );
@@ -332,9 +267,9 @@ class DatabaseHelper {
     batch.execute('''
       CREATE TABLE $tableCommunityPosts (
         id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
         category TEXT NOT NULL,
-        caption TEXT NOT NULL,
+        caption TEXT,
         image_url TEXT,
         kudos_count INTEGER DEFAULT 0,
         comment_count INTEGER DEFAULT 0,
@@ -348,7 +283,7 @@ class DatabaseHelper {
       CREATE TABLE $tablePostComments (
         id TEXT PRIMARY KEY,
         post_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
         content TEXT NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY (post_id) REFERENCES $tableCommunityPosts (id) ON DELETE CASCADE,
@@ -356,19 +291,31 @@ class DatabaseHelper {
       );
     ''');
 
-    // High-frequency query indexes
+    // Indexes
     batch.execute(
-      'CREATE INDEX IF NOT EXISTS idx_user_plants_user ON $tableUserPlants (user_id);',
+      'CREATE INDEX IF NOT EXISTS idx_care_schedules_plant ON $tableCareSchedules(user_plant_id);',
     );
     batch.execute(
-      'CREATE INDEX IF NOT EXISTS idx_care_schedules_plant ON $tableCareSchedules (user_plant_id);',
+      'CREATE INDEX IF NOT EXISTS idx_care_logs_plant_date ON $tableCareActionLogs(user_plant_id, log_date);',
     );
     batch.execute(
-      'CREATE INDEX IF NOT EXISTS idx_growth_logs_plant ON $tableGrowthLogs (user_plant_id);',
+      'CREATE INDEX IF NOT EXISTS idx_growth_logs_plant ON $tableGrowthLogs(user_plant_id, logged_at);',
     );
     batch.execute(
-      'CREATE INDEX IF NOT EXISTS idx_community_posts_created ON $tableCommunityPosts (created_at DESC);',
+      'CREATE INDEX IF NOT EXISTS idx_community_posts_created ON $tableCommunityPosts(created_at DESC);',
     );
+    batch.execute(
+      'CREATE INDEX IF NOT EXISTS idx_community_posts_category ON $tableCommunityPosts(category);',
+    );
+    batch.execute(
+      'CREATE INDEX IF NOT EXISTS idx_user_plants_user ON $tableUserPlants(user_id);',
+    );
+
+    // Seed Initial Default User (id: 1)
+    batch.execute('''
+      INSERT OR IGNORE INTO $tableUsers (id, email, username, password, display_name, created_at)
+      VALUES (1, 'default@plenty.app', 'user_default', '', 'Pecinta Tanaman', '${DateTime.now().toIso8601String()}');
+    ''');
 
     await batch.commit(noResult: true);
   }

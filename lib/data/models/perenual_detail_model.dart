@@ -235,22 +235,31 @@ class PerenualDetailModel {
     return sunlight.join(', ');
   }
 
-  /// Maps this Perenual Detail DTO directly into the SQLite `plant_catalog` model.
+  /// Maps this Perenual Detail DTO directly into the SQLite `plant_catalog` model with translated attributes.
   PlantCatalogModel toPlantCatalogModel() {
     final displayName = commonName.isNotEmpty
         ? commonName
         : (scientificName.isNotEmpty ? scientificName.first : 'Tanaman Hias');
 
+    final sci = scientificName.isNotEmpty ? scientificName.first : null;
+
     return PlantCatalogModel(
       id: 'perenual_$id',
       commonName: displayName,
-      scientificName: scientificName.isNotEmpty ? scientificName.first : null,
+      scientificName: sci,
       family: family,
       defaultWateringInterval: wateringIntervalDays,
       sunlightLevel: sunlightDisplay,
       careLevel: careLevelDisplay,
       imageUrl: defaultImageUrl,
       localImagePath: null,
+      toxicity: toxicityDescription,
+      isToxicToPets: poisonousToPets,
+      dimension: dimension,
+      growthRate: growthRate,
+      cycle: cycle,
+      description: description,
+      origin: origin.isNotEmpty ? origin.join(', ') : null,
       cachedAt: DateTime.now(),
     );
   }

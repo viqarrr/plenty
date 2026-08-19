@@ -19,6 +19,7 @@ abstract final class AppColors {
   static const Color canvasSurface = Color(0xFFFBFBFD);
   static const Color canvasBackground = Color(0xFFF8F9FA);
   static const Color surface = Color(0xFFFFFFFF);
+  static const Color searchBarSurface = Color(0xFFF2F2F7);
 
   // ----- Text & Neutral Labels -----
   static const Color ink = Color(0xFF000000);
@@ -58,6 +59,8 @@ abstract final class AppColors {
   static const Color warningAlt = Color(0xFFFBBC05);
   static const Color info = Color(0xFF4285F4);
   static const Color success = Color(0xFF34A853);
+  static const Color petFriendlyBg = Color(0xFFE6F7F5);
+  static const Color petFriendlyText = Color(0xFF0D9488);
 
   // ----- Tier Badges -----
   static const Color tierNormalBg = pastelGrayBg;

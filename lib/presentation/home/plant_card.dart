@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
@@ -37,20 +38,16 @@ class PlantCard extends StatelessWidget {
             Expanded(
               child: Stack(
                 children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: AppColors.pastelGreenBg,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(15),
-                      ),
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(15),
                     ),
-                    child: Center(
-                      child: Icon(
-                        Icons.local_florist,
-                        color: AppColors.forest.withValues(alpha: 0.8),
-                        size: 48,
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.pastelGreenBg,
                       ),
+                      child: _buildPlantImage(),
                     ),
                   ),
                   Positioned(
@@ -104,6 +101,51 @@ class PlantCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlantImage() {
+    final photo = plant.coverPhotoPath;
+    if (photo != null && photo.isNotEmpty) {
+      if (photo.startsWith('http://') || photo.startsWith('https://')) {
+        return Image.network(
+          photo,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, _, _) => _buildFallbackIcon(),
+        );
+      } else if (photo.startsWith('assets/')) {
+        return Image.asset(
+          photo,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, _, _) => _buildFallbackIcon(),
+        );
+      } else {
+        final file = File(photo);
+        if (file.existsSync()) {
+          return Image.file(
+            file,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (_, _, _) => _buildFallbackIcon(),
+          );
+        }
+      }
+    }
+    return _buildFallbackIcon();
+  }
+
+  Widget _buildFallbackIcon() {
+    return Center(
+      child: Icon(
+        Icons.local_florist,
+        color: AppColors.forest.withValues(alpha: 0.8),
+        size: 48,
       ),
     );
   }

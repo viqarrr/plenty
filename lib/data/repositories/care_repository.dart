@@ -289,12 +289,14 @@ class CareRepository {
     final db = await _dbHelper.database;
     final today = DateTime.now().toIso8601String().substring(0, 10);
 
+    final parsedUserId = int.tryParse(userId.toString()) ?? 1;
+
     // Get active plants
     final activePlants = await db.query(
       DatabaseHelper.tableUserPlants,
       columns: ['id'],
       where: 'user_id = ? AND is_archived = 0',
-      whereArgs: [userId],
+      whereArgs: [parsedUserId],
     );
 
     if (activePlants.isEmpty) return false;

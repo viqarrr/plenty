@@ -7,7 +7,7 @@ void main() {
 
     final testMap = <String, dynamic>{
       'id': 'plant_123',
-      'user_id': 'user_456',
+      'user_id': 456,
       'catalog_id': 'cat_monstera',
       'nickname': 'Monsty',
       'is_indoor': 1,
@@ -27,7 +27,7 @@ void main() {
       final plant = PlantModel.fromMap(testMap);
 
       expect(plant.id, 'plant_123');
-      expect(plant.userId, 'user_456');
+      expect(plant.userId, '456');
       expect(plant.catalogId, 'cat_monstera');
       expect(plant.nickname, 'Monsty');
       expect(plant.isIndoor, isTrue);
@@ -48,7 +48,7 @@ void main() {
       final serialized = plant.toMap();
 
       expect(serialized['id'], 'plant_123');
-      expect(serialized['user_id'], 'user_456');
+      expect(serialized['user_id'], 456);
       expect(serialized['catalog_id'], 'cat_monstera');
       expect(serialized['nickname'], 'Monsty');
       expect(serialized['is_indoor'], 1);

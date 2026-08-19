@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:plenty/core/constants/api_constants.dart';
@@ -8,25 +9,20 @@ import 'package:plenty/core/error/failure.dart';
 /// Centralized API Client wrapping `http.Client` with timeouts, logging, and error mapping.
 class ApiClient {
   final http.Client _client;
-  final String _baseUrl;
-  final String _apiKey;
+  final String? _baseUrl;
+  final String? _apiKey;
 
-  ApiClient({
-    http.Client? client,
-    String? baseUrl,
-    String? apiKey,
-  })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? ApiConstants.baseUrl,
-        _apiKey = apiKey ?? ApiConstants.apiKey;
+  ApiClient({http.Client? client, String? baseUrl, String? apiKey})
+    : _client = client ?? http.Client(),
+      _baseUrl = baseUrl ?? ApiConstants.baseUrl,
+      _apiKey = apiKey ?? ApiConstants.apiKey;
 
   /// Executes a GET request against the Perenual API, injecting API key and query parameters.
   Future<dynamic> get(
     String endpoint, {
     Map<String, dynamic>? queryParameters,
   }) async {
-    final params = <String, String>{
-      'key': _apiKey,
-    };
+    final params = <String, String?>{'key': _apiKey};
 
     if (queryParameters != null) {
       queryParameters.forEach((key, value) {
@@ -36,11 +32,12 @@ class ApiClient {
       });
     }
 
-    final normalizedEndpoint =
-        endpoint.startsWith('/') ? endpoint : '/$endpoint';
-    final uri = Uri.parse('$_baseUrl$normalizedEndpoint').replace(
-      queryParameters: params,
-    );
+    final normalizedEndpoint = endpoint.startsWith('/')
+        ? endpoint
+        : '/$endpoint';
+    final uri = Uri.parse(
+      '$_baseUrl$normalizedEndpoint',
+    ).replace(queryParameters: params);
 
     if (kDebugMode) {
       debugPrint('[ApiClient] GET: ${uri.toString()}');
@@ -59,13 +56,16 @@ class ApiClient {
 
       if (kDebugMode) {
         debugPrint(
-            '[ApiClient] Response [${response.statusCode}] from ${uri.path}');
+          '[ApiClient] Response [${response.statusCode}] from ${uri.path}',
+        );
       }
 
       return _handleResponse(response);
     } on SocketException catch (e) {
       if (kDebugMode) debugPrint('[ApiClient] SocketException: $e');
-      throw const NetworkFailure('Tidak dapat terhubung ke server. Periksa koneksi internet Anda.');
+      throw const NetworkFailure(
+        'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.',
+      );
     } on HttpException catch (e) {
       if (kDebugMode) debugPrint('[ApiClient] HttpException: $e');
       throw const NetworkFailure('Gagal melakukan permintaan HTTP');
@@ -77,7 +77,9 @@ class ApiClient {
     } catch (e) {
       if (kDebugMode) debugPrint('[ApiClient] Unexpected error: $e');
       if (e.toString().contains('TimeoutException')) {
-        throw const NetworkFailure('Waktu permintaan habis (Connection timeout)');
+        throw const NetworkFailure(
+          'Waktu permintaan habis (Connection timeout)',
+        );
       }
       throw ServerFailure('Terjadi kesalahan tidak terduga: $e');
     }

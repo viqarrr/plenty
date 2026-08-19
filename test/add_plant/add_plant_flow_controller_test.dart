@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/data/datasources/database_helper.dart';
 import 'package:plenty/data/models/plant_catalog_model.dart';
-import 'package:plenty/data/models/time_capsule_model.dart';
 import 'package:plenty/data/repositories/plant_repository.dart';
 import 'package:plenty/presentation/add_plant/add_plant_flow_controller.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -24,14 +23,18 @@ void main() {
     dbHelper = DatabaseHelper.forTesting(uniqueName);
     await dbHelper.deleteDb();
 
-    // Seed default user
+    // Seed default user (or rely on _onCreate user 1)
     final db = await dbHelper.database;
-    await db.insert(DatabaseHelper.tableUsers, {
-      'id': 'usr_default',
-      'email': 'user@plenty.app',
-      'display_name': 'Test User',
-      'created_at': DateTime.now().toIso8601String(),
-    });
+    await db.insert(
+      DatabaseHelper.tableUsers,
+      {
+        'id': 1,
+        'email': 'user@plenty.app',
+        'display_name': 'Test User',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
 
     plantRepo = PlantRepository(dbHelper: dbHelper);
     await plantRepo.getCatalogPlants(); // seeds catalog
@@ -39,7 +42,7 @@ void main() {
     controller = AddPlantFlowController(
       plantRepo: plantRepo,
       entryPoint: AddPlantEntryPoint.onboarding,
-      userId: 'usr_default',
+      userId: '1',
     );
   });
 
@@ -52,14 +55,15 @@ void main() {
       expect(controller.state.entryPoint, AddPlantEntryPoint.onboarding);
       expect(controller.state.currentStep, 0);
       expect(controller.state.isIndoor, true);
-      expect(controller.state.initialHeightCm, 30.0);
+      expect(controller.state.environment, 'Indoor');
+      expect(controller.state.potSize, 'Ada Lubang Drainase');
       expect(controller.state.timeCapsuleDraft, isNull);
     });
 
     test(
-      '3-step configuration and confirmAndSave executes atomic insertion',
+      'Custom Wizard adoption flow and confirmAndSave executes atomic insertion',
       () async {
-        // Step 1: Select Species
+        // Step 0 -> Step 1: Select Species -> Previews Details
         final species = PlantCatalogModel(
           id: 'cat_monstera',
           commonName: 'Monstera Deliciosa',
@@ -70,41 +74,56 @@ void main() {
         );
         controller.setSpecies(species);
         expect(controller.state.selectedSpecies?.id, 'cat_monstera');
-        expect(controller.state.nickname, 'Monstera Deliciosa');
+        expect(controller.state.plantName, 'Monstera Deliciosa');
         expect(controller.state.currentStep, 1);
 
-        // Step 2: Set Environment
-        controller.setEnvironment(
-          isIndoor: true,
-          sunlight: 'Sinar Tidak Langsung',
-          potSize: 'Ada Lubang Drainase',
-          windowDistance: 'Dekat Jendela (1-1.5 meter)',
-        );
+        // Step 1 -> Step 2: User clicks "Tambahkan ke Koleksi" CTA
+        controller.proceedFromPreviewToWizard();
         expect(controller.state.currentStep, 2);
+        expect(controller.state.wizardStepIndex, 0); // Wizard Step 1: Name & Photo
 
-        // Step 3: Nickname, Height & Time Capsule
-        controller.setNicknameAndHeight('Monty The Monster', 35.5);
-        expect(controller.state.nickname, 'Monty The Monster');
-        expect(controller.state.initialHeightCm, 35.5);
+        // Step 2: Custom Name & Photo
+        controller.setPlantName('Monty The Monster');
+        controller.nextStep();
+        expect(controller.state.currentStep, 3);
+        expect(controller.state.wizardStepIndex, 1); // Wizard Step 2: Environment & Drainage
 
-        final capsuleDraft = TimeCapsuleDraft(
-          photoPath: 'assets/images/capsule.png',
-          note: 'Pesan hari pertama!',
-          unlockAt: DateTime.now().add(const Duration(days: 60)),
-        );
-        controller.setTimeCapsule(capsuleDraft);
+        // Step 3: Environment (Indoor vs Outdoor) & Drainage
+        controller.setEnvironment('Indoor');
+        controller.setDrainage('Ada Lubang Drainase');
+        controller.nextStep();
+        expect(controller.state.currentStep, 4);
+        expect(controller.state.wizardStepIndex, 2); // Wizard Step 3: Room / Area
+
+        // Step 4: Area / Room
+        controller.setRoom('Ruang Tamu');
+        controller.nextStep();
+        expect(controller.state.currentStep, 5);
+        expect(controller.state.wizardStepIndex, 3); // Wizard Step 4: Light Conditions
+
+        // Step 5: Light Conditions
+        controller.setLight('Sinar Tidak Langsung Terang');
+        controller.nextStep();
+        expect(controller.state.currentStep, 6);
+        expect(controller.state.wizardStepIndex, 4); // Wizard Step 5: Time Capsule
+
+        // Step 6: Time Capsule & Date
+        controller.toggleTimeCapsule(true);
+        controller.setTimeCapsuleMessage('Pesan kapsul waktu hari pertama!');
         expect(controller.state.timeCapsuleDraft, isNotNull);
 
-        // Save and assert result
+        // Final Action: confirmAndSave
         final result = await controller.confirmAndSave();
-        expect(result.isFirstPlant, true);
         expect(result.plant.nickname, 'Monty The Monster');
-        expect(result.plant.initialHeightCm, 35.5);
+        expect(result.plant.catalogId, 'cat_monstera');
+        expect(result.isFirstPlant, true);
 
-        // Verify in DB
-        final userPlants = await plantRepo.getUserPlants('usr_default');
+        // Verify SQLite user_plants
+        final userPlants = await plantRepo.getUserPlants('1');
         expect(userPlants.length, 1);
         expect(userPlants.first.nickname, 'Monty The Monster');
+        expect(userPlants.first.catalogId, 'cat_monstera');
+        expect(userPlants.first.potSize, 'Ada Lubang Drainase');
       },
     );
   });

@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/data/models/community_post_model.dart';
 
 class SocialPostCard extends StatelessWidget {
-  final String authorName;
-  final String timeAgo;
-  final String plantName;
-  final String content;
-  final int likesCount;
-  final int commentsCount;
+  final CommunityPostModel post;
+  final VoidCallback onKudos;
+  final VoidCallback? onComment;
 
   const SocialPostCard({
     super.key,
-    required this.authorName,
-    required this.timeAgo,
-    required this.plantName,
-    required this.content,
-    required this.likesCount,
-    required this.commentsCount,
+    required this.post,
+    required this.onKudos,
+    this.onComment,
   });
+
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays > 0) return '${diff.inDays} hari lalu';
+    if (diff.inHours > 0) return '${diff.inHours} jam lalu';
+    if (diff.inMinutes > 0) return '${diff.inMinutes} menit lalu';
+    return 'Baru saja';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +41,7 @@ class SocialPostCard extends StatelessWidget {
                 radius: 18,
                 backgroundColor: AppColors.pastelGreenBg,
                 child: Text(
-                  authorName.isNotEmpty ? authorName[0] : 'U',
+                  post.authorName.isNotEmpty ? post.authorName[0] : 'U',
                   style: AppTypography.footnoteBold.copyWith(
                     color: AppColors.forest,
                   ),
@@ -50,11 +53,11 @@ class SocialPostCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      authorName,
+                      post.authorName,
                       style: AppTypography.calloutBold.copyWith(fontSize: 14),
                     ),
                     Text(
-                      '$plantName • $timeAgo',
+                      '${post.category} • ${_formatTimeAgo(post.createdAt)}',
                       style: AppTypography.caption1Regular.copyWith(
                         color: AppColors.muted,
                         fontSize: 11,
@@ -63,34 +66,93 @@ class SocialPostCard extends StatelessWidget {
                   ],
                 ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.pastelGreenBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  post.category,
+                  style: AppTypography.caption2Bold.copyWith(
+                    color: AppColors.forest,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            content,
-            style: AppTypography.bodyRegular.copyWith(
-              color: AppColors.inkSoft,
-              fontSize: 14,
+          if (post.caption != null && post.caption!.isNotEmpty) ...[
+            Text(
+              post.caption!,
+              style: AppTypography.bodyRegular.copyWith(
+                color: AppColors.inkSoft,
+                fontSize: 14,
+                height: 1.4,
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
+            const SizedBox(height: 14),
+          ],
           Row(
             children: [
-              Icon(Icons.favorite_border, size: 18, color: AppColors.muted),
-              const SizedBox(width: 4),
-              Text(
-                '$likesCount',
-                style: AppTypography.caption1Regular.copyWith(
-                  color: AppColors.muted,
+              InkWell(
+                onTap: onKudos,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        post.isLikedByMe
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        size: 18,
+                        color: post.isLikedByMe
+                            ? AppColors.error
+                            : AppColors.muted,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${post.kudosCount}',
+                        style: AppTypography.caption1Regular.copyWith(
+                          color: post.isLikedByMe
+                              ? AppColors.error
+                              : AppColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 20),
-              Icon(Icons.chat_bubble_outline, size: 18, color: AppColors.muted),
-              const SizedBox(width: 4),
-              Text(
-                '$commentsCount',
-                style: AppTypography.caption1Regular.copyWith(
-                  color: AppColors.muted,
+              const SizedBox(width: 16),
+              InkWell(
+                onTap: onComment,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.chat_bubble_outline,
+                        size: 18,
+                        color: AppColors.muted,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${post.commentCount}',
+                        style: AppTypography.caption1Regular.copyWith(
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

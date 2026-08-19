@@ -61,11 +61,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                   TasksTab(
                     tasks: homeState.dailyTasks,
-                    onCompleteTask: (task) async {
-                      await homeController.completeTask(task: task);
+                    onCompleteTask: (task, {heightCm, note, photoPath}) async {
+                      await homeController.completeTask(
+                        task: task,
+                        heightCm: heightCm,
+                        note: note,
+                        photoPath: photoPath,
+                      );
                     },
                   ),
-                  DatabaseList(),
+                  const DatabaseList(),
                   ProfileTab(
                     profileName: homeState.profileName,
                     streakCount: homeState.streakCount,

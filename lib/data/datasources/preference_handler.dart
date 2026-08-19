@@ -11,8 +11,8 @@ class PreferenceHandler {
   static const String _keyUser = 'active_user_session';
   static const String _keyIsLoggedIn = 'is_logged_in';
   static const String _keyIsOnboard = 'is_onboarded';
-  static const String _keyStreak = "streak_count";
-  static const String _keyUserPlants = "user_plants";
+  static const String _keyStreak = 'streak_count';
+  static const String _keyUserPlants = 'user_plants';
 
   /// Initialize SharedPreferences instance.
   static Future<void> init() async {
@@ -48,7 +48,7 @@ class PreferenceHandler {
     final userJson = prefs.getString(_keyUser);
     if (userJson != null && userJson.isNotEmpty) {
       try {
-        final Map<String, dynamic> map = jsonDecode(userJson);
+        final map = jsonDecode(userJson) as Map<String, dynamic>;
         return UserModel.fromJson(map);
       } catch (_) {}
     }

@@ -8,7 +8,7 @@ import 'package:plenty/presentation/onboarding/splash.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PreferenceHandler.init();
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: '.env');
   runApp(const ProviderScope(child: PlentyApp()));
 }
 

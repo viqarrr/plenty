@@ -1,6 +1,7 @@
 import 'package:plenty/data/datasources/database_helper.dart';
 import 'package:plenty/data/datasources/preference_handler.dart';
 import 'package:plenty/data/models/user_preference_model.dart';
+import 'package:sqflite/sqflite.dart';
 
 /// Repository managing user preferences, onboarding progression, and profiles.
 class UserRepository {
@@ -9,10 +10,14 @@ class UserRepository {
   UserRepository({DatabaseHelper? dbHelper})
     : _dbHelper = dbHelper ?? DatabaseHelper.instance;
 
-  Future<String> _resolveUserId(String? userId) async {
-    if (userId != null && userId.isNotEmpty) return userId;
+  Future<int> _resolveUserId(String? userId) async {
+    if (userId != null && userId.isNotEmpty) {
+      final parsed = int.tryParse(userId);
+      if (parsed != null) return parsed;
+    }
     final activeUser = await PreferenceHandler.getUser();
-    return activeUser?.id.toString() ?? 'usr_default';
+    if (activeUser?.id != null) return activeUser!.id!;
+    return 1;
   }
 
   /// Saves or updates the onboarding preferences for a user.
@@ -27,6 +32,27 @@ class UserRepository {
     final targetUserId = await _resolveUserId(userId);
     final db = await _dbHelper.database;
 
+    // Ensure user row exists before inserting foreign key relation
+    final userRows = await db.query(
+      DatabaseHelper.tableUsers,
+      where: 'id = ?',
+      whereArgs: [targetUserId],
+      limit: 1,
+    );
+    if (userRows.isEmpty) {
+      await db.insert(
+        DatabaseHelper.tableUsers,
+        {
+          'id': targetUserId,
+          'email': 'user_$targetUserId@plenty.app',
+          'username': 'user_$targetUserId',
+          'display_name': 'Pecinta Tanaman',
+          'created_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    }
+
     final existing = await db.query(
       DatabaseHelper.tableUserPreferences,
       where: 'user_id = ?',
@@ -38,7 +64,7 @@ class UserRepository {
           ? (existing.first['id'] as String? ??
                 'pref_${DateTime.now().millisecondsSinceEpoch}')
           : 'pref_${DateTime.now().millisecondsSinceEpoch}',
-      userId: targetUserId,
+      userId: targetUserId.toString(),
       experienceLevel: experienceLevel,
       dailyTimeMinutes: dailyTimeMinutes,
       hasPets: hasPets,

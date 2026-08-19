@@ -115,7 +115,7 @@ class PlantModel {
 
   factory PlantModel.fromMap(Map<String, dynamic> map) => PlantModel(
     id: map['id'] as String?,
-    userId: map['user_id'] as String?,
+    userId: map['user_id']?.toString() ?? '1',
     catalogId: map['catalog_id'] as String?,
     nickname: map['nickname'] as String?,
     isIndoor: (map['is_indoor'] as int? ?? 1) == 1,
@@ -137,7 +137,7 @@ class PlantModel {
 
   Map<String, dynamic> toMap() => {
     'id': id,
-    'user_id': userId,
+    'user_id': int.tryParse(userId) ?? 1,
     'catalog_id': catalogId,
     'nickname': nickname,
     'is_indoor': isIndoor ? 1 : 0,

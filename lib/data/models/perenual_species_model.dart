@@ -138,6 +138,7 @@ class PerenualSpeciesModel {
       careLevel: careLevelDisplay,
       imageUrl: defaultImageUrl,
       localImagePath: null,
+      cycle: cycle,
       cachedAt: DateTime.now(),
     );
   }
