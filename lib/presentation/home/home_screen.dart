@@ -46,41 +46,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: IndexedStack(
                 index: _selectedTab,
                 children: [
-                  homeState.isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.forest,
+                  ExcludeSemantics(
+                    excluding: _selectedTab != 0,
+                    child: homeState.isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.forest,
+                            ),
+                          )
+                        : homeState.status == HomeStatus.empty
+                        ? HomeEmptyStateScreen(
+                            onRefresh: homeController.loadDashboard,
+                          )
+                        : HomePopulatedScreen(
+                            onRefresh: homeController.loadDashboard,
                           ),
-                        )
-                      : homeState.status == HomeStatus.empty
-                      ? HomeEmptyStateScreen(
-                          onRefresh: homeController.loadDashboard,
-                        )
-                      : HomePopulatedScreen(
-                          onRefresh: homeController.loadDashboard,
-                        ),
-                  TasksTab(
-                    tasks: homeState.dailyTasks,
-                    onCompleteTask: (task, {heightCm, note, photoPath}) async {
-                      await homeController.completeTask(
-                        task: task,
-                        heightCm: heightCm,
-                        note: note,
-                        photoPath: photoPath,
-                      );
-                    },
                   ),
-                  const DatabaseList(),
-                  ProfileTab(
-                    profileName: homeState.profileName,
-                    streakCount: homeState.streakCount,
-                    totalPlants: homeState.userPlants.length,
-                    onLogout: () async {
-                      await _authRepository.logout();
-                      if (context.mounted) {
-                        context.pushAndRemoveAll(const AuthSelection());
-                      }
-                    },
+                  ExcludeSemantics(
+                    excluding: _selectedTab != 1,
+                    child: TasksTab(
+                      tasks: homeState.dailyTasks,
+                      onCompleteTask: (task, {heightCm, note, photoPath}) async {
+                        await homeController.completeTask(
+                          task: task,
+                          heightCm: heightCm,
+                          note: note,
+                          photoPath: photoPath,
+                        );
+                      },
+                    ),
+                  ),
+                  ExcludeSemantics(
+                    excluding: _selectedTab != 2,
+                    child: const DatabaseList(),
+                  ),
+                  ExcludeSemantics(
+                    excluding: _selectedTab != 3,
+                    child: ProfileTab(
+                      profileName: homeState.profileName,
+                      streakCount: homeState.streakCount,
+                      totalPlants: homeState.userPlants.length,
+                      onLogout: () async {
+                        await _authRepository.logout();
+                        if (context.mounted) {
+                          context.pushAndRemoveAll(const AuthSelection());
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
