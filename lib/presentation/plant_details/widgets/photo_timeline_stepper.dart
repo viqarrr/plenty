@@ -7,8 +7,13 @@ import 'package:plenty/data/models/growth_log_model.dart';
 /// Vertical Stepper Timeline widget displaying chronological photo & height progress of a plant.
 class PhotoTimelineStepper extends StatelessWidget {
   final List<GrowthLogModel> logs;
+  final void Function(GrowthLogModel log)? onEditLog;
 
-  const PhotoTimelineStepper({super.key, required this.logs});
+  const PhotoTimelineStepper({
+    super.key,
+    required this.logs,
+    this.onEditLog,
+  });
 
   String _formatDate(DateTime dt) {
     const months = [
@@ -148,9 +153,9 @@ class PhotoTimelineStepper extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (log.heightCm != null)
-                            Row(
-                              children: [
+                          Row(
+                            children: [
+                              if (log.heightCm != null) ...[
                                 const Icon(
                                   Icons.straighten,
                                   size: 16,
@@ -165,19 +170,40 @@ class PhotoTimelineStepper extends StatelessWidget {
                                   ),
                                 ),
                               ],
-                            ),
+                              if (onEditLog != null) ...[
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: () => onEditLog!(log),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(2.0),
+                                    child: Icon(
+                                      Icons.edit_outlined,
+                                      size: 16,
+                                      color: AppColors.muted,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ],
                       ),
 
-                      // Optional Photo Preview
-                      if (log.photoPath != null &&
-                          log.photoPath!.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: _buildPhotoImage(log.photoPath!),
-                        ),
-                      ],
+                      // Optional Photo Preview (only if valid photo exists, no dummy placeholder)
+                      Builder(
+                        builder: (context) {
+                          final photoWidget = _buildPhotoImage(log.photoPath);
+                          if (photoWidget == null) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10.0),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: photoWidget,
+                            ),
+                          );
+                        },
+                      ),
 
                       // Optional Note
                       if (log.note != null && log.note!.isNotEmpty) ...[
@@ -201,39 +227,41 @@ class PhotoTimelineStepper extends StatelessWidget {
     );
   }
 
-  Widget _buildPhotoImage(String path) {
-    if (path.startsWith('assets/')) {
-      return Image.asset(
-        path,
+  Widget? _buildPhotoImage(String? path) {
+    if (path == null || path.trim().isEmpty) return null;
+    final trimmed = path.trim();
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return Image.network(
+        trimmed,
         height: 140,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (ctx, err, stack) => _buildPlaceholder(),
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
       );
     }
 
-    final file = File(path);
+    if (trimmed.startsWith('assets/')) {
+      return Image.asset(
+        trimmed,
+        height: 140,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+      );
+    }
+
+    final file = File(trimmed);
     if (file.existsSync()) {
       return Image.file(
         file,
         height: 140,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (ctx, err, stack) => _buildPlaceholder(),
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
       );
     }
 
-    return _buildPlaceholder();
-  }
-
-  Widget _buildPlaceholder() {
-    return Container(
-      height: 100,
-      width: double.infinity,
-      color: AppColors.pastelGreenBg,
-      child: const Center(
-        child: Icon(Icons.local_florist, color: AppColors.forest, size: 36),
-      ),
-    );
+    return null;
   }
 }

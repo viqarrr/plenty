@@ -4,8 +4,8 @@ import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/data/repositories/auth_repository.dart';
 import 'package:plenty/data/repositories/auth_repository_impl.dart';
+import 'package:plenty/daily_routine/daily_care_screen.dart';
 import 'package:plenty/presentation/auth/auth_selection.dart';
-import 'package:plenty/presentation/daily_routine/tasks_tab.dart';
 import 'package:plenty/presentation/home/home_bottom_nav.dart';
 import 'package:plenty/presentation/home/home_controller.dart';
 import 'package:plenty/presentation/home/home_empty_state_screen.dart';
@@ -40,69 +40,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvasDefault,
       body: SafeArea(
-        child: Column(
+        bottom: false,
+        child: IndexedStack(
+          index: _selectedTab,
           children: [
-            Expanded(
-              child: IndexedStack(
-                index: _selectedTab,
-                children: [
-                  ExcludeSemantics(
-                    excluding: _selectedTab != 0,
-                    child: homeState.isLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.forest,
-                            ),
-                          )
-                        : homeState.status == HomeStatus.empty
-                        ? HomeEmptyStateScreen(
-                            onRefresh: homeController.loadDashboard,
-                          )
-                        : HomePopulatedScreen(
-                            onRefresh: homeController.loadDashboard,
-                          ),
-                  ),
-                  ExcludeSemantics(
-                    excluding: _selectedTab != 1,
-                    child: TasksTab(
-                      tasks: homeState.dailyTasks,
-                      onCompleteTask: (task, {heightCm, note, photoPath}) async {
-                        await homeController.completeTask(
-                          task: task,
-                          heightCm: heightCm,
-                          note: note,
-                          photoPath: photoPath,
-                        );
-                      },
+            ExcludeSemantics(
+              excluding: _selectedTab != 0,
+              child: homeState.isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.forest,
+                      ),
+                    )
+                  : homeState.status == HomeStatus.empty
+                  ? HomeEmptyStateScreen(
+                      onRefresh: homeController.loadDashboard,
+                    )
+                  : HomePopulatedScreen(
+                      onRefresh: homeController.loadDashboard,
+                      onNavigateToDailyCare: () =>
+                          setState(() => _selectedTab = 1),
                     ),
-                  ),
-                  ExcludeSemantics(
-                    excluding: _selectedTab != 2,
-                    child: const DatabaseList(),
-                  ),
-                  ExcludeSemantics(
-                    excluding: _selectedTab != 3,
-                    child: ProfileTab(
-                      profileName: homeState.profileName,
-                      streakCount: homeState.streakCount,
-                      totalPlants: homeState.userPlants.length,
-                      onLogout: () async {
-                        await _authRepository.logout();
-                        if (context.mounted) {
-                          context.pushAndRemoveAll(const AuthSelection());
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
             ),
-            HomeBottomNav(
-              selectedIndex: _selectedTab,
-              onTabSelected: (index) => setState(() => _selectedTab = index),
+            ExcludeSemantics(
+              excluding: _selectedTab != 1,
+              child: const DailyCareScreen(),
+            ),
+            ExcludeSemantics(
+              excluding: _selectedTab != 2,
+              child: const DatabaseList(),
+            ),
+            ExcludeSemantics(
+              excluding: _selectedTab != 3,
+              child: ProfileTab(
+                profileName: homeState.profileName,
+                streakCount: homeState.streakCount,
+                totalPlants: homeState.userPlants.length,
+                onLogout: () async {
+                  await _authRepository.logout();
+                  if (context.mounted) {
+                    context.pushAndRemoveAll(const AuthSelection());
+                  }
+                },
+              ),
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: HomeBottomNav(
+        selectedIndex: _selectedTab,
+        onTabSelected: (index) => setState(() => _selectedTab = index),
       ),
     );
   }

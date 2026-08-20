@@ -1,12 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 
-/// Step 1: Input custom plant name & photo upload preview.
+/// Step 1: Input custom plant name, photo upload preview, & initial height.
 class WizardNamePhotoStep extends StatelessWidget {
   final String plantName;
   final String? imagePath;
+  final double initialHeightCm;
   final ValueChanged<String> onNameChanged;
+  final ValueChanged<double> onHeightChanged;
   final VoidCallback onPickImage;
   final VoidCallback onRemoveImage;
 
@@ -14,32 +18,41 @@ class WizardNamePhotoStep extends StatelessWidget {
     super.key,
     required this.plantName,
     this.imagePath,
+    this.initialHeightCm = 25.0,
     required this.onNameChanged,
+    required this.onHeightChanged,
     required this.onPickImage,
     required this.onRemoveImage,
   });
 
+  ImageProvider _resolveImage(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return NetworkImage(path);
+    } else if (path.startsWith('assets/')) {
+      return AssetImage(path);
+    } else {
+      return FileImage(File(path));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Nama & Foto Tanaman',
-            style: AppTypography.displayLarge.copyWith(
-              fontSize: 22,
+            'Nama & Penampilan',
+            style: AppTypography.title2Bold.copyWith(
               color: AppColors.inkSoft,
+              fontSize: 32,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Beri nama panggilan manis untuk tanaman barumu dan unggah fotonya.',
-            style: AppTypography.bodyRegular.copyWith(
-              color: AppColors.muted,
-              fontSize: 14,
-            ),
+            'Beri nama panggilan manis untuk tanaman barumu dan tentukan tinggi awalnya.',
+            style: AppTypography.bodyRegular.copyWith(color: AppColors.muted),
           ),
           const SizedBox(height: 28),
 
@@ -61,7 +74,7 @@ class WizardNamePhotoStep extends StatelessWidget {
                       ),
                       image: imagePath != null && imagePath!.isNotEmpty
                           ? DecorationImage(
-                              image: AssetImage(imagePath!),
+                              image: _resolveImage(imagePath!),
                               fit: BoxFit.cover,
                             )
                           : null,
@@ -148,10 +161,87 @@ class WizardNamePhotoStep extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.forest, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.forest,
+                  width: 1.5,
+                ),
               ),
             ),
           ),
+          const SizedBox(height: 20),
+
+          // Initial Height Input Field
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Tinggi Tanaman *',
+                style: AppTypography.calloutBold.copyWith(
+                  color: AppColors.inkSoft,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.pastelGreenBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${initialHeightCm.toStringAsFixed(1)} cm',
+                  style: AppTypography.caption1Bold.copyWith(
+                    color: AppColors.forest,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            initialValue: initialHeightCm > 0
+                ? initialHeightCm.toStringAsFixed(1)
+                : '25.0',
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (val) {
+              final parsed = double.tryParse(val.replaceAll(',', '.'));
+              if (parsed != null && parsed >= 0) {
+                onHeightChanged(parsed);
+              }
+            },
+            style: AppTypography.bodyRegular.copyWith(color: AppColors.ink),
+            decoration: InputDecoration(
+              hintText: 'Misal: 25.0',
+              suffixText: 'cm',
+              suffixStyle: AppTypography.calloutBold.copyWith(
+                color: AppColors.forest,
+              ),
+              prefixIcon: const Icon(Icons.straighten, color: AppColors.forest),
+              filled: true,
+              fillColor: AppColors.surface,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(
+                  color: AppColors.forest,
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
         ],
       ),
     );

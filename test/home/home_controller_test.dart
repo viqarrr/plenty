@@ -104,7 +104,7 @@ void main() {
         expect(controller.state.status, HomeStatus.populated);
         expect(controller.state.userPlants.length, 1);
         expect(controller.state.userPlants.first.nickname, 'Monstera Queen');
-        expect(controller.state.dailyTasks.length, greaterThanOrEqualTo(2));
+        expect(controller.state.dailyTasks.length, greaterThanOrEqualTo(1));
       },
     );
 

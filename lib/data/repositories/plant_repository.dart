@@ -48,7 +48,9 @@ class PlantRepository {
     String? potSize,
     String? windowDistance,
     double? initialHeightCm,
+    String growthStage = 'mature',
     String? coverPhotoPath,
+    String? customPhotoPath,
     TimeCapsuleDraft? timeCapsule,
     int defaultWateringInterval = 3,
   }) async {
@@ -62,7 +64,9 @@ class PlantRepository {
       potSize: potSize,
       windowDistance: windowDistance,
       initialHeightCm: initialHeightCm,
+      growthStage: growthStage,
       coverPhotoPath: coverPhotoPath,
+      customPhotoPath: customPhotoPath,
       timeCapsule: timeCapsule,
       defaultWateringInterval: defaultWateringInterval,
     );
@@ -91,9 +95,41 @@ class PlantRepository {
     await _impl.archivePlant(plantId);
   }
 
-  /// Permanently deletes a plant.
+  /// Updates the plant nickname and/or cover photo.
+  Future<void> updatePlantInfo({
+    required String plantId,
+    required String nickname,
+    String? coverPhotoPath,
+    bool updatePhoto = false,
+  }) async {
+    final result = await _impl.updatePlantInfo(
+      plantId: plantId,
+      nickname: nickname,
+      coverPhotoPath: coverPhotoPath,
+      updatePhoto: updatePhoto,
+    );
+    return result.when(
+      success: (_) {},
+      error: (failure) => throw Exception(failure.message),
+    );
+  }
+
+  /// Updates the plant cover photo path.
+  Future<void> updatePlantPhoto(String plantId, String? photoPath) async {
+    final result = await _impl.updatePlantPhoto(plantId, photoPath);
+    return result.when(
+      success: (_) {},
+      error: (failure) => throw Exception(failure.message),
+    );
+  }
+
+  /// Permanently deletes a plant and all its associated logs, schedules, and capsules.
   Future<void> deletePlant(String plantId) async {
-    await _impl.deletePlant(plantId);
+    final result = await _impl.deletePlant(plantId);
+    return result.when(
+      success: (_) {},
+      error: (failure) => throw Exception(failure.message),
+    );
   }
 
   /// Retrieves plant species catalog using Cache-First pattern (local SQLite first, fallback to Perenual API).

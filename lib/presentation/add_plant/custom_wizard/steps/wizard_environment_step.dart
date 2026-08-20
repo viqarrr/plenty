@@ -28,17 +28,14 @@ class WizardEnvironmentStep extends StatelessWidget {
           Text(
             'Lingkungan & Wadah',
             style: AppTypography.displayLarge.copyWith(
-              fontSize: 22,
+              fontSize: 32,
               color: AppColors.inkSoft,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'Tentukan penempatan tanaman dan jenis wadah yang digunakan.',
-            style: AppTypography.bodyRegular.copyWith(
-              color: AppColors.muted,
-              fontSize: 14,
-            ),
+            style: AppTypography.bodyRegular.copyWith(color: AppColors.muted),
           ),
           const SizedBox(height: 24),
 
@@ -177,9 +174,7 @@ class WizardEnvironmentStep extends StatelessWidget {
               ),
             ),
             Icon(
-              isSelected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_off,
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
               color: isSelected ? AppColors.forest : AppColors.muted,
               size: 20,
             ),

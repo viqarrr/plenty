@@ -38,10 +38,7 @@ class WizardTimeCapsuleStep extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Catat awal mula perjalanan merawat tanaman ini untuk kenangan masa depan.',
-            style: AppTypography.bodyRegular.copyWith(
-              color: AppColors.muted,
-              fontSize: 16,
-            ),
+            style: AppTypography.bodyRegular.copyWith(color: AppColors.muted),
           ),
           const SizedBox(height: 24),
 

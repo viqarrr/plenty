@@ -40,6 +40,13 @@ class PlantGrowthSpecs extends StatelessWidget {
           ),
           const Divider(color: AppColors.borderSubtle, height: 24),
           _buildSpecRow(
+            icon: Icons.spa_outlined,
+            title: 'Asal Pertumbuhan',
+            value: plant.growthStageLabel,
+            color: AppColors.forest,
+          ),
+          const Divider(color: AppColors.borderSubtle, height: 24),
+          _buildSpecRow(
             icon: Icons.thermostat_outlined,
             title: 'Suhu Ideal',
             value: plant.temperatureRange,

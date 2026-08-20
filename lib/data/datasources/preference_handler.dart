@@ -44,25 +44,27 @@ class PreferenceHandler {
 
   /// Get active UserModel (returns null if not logged in or absent)
   static Future<UserModel?> getUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userJson = prefs.getString(_keyUser);
-    if (userJson != null && userJson.isNotEmpty) {
-      try {
-        final map = jsonDecode(userJson) as Map<String, dynamic>;
-        return UserModel.fromJson(map);
-      } catch (_) {}
-    }
-    final legacyProfileName = prefs.getString('profile_name');
-    if (legacyProfileName != null && legacyProfileName.isNotEmpty) {
-      return UserModel(
-        id: 0,
-        email: 'user@plenty.app',
-        password: '',
-        username: legacyProfileName,
-        displayName: legacyProfileName,
-        createdAt: DateTime.now().toIso8601String(),
-      );
-    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString(_keyUser);
+      if (userJson != null && userJson.isNotEmpty) {
+        try {
+          final map = jsonDecode(userJson) as Map<String, dynamic>;
+          return UserModel.fromJson(map);
+        } catch (_) {}
+      }
+      final legacyProfileName = prefs.getString('profile_name');
+      if (legacyProfileName != null && legacyProfileName.isNotEmpty) {
+        return UserModel(
+          id: 0,
+          email: 'user@plenty.app',
+          password: '',
+          username: legacyProfileName,
+          displayName: legacyProfileName,
+          createdAt: DateTime.now().toIso8601String(),
+        );
+      }
+    } catch (_) {}
     return null;
   }
 
@@ -73,11 +75,16 @@ class PreferenceHandler {
 
   // --- Onboarding State ---
   static Future<void> setOnboard(bool isOnboard) async {
-    await _prefs.setBool(_keyIsOnboard, isOnboard);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIsOnboard, isOnboard);
   }
 
   static bool get isOnboard {
-    return _prefs.getBool(_keyIsOnboard) ?? false;
+    try {
+      return _prefs.getBool(_keyIsOnboard) ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Login helper saving both status and user data
@@ -89,19 +96,29 @@ class PreferenceHandler {
 
   // --- Streak Count ---
   static Future<void> setStreakCount(int count) async {
-    await _prefs.setInt(_keyStreak, count);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyStreak, count);
   }
 
   static int get streakCount {
-    return _prefs.getInt(_keyStreak) ?? 1;
+    try {
+      return _prefs.getInt(_keyStreak) ?? 1;
+    } catch (_) {
+      return 1;
+    }
   }
 
   // --- User Plants JSON Cache ---
   static Future<void> saveUserPlantsJson(String jsonString) async {
-    await _prefs.setString(_keyUserPlants, jsonString);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyUserPlants, jsonString);
   }
 
   static String? getUserPlantsJson() {
-    return _prefs.getString(_keyUserPlants);
+    try {
+      return _prefs.getString(_keyUserPlants);
+    } catch (_) {
+      return null;
+    }
   }
 }

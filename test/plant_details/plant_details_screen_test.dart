@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/data/datasources/database_helper.dart';
 import 'package:plenty/data/models/growth_log_model.dart';
@@ -87,11 +88,13 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(
-            home: PlantDetailsScreen(
-              plant: plant,
-              growthRepository: growthRepo,
-              plantRepository: plantRepo,
+          ProviderScope(
+            child: MaterialApp(
+              home: PlantDetailsScreen(
+                plant: plant,
+                growthRepository: growthRepo,
+                plantRepository: plantRepo,
+              ),
             ),
           ),
         );
@@ -106,6 +109,7 @@ void main() {
       expect(find.text('Grafik Pertumbuhan Tinggi'), findsOneWidget);
       expect(find.text('Kapsul Waktu (Time Capsule)'), findsOneWidget);
       expect(find.text('Buat Kapsul Waktu'), findsOneWidget);
+      expect(find.text('Hapus Tanaman dari Koleksi'), findsOneWidget);
     });
 
     testWidgets(
@@ -139,11 +143,13 @@ void main() {
           );
 
           await tester.pumpWidget(
-            MaterialApp(
-              home: PlantDetailsScreen(
-                plant: plant,
-                growthRepository: growthRepo,
-                plantRepository: plantRepo,
+            ProviderScope(
+              child: MaterialApp(
+                home: PlantDetailsScreen(
+                  plant: plant,
+                  growthRepository: growthRepo,
+                  plantRepository: plantRepo,
+                ),
               ),
             ),
           );
@@ -156,5 +162,95 @@ void main() {
         expect(find.text('Time Capsule Terkunci ⏳'), findsOneWidget);
       },
     );
+
+    testWidgets('Opens Edit Plant Sheet when edit icon is tapped', (
+      tester,
+    ) async {
+      final plant = PlantModel(
+        id: 'plt_edit_test',
+        userId: '1',
+        nickname: 'Monstera To Edit',
+        isIndoor: true,
+        initialHeightCm: 25.0,
+        level: 1,
+        xp: 10,
+        adoptedAt: DateTime.now(),
+      );
+
+      await tester.runAsync(() async {
+        final db = await dbHelper.database;
+        await db.insert(DatabaseHelper.tableUserPlants, plant.toMap());
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: PlantDetailsScreen(
+                plant: plant,
+                growthRepository: growthRepo,
+                plantRepository: plantRepo,
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+
+      await tester.pump();
+
+      // Tap Edit button in AppBar
+      expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await tester.pumpAndSettle();
+
+      // Verify Edit sheet is shown
+      expect(find.text('Edit Tanaman'), findsOneWidget);
+      expect(find.text('Nama Panggilan Tanaman *'), findsOneWidget);
+      expect(find.text('Simpan Perubahan'), findsOneWidget);
+    });
+
+    testWidgets('Opens Delete Confirmation Sheet when delete icon is tapped', (
+      tester,
+    ) async {
+      final plant = PlantModel(
+        id: 'plt_delete_test',
+        userId: '1',
+        nickname: 'Monstera To Delete',
+        isIndoor: true,
+        initialHeightCm: 25.0,
+        level: 1,
+        xp: 10,
+        adoptedAt: DateTime.now(),
+      );
+
+      await tester.runAsync(() async {
+        final db = await dbHelper.database;
+        await db.insert(DatabaseHelper.tableUserPlants, plant.toMap());
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: PlantDetailsScreen(
+                plant: plant,
+                growthRepository: growthRepo,
+                plantRepository: plantRepo,
+              ),
+            ),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+
+      await tester.pump();
+
+      // Tap Delete button in AppBar
+      expect(find.byIcon(Icons.delete_outline), findsWidgets);
+      await tester.tap(find.byIcon(Icons.delete_outline).first);
+      await tester.pumpAndSettle();
+
+      // Verify Delete confirmation sheet is shown
+      expect(find.text('Hapus Monstera To Delete?'), findsOneWidget);
+      expect(find.text('Ya, Hapus Tanaman'), findsOneWidget);
+      expect(find.text('Batal'), findsOneWidget);
+    });
   });
 }

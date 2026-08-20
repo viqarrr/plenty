@@ -51,26 +51,27 @@ void main() {
 
   group('CareRepository Integration Tests', () {
     test(
-        'getTodaysTaskTypes returns strictly bersih_bersih, monitor_tinggi, and conditional siram (no cek_hama)',
+        'getTodaysTaskTypes returns strictly monitor_tinggi as daily task, and bersih_bersih / siram cyclically based on due date',
         () async {
       final db = await dbHelper.database;
 
-      // 1. When watering is NOT due today: returns ['bersih_bersih', 'monitor_tinggi']
+      // 1. When cleaning and watering are NOT due today: returns only ['monitor_tinggi'] (Daily Log)
       var tasks = await careRepository.getTodaysTaskTypes(plantId);
-      expect(tasks, ['bersih_bersih', 'monitor_tinggi']);
+      expect(tasks, ['monitor_tinggi']);
       expect(tasks.contains('cek_hama'), isFalse);
       expect(tasks.contains('siram'), isFalse);
+      expect(tasks.contains('bersih_bersih'), isFalse);
 
-      // 2. Set watering next_due_date to today: returns ['bersih_bersih', 'monitor_tinggi', 'siram']
+      // 2. Set watering and cleaning next_due_date to today: returns ['monitor_tinggi', 'siram', 'bersih_bersih']
       await db.update(
         DatabaseHelper.tableCareSchedules,
         {'next_due_date': DateTime.now().toIso8601String()},
-        where: 'user_plant_id = ? AND task_type = ?',
-        whereArgs: [plantId, 'siram'],
+        where: 'user_plant_id = ?',
+        whereArgs: [plantId],
       );
 
       tasks = await careRepository.getTodaysTaskTypes(plantId);
-      expect(tasks, containsAll(['bersih_bersih', 'monitor_tinggi', 'siram']));
+      expect(tasks, containsAll(['monitor_tinggi', 'siram', 'bersih_bersih']));
       expect(tasks.contains('cek_hama'), isFalse);
     });
 
@@ -117,19 +118,23 @@ void main() {
       expect(plant?.xp, 15);
       expect(plant?.level, 1);
 
-      // 4. Repeat tasks to trigger level-up boundary (>= 100 XP)
-      for (int i = 0; i < 6; i++) {
-        await careRepository.completeHeightTask(
-          userPlantId: plantId,
-          heightCm: 17.0 + i,
-        );
-      }
-
+      // 4. Repeated call on the same day is idempotent (does not add duplicate log or XP)
+      await careRepository.completeHeightTask(
+        userPlantId: plantId,
+        heightCm: 20.0,
+      );
       plant = await plantRepository.getPlantById(plantId);
-      // 15 + 6 * 15 = 105 XP -> Level 2
-      expect(plant?.xp, 105);
-      expect(plant?.level, 2);
-      expect(XpConfig.levelForXp(plant!.xp), 2);
+      expect(plant?.xp, 15);
+
+      final secondCheckLogs = await db.query(
+        DatabaseHelper.tableGrowthLogs,
+        where: 'user_plant_id = ? AND source = ?',
+        whereArgs: [plantId, 'daily_task'],
+      );
+      expect(secondCheckLogs.length, 1);
+
+      // 5. Verify level calculation helper triggers level-up boundary (>= 100 XP -> Level 2)
+      expect(XpConfig.levelForXp(105), 2);
     });
 
     test('completeSimpleTask awards 10 XP and logs action', () async {
@@ -172,16 +177,19 @@ void main() {
     test(
       'isAllTasksCompleteTodayForUser returns true when all tasks done',
       () async {
-        await careRepository.completeSimpleTask(
-          userPlantId: plantId,
-          taskType: 'bersih_bersih',
-        );
-        await careRepository.completeHeightTask(
-          userPlantId: plantId,
-          heightCm: 16.0,
-        );
-
         final todayTasks = await careRepository.getTodaysTaskTypes(plantId);
+        if (todayTasks.contains('bersih_bersih')) {
+          await careRepository.completeSimpleTask(
+            userPlantId: plantId,
+            taskType: 'bersih_bersih',
+          );
+        }
+        if (todayTasks.contains('monitor_tinggi')) {
+          await careRepository.completeHeightTask(
+            userPlantId: plantId,
+            heightCm: 16.0,
+          );
+        }
         if (todayTasks.contains('siram')) {
           await careRepository.completeWateringTask(userPlantId: plantId);
         }

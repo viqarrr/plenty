@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 enum TaskType {
   siram('siram', 'Siram Tanaman', 'Siram', 'Penyiraman', Icons.water_drop, Colors.blue),
   bersihBersih('bersih_bersih', 'Bersihkan Tanaman', 'Bersihkan', 'Kebersihan', Icons.cleaning_services, Colors.orange),
-  monitorTinggi('monitor_tinggi', 'Monitor Tinggi Tanaman', 'Ukur', 'Pertumbuhan', Icons.straighten, Colors.green);
+  monitorTinggi('monitor_tinggi', 'Log Harian Tanaman', 'Catat', 'Log Harian', Icons.straighten, Colors.green);
 
   final String id;
   final String title;

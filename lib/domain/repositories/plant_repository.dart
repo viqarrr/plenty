@@ -34,7 +34,9 @@ abstract class IPlantRepository {
     String? potSize,
     String? windowDistance,
     double? initialHeightCm,
+    String growthStage = 'mature',
     String? coverPhotoPath,
+    String? customPhotoPath,
     TimeCapsuleDraft? timeCapsule,
     int defaultWateringInterval = 3,
   });
@@ -47,6 +49,17 @@ abstract class IPlantRepository {
 
   /// Archives an adopted plant.
   Future<Result<void>> archivePlant(String plantId);
+
+  /// Updates an adopted plant's nickname and/or cover photo.
+  Future<Result<void>> updatePlantInfo({
+    required String plantId,
+    required String nickname,
+    String? coverPhotoPath,
+    bool updatePhoto = false,
+  });
+
+  /// Updates the cover photo path for an adopted plant.
+  Future<Result<void>> updatePlantPhoto(String plantId, String? photoPath);
 
   /// Permanently deletes an adopted plant.
   Future<Result<void>> deletePlant(String plantId);

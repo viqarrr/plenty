@@ -59,6 +59,8 @@ class TaskCard extends StatelessWidget {
               backgroundColor: task.type.color,
               foregroundColor: Colors.white,
               elevation: 0,
+              minimumSize: const Size(0, 36),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),

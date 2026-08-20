@@ -150,7 +150,6 @@ class _SelectSpeciesStepState extends State<SelectSpeciesStep> {
                       final species = _filteredSpecies[index];
                       return CatalogPlantCard(
                         species: species,
-                        isSelected: widget.selectedSpecies?.id == species.id,
                         onTap: () => widget.onSpeciesSelected(species),
                       );
                     },

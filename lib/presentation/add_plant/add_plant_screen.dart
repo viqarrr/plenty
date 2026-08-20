@@ -84,17 +84,13 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.canvasDefault,
+      backgroundColor: AppColors.canvasSurface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => context.pop(),
-        ),
-        title: Text(
-          'Tambah Tanaman',
-          style: AppTypography.title2Bold.copyWith(color: AppColors.ink),
         ),
       ),
       body: SafeArea(

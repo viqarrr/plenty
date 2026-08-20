@@ -12,6 +12,7 @@ class PlantModel {
   final String? potSize;
   final String? windowDistance;
   final double? initialHeightCm;
+  final String growthStage;
   final DateTime adoptedAt;
   final String? coverPhotoPath;
   final String healthStatus;
@@ -55,6 +56,7 @@ class PlantModel {
     String? windowDistance,
     String? distanceFromWindow,
     this.initialHeightCm,
+    this.growthStage = 'mature',
     DateTime? adoptedAt,
     String? coverPhotoPath,
     String? imageAsset,
@@ -123,6 +125,7 @@ class PlantModel {
     potSize: map['pot_size'] as String?,
     windowDistance: map['window_distance'] as String?,
     initialHeightCm: (map['initial_height_cm'] as num?)?.toDouble(),
+    growthStage: map['growth_stage'] as String? ?? 'mature',
     adoptedAt: map['adopted_at'] != null
         ? DateTime.tryParse(map['adopted_at'] as String)
         : null,
@@ -145,6 +148,7 @@ class PlantModel {
     'pot_size': potSize,
     'window_distance': windowDistance,
     'initial_height_cm': initialHeightCm,
+    'growth_stage': growthStage,
     'adopted_at': adoptedAt.toIso8601String(),
     'cover_photo_path': coverPhotoPath,
     'health_status': healthStatus,
@@ -188,6 +192,8 @@ class PlantModel {
   double get currentHeightCm => initialHeightCm ?? 30.0;
   String get wateringSchedule => defaultWateringInterval.toString();
   String get temperatureRange => '18-28°C';
+  bool get isFromSeed => growthStage == 'seed';
+  String get growthStageLabel => isFromSeed ? 'Dari Bibit' : 'Sudah Tumbuh';
 
   PlantModel copyWith({
     String? id,
@@ -205,6 +211,7 @@ class PlantModel {
     String? windowDistance,
     String? distanceFromWindow,
     double? initialHeightCm,
+    String? growthStage,
     DateTime? adoptedAt,
     String? coverPhotoPath,
     String? imageAsset,
@@ -231,44 +238,43 @@ class PlantModel {
     String? timeCapsuleMessage,
     String? nextWaterDate,
     String? lastCleanedDate,
-  }) {
-    return PlantModel(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      catalogId: catalogId ?? this.catalogId,
-      nickname: nickname ?? name ?? this.nickname,
-      isIndoor: isIndoor ?? this.isIndoor,
-      sunlightCondition: sunlightCondition ?? this.sunlightCondition,
-      potSize: potSize ?? this.potSize,
-      windowDistance: windowDistance ?? this.windowDistance,
-      initialHeightCm: initialHeightCm ?? this.initialHeightCm,
-      adoptedAt: adoptedAt ?? this.adoptedAt,
-      coverPhotoPath: coverPhotoPath ?? this.coverPhotoPath,
-      healthStatus: healthStatus ?? this.healthStatus,
-      level: level ?? this.level,
-      xp: xp ?? this.xp,
-      isArchived: isArchived ?? this.isArchived,
-      commonName: commonName ?? scientificName ?? this.commonName,
-      defaultWateringInterval:
-          defaultWateringInterval ?? this.defaultWateringInterval,
-      specificArea: specificArea ?? _specificArea,
-      careLevel: careLevel ?? _careLevel,
-      waterSchedule: waterSchedule ?? _waterSchedule,
-      toxicity: toxicity ?? _toxicity,
-      description: description ?? _description,
-      maxHeight: maxHeight ?? _maxHeight,
-      growthRate: growthRate ?? _growthRate,
-      growthCycle: growthCycle ?? _growthCycle,
-      pruningSeason: pruningSeason ?? _pruningSeason,
-      flowerStatus: flowerStatus ?? _flowerStatus,
-      pests: pests ?? _pests,
-      isCustom: isCustom ?? _isCustom,
-      hasTimeCapsule: hasTimeCapsule ?? _hasTimeCapsule,
-      timeCapsuleMessage: timeCapsuleMessage ?? _timeCapsuleMessage,
-      nextWaterDate: nextWaterDate ?? _nextWaterDate,
-      lastCleanedDate: lastCleanedDate ?? _lastCleanedDate,
-    );
-  }
+  }) => PlantModel(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    catalogId: catalogId ?? this.catalogId,
+    nickname: nickname ?? this.nickname,
+    isIndoor: isIndoor ?? this.isIndoor,
+    sunlightCondition: sunlightCondition ?? this.sunlightCondition,
+    potSize: potSize ?? this.potSize,
+    windowDistance: windowDistance ?? this.windowDistance,
+    initialHeightCm: initialHeightCm ?? this.initialHeightCm,
+    growthStage: growthStage ?? this.growthStage,
+    adoptedAt: adoptedAt ?? this.adoptedAt,
+    coverPhotoPath: coverPhotoPath ?? this.coverPhotoPath,
+    healthStatus: healthStatus ?? this.healthStatus,
+    level: level ?? this.level,
+    xp: xp ?? this.xp,
+    isArchived: isArchived ?? this.isArchived,
+    commonName: commonName ?? this.commonName,
+    defaultWateringInterval:
+        defaultWateringInterval ?? this.defaultWateringInterval,
+    specificArea: specificArea ?? this.specificArea,
+    careLevel: careLevel ?? this.careLevel,
+    waterSchedule: waterSchedule ?? this.waterSchedule,
+    toxicity: toxicity ?? this.toxicity,
+    description: description ?? this.description,
+    maxHeight: maxHeight ?? this.maxHeight,
+    growthRate: growthRate ?? this.growthRate,
+    growthCycle: growthCycle ?? this.growthCycle,
+    pruningSeason: pruningSeason ?? this.pruningSeason,
+    flowerStatus: flowerStatus ?? this.flowerStatus,
+    pests: pests ?? this.pests,
+    isCustom: isCustom ?? this.isCustom,
+    hasTimeCapsule: hasTimeCapsule ?? this.hasTimeCapsule,
+    timeCapsuleMessage: timeCapsuleMessage ?? this.timeCapsuleMessage,
+    nextWaterDate: nextWaterDate ?? this.nextWaterDate,
+    lastCleanedDate: lastCleanedDate ?? this.lastCleanedDate,
+  );
 
   @override
   bool operator ==(Object other) =>

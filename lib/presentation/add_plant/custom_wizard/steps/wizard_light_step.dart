@@ -18,19 +18,22 @@ class WizardLightStep extends StatelessWidget {
       'title': 'Sinar Tidak Langsung Terang',
       'icon': Icons.wb_sunny_outlined,
       'color': Colors.orange,
-      'desc': 'Cahaya terang tersaring gorden/jendela tanpa terkena sinar terik langsung.',
+      'desc':
+          'Cahaya terang tersaring gorden/jendela tanpa terkena sinar terik langsung.',
     },
     {
       'title': 'Sinar Langsung Penuh (Full Sun)',
       'icon': Icons.light_mode,
       'color': Colors.amber,
-      'desc': 'Terkena sinar matahari langsung minimal 4-6 jam sehari (balkon/teras).',
+      'desc':
+          'Terkena sinar matahari langsung minimal 4-6 jam sehari (balkon/teras).',
     },
     {
       'title': 'Teduh Sebagian (Partial Shade)',
       'icon': Icons.cloud_outlined,
       'color': Colors.blueGrey,
-      'desc': 'Mendapatkan sinar pagi yang lembut atau cahaya tidak langsung sedang.',
+      'desc':
+          'Mendapatkan sinar pagi yang lembut atau cahaya tidak langsung sedang.',
     },
     {
       'title': 'Pencahayaan Rendah (Low Light)',
@@ -50,17 +53,14 @@ class WizardLightStep extends StatelessWidget {
           Text(
             'Kondisi Pencahayaan',
             style: AppTypography.displayLarge.copyWith(
-              fontSize: 22,
+              fontSize: 32,
               color: AppColors.inkSoft,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'Berapa banyak intensitas cahaya yang diterima tanaman di posisi ini?',
-            style: AppTypography.bodyRegular.copyWith(
-              color: AppColors.muted,
-              fontSize: 14,
-            ),
+            style: AppTypography.bodyRegular.copyWith(color: AppColors.muted),
           ),
           const SizedBox(height: 20),
 

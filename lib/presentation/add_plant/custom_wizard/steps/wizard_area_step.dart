@@ -56,17 +56,14 @@ class WizardAreaStep extends StatelessWidget {
           Text(
             'Lokasi Ruangan',
             style: AppTypography.displayLarge.copyWith(
-              fontSize: 22,
+              fontSize: 32,
               color: AppColors.inkSoft,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'Pilih ruangan atau zona tempat tanaman ini akan diletakkan.',
-            style: AppTypography.bodyRegular.copyWith(
-              color: AppColors.muted,
-              fontSize: 14,
-            ),
+            style: AppTypography.bodyRegular.copyWith(color: AppColors.muted),
           ),
           const SizedBox(height: 20),
 

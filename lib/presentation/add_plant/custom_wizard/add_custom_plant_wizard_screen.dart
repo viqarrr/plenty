@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plenty/core/constants/app_colors.dart';
-import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
+import 'package:plenty/core/utils/image_picker_helper.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/presentation/add_plant/custom_wizard/add_custom_plant_controller.dart';
 import 'package:plenty/presentation/add_plant/custom_wizard/steps/wizard_area_step.dart';
 import 'package:plenty/presentation/add_plant/custom_wizard/steps/wizard_environment_step.dart';
+import 'package:plenty/presentation/add_plant/custom_wizard/steps/wizard_growth_stage_step.dart';
 import 'package:plenty/presentation/add_plant/custom_wizard/steps/wizard_light_step.dart';
 import 'package:plenty/presentation/add_plant/custom_wizard/steps/wizard_name_photo_step.dart';
 import 'package:plenty/presentation/add_plant/custom_wizard/steps/wizard_time_capsule_step.dart';
@@ -27,6 +28,7 @@ class _AddCustomPlantWizardScreenState
 
   static const List<String> _stepTitles = [
     'Nama & Foto',
+    'Asal Pertumbuhan',
     'Lingkungan',
     'Lokasi',
     'Pencahayaan',
@@ -54,7 +56,8 @@ class _AddCustomPlantWizardScreenState
     ref.listen<int>(
       addCustomPlantControllerProvider.select((s) => s.currentStep),
       (_, next) {
-        if (_pageController.hasClients && _pageController.page?.round() != next) {
+        if (_pageController.hasClients &&
+            _pageController.page?.round() != next) {
           _pageController.animateToPage(
             next,
             duration: const Duration(milliseconds: 300),
@@ -64,7 +67,7 @@ class _AddCustomPlantWizardScreenState
       },
     );
 
-    final isLastStep = state.currentStep == 4;
+    final isLastStep = state.currentStep == 5;
 
     return Scaffold(
       backgroundColor: AppColors.canvasDefault,
@@ -81,17 +84,13 @@ class _AddCustomPlantWizardScreenState
             }
           },
         ),
-        title: Text(
-          'Tambah Tanaman Kustom',
-          style: AppTypography.title2Bold.copyWith(color: AppColors.ink),
-        ),
       ),
       body: SafeArea(
         child: Column(
           children: [
             WizardStepProgress(
               currentStep: state.currentStep,
-              totalSteps: 5,
+              totalSteps: 6,
               stepTitle: _stepTitles[state.currentStep],
             ),
             const SizedBox(height: 8),
@@ -100,16 +99,11 @@ class _AddCustomPlantWizardScreenState
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  WizardNamePhotoStep(
-                    plantName: state.plantName,
-                    imagePath: state.imagePath,
-                    onNameChanged: controller.setPlantName,
-                    onPickImage: () {
-                      // Demo asset picker for custom plant
-                      controller.setImagePath('assets/images/custom_plant.png');
-                    },
-                    onRemoveImage: () => controller.setImagePath(null),
+                  WizardGrowthStageStep(
+                    selectedStage: state.growthStage,
+                    onStageChanged: controller.setGrowthStage,
                   ),
+
                   WizardEnvironmentStep(
                     environment: state.environment,
                     drainage: state.potSize,
@@ -123,6 +117,22 @@ class _AddCustomPlantWizardScreenState
                   WizardLightStep(
                     selectedLight: state.selectedLight,
                     onLightSelected: controller.setLight,
+                  ),
+                  WizardNamePhotoStep(
+                    plantName: state.plantName,
+                    imagePath: state.imagePath,
+                    initialHeightCm: state.initialHeightCm,
+                    onNameChanged: controller.setPlantName,
+                    onHeightChanged: controller.setInitialHeight,
+                    onPickImage: () {
+                      ImagePickerHelper.showPickerSheet(
+                        context: context,
+                        showRemoveOption: state.imagePath != null,
+                        onImageSelected: (path) =>
+                            controller.setImagePath(path),
+                      );
+                    },
+                    onRemoveImage: () => controller.setImagePath(null),
                   ),
                   WizardTimeCapsuleStep(
                     plantedDate: state.plantedDate,
@@ -173,18 +183,23 @@ class _AddCustomPlantWizardScreenState
                 child: CustomButton(
                   text: isLastStep ? 'Simpan Tanaman' : 'Lanjutkan',
                   isLoading: state.isSubmitting,
-                  icon: isLastStep ? Icons.check_circle_outline : Icons.arrow_forward,
+                  icon: isLastStep
+                      ? Icons.check_circle_outline
+                      : Icons.arrow_forward,
                   height: 50,
                   borderRadius: BorderRadius.circular(14),
                   onPressed: !state.isCurrentStepValid
                       ? null
                       : () async {
                           if (isLastStep) {
-                            final success = await controller.submitCustomPlant();
+                            final success = await controller
+                                .submitCustomPlant();
                             if (success && context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Tanaman berhasil ditambahkan ke koleksi!'),
+                                  content: Text(
+                                    'Tanaman berhasil ditambahkan ke koleksi!',
+                                  ),
                                   backgroundColor: AppColors.forest,
                                 ),
                               );

@@ -14,37 +14,37 @@ class PlantCollectionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+    return SliverGrid(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
         childAspectRatio: 0.82,
       ),
-      itemCount: plants.length + 1,
-      itemBuilder: (context, index) {
-        if (index == plants.length) {
-          return AddNewPlantCard(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          if (index == plants.length) {
+            return AddNewPlantCard(
+              onTap: () {
+                context.push(
+                  const AddPlantFlowScreen(
+                    entryPoint: AddPlantEntryPoint.fabHome,
+                  ),
+                );
+              },
+            );
+          }
+
+          final plant = plants[index];
+          return PlantCard(
+            plant: plant,
             onTap: () {
-              context.push(
-                const AddPlantFlowScreen(
-                  entryPoint: AddPlantEntryPoint.fabHome,
-                ),
-              );
+              context.push(PlantDetailsScreen(plant: plant));
             },
           );
-        }
-
-        final plant = plants[index];
-        return PlantCard(
-          plant: plant,
-          onTap: () {
-            context.push(PlantDetailsScreen(plant: plant));
-          },
-        );
-      },
+        },
+        childCount: plants.length + 1,
+      ),
     );
   }
 }

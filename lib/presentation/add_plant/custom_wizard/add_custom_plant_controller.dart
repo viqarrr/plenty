@@ -19,13 +19,13 @@ class AddCustomPlantController extends StateNotifier<AddCustomPlantState> {
         super(AddCustomPlantState.initial());
 
   void setStep(int step) {
-    if (step >= 0 && step <= 4) {
+    if (step >= 0 && step <= 5) {
       state = state.copyWith(currentStep: step);
     }
   }
 
   void nextStep() {
-    if (state.currentStep < 4 && state.isCurrentStepValid) {
+    if (state.currentStep < 5 && state.isCurrentStepValid) {
       state = state.copyWith(currentStep: state.currentStep + 1);
     }
   }
@@ -38,6 +38,19 @@ class AddCustomPlantController extends StateNotifier<AddCustomPlantState> {
 
   void setPlantName(String name) {
     state = state.copyWith(plantName: name);
+  }
+
+  void setGrowthStage(String stage) {
+    state = state.copyWith(
+      growthStage: stage,
+      initialHeightCm: stage == 'seed' && state.initialHeightCm == 25.0
+          ? 2.0
+          : (stage == 'mature' && state.initialHeightCm == 2.0 ? 25.0 : state.initialHeightCm),
+    );
+  }
+
+  void setInitialHeight(double height) {
+    state = state.copyWith(initialHeightCm: height);
   }
 
   void setImagePath(String? path) {
@@ -89,8 +102,10 @@ class AddCustomPlantController extends StateNotifier<AddCustomPlantState> {
         sunlightCondition: state.selectedLight,
         potSize: state.potSize,
         windowDistance: state.selectedRoom,
-        initialHeightCm: 25.0,
+        initialHeightCm: state.initialHeightCm,
+        growthStage: state.growthStage,
         coverPhotoPath: state.imagePath,
+        customPhotoPath: state.imagePath,
         timeCapsule: state.timeCapsuleDraft,
         defaultWateringInterval: 4,
       );

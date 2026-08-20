@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:plenty/data/datasources/preference_handler.dart';
 import 'package:plenty/data/models/plant_catalog_model.dart';
 import 'package:plenty/data/models/time_capsule_model.dart';
 import 'package:plenty/data/repositories/plant_repository.dart';
@@ -10,6 +11,8 @@ class AddPlantFlowState {
   final PlantCatalogModel? selectedSpecies;
   final String plantName;
   final String? customPhotoPath;
+  final String growthStage;
+  final double initialHeightCm;
   final bool isIndoor;
   final String potSize;
   final String selectedRoom;
@@ -26,6 +29,8 @@ class AddPlantFlowState {
     this.selectedSpecies,
     this.plantName = '',
     this.customPhotoPath,
+    this.growthStage = 'mature',
+    this.initialHeightCm = 25.0,
     this.isIndoor = true,
     this.potSize = 'Ada Lubang Drainase',
     this.selectedRoom = 'Ruang Tamu',
@@ -48,8 +53,8 @@ class AddPlantFlowState {
   /// Environment string format ('Indoor' or 'Outdoor')
   String get environment => isIndoor ? 'Indoor' : 'Outdoor';
 
-  /// Returns current step index relative to wizard (0 to 4) when in wizard steps (2 to 6)
-  int get wizardStepIndex => (currentStep - 2).clamp(0, 4);
+  /// Returns current step index relative to wizard (0 to 5) when in wizard steps (2 to 7)
+  int get wizardStepIndex => (currentStep - 2).clamp(0, 5);
 
   bool get isCurrentStepValid {
     switch (currentStep) {
@@ -60,12 +65,14 @@ class AddPlantFlowState {
       case 2:
         return plantName.trim().isNotEmpty;
       case 3:
-        return potSize.isNotEmpty;
+        return growthStage.isNotEmpty;
       case 4:
-        return selectedRoom.trim().isNotEmpty;
+        return potSize.isNotEmpty;
       case 5:
-        return selectedLight.trim().isNotEmpty;
+        return selectedRoom.trim().isNotEmpty;
       case 6:
+        return selectedLight.trim().isNotEmpty;
+      case 7:
         return true;
       default:
         return true;
@@ -90,6 +97,8 @@ class AddPlantFlowState {
     PlantCatalogModel? selectedSpecies,
     String? plantName,
     String? customPhotoPath,
+    String? growthStage,
+    double? initialHeightCm,
     bool? isIndoor,
     String? potSize,
     String? selectedRoom,
@@ -109,6 +118,8 @@ class AddPlantFlowState {
       customPhotoPath: clearCustomPhoto
           ? null
           : (customPhotoPath ?? this.customPhotoPath),
+      growthStage: growthStage ?? this.growthStage,
+      initialHeightCm: initialHeightCm ?? this.initialHeightCm,
       isIndoor: isIndoor ?? this.isIndoor,
       potSize: potSize ?? this.potSize,
       selectedRoom: selectedRoom ?? this.selectedRoom,
@@ -152,6 +163,19 @@ class AddPlantFlowController extends StateNotifier<AddPlantFlowState> {
     state = state.copyWith(plantName: name);
   }
 
+  void setGrowthStage(String stage) {
+    state = state.copyWith(
+      growthStage: stage,
+      initialHeightCm: stage == 'seed' && state.initialHeightCm == 25.0
+          ? 2.0
+          : (stage == 'mature' && state.initialHeightCm == 2.0 ? 25.0 : state.initialHeightCm),
+    );
+  }
+
+  void setInitialHeight(double height) {
+    state = state.copyWith(initialHeightCm: height);
+  }
+
   void setPhotoPath(String? path) {
     if (path == null) {
       state = state.copyWith(clearCustomPhoto: true);
@@ -189,7 +213,7 @@ class AddPlantFlowController extends StateNotifier<AddPlantFlowState> {
   }
 
   void nextStep() {
-    if (state.currentStep < 6 && state.isCurrentStepValid) {
+    if (state.currentStep < 7 && state.isCurrentStepValid) {
       state = state.copyWith(currentStep: state.currentStep + 1);
     }
   }
@@ -201,7 +225,7 @@ class AddPlantFlowController extends StateNotifier<AddPlantFlowState> {
   }
 
   void goToStep(int step) {
-    if (step >= 0 && step <= 6) {
+    if (step >= 0 && step <= 7) {
       state = state.copyWith(currentStep: step);
     }
   }
@@ -210,16 +234,24 @@ class AddPlantFlowController extends StateNotifier<AddPlantFlowState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
+      final user = await PreferenceHandler.getUser();
+      final effectiveUserId = (userId != 'usr_default' && userId.isNotEmpty)
+          ? userId
+          : ((user?.id != null && user!.id! > 0)
+              ? user.id.toString()
+              : (userId.isNotEmpty ? userId : '1'));
+
       final name = state.plantName.trim().isNotEmpty
           ? state.plantName.trim()
           : (state.selectedSpecies?.commonName ?? 'Tanaman Baru');
 
-      final photo = state.customPhotoPath ??
+      final customPhoto = state.customPhotoPath;
+      final coverPhoto = customPhoto ??
           state.selectedSpecies?.imageUrl ??
           state.selectedSpecies?.localImagePath;
 
       final result = await _plantRepo.addPlant(
-        userId: userId,
+        userId: effectiveUserId,
         species: state.selectedSpecies,
         catalogId: state.selectedSpecies?.id,
         nickname: name,
@@ -227,8 +259,10 @@ class AddPlantFlowController extends StateNotifier<AddPlantFlowState> {
         sunlightCondition: state.selectedLight,
         potSize: state.potSize,
         windowDistance: state.selectedRoom,
-        initialHeightCm: 25.0,
-        coverPhotoPath: photo,
+        initialHeightCm: state.initialHeightCm,
+        growthStage: state.growthStage,
+        coverPhotoPath: coverPhoto,
+        customPhotoPath: customPhoto,
         timeCapsule: state.timeCapsuleDraft,
         defaultWateringInterval:
             state.selectedSpecies?.defaultWateringInterval ?? 4,

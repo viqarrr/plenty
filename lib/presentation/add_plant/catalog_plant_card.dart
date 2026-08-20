@@ -6,13 +6,11 @@ import 'package:plenty/data/models/plant_catalog_model.dart';
 /// Reusable card widget for displaying a botanical plant species in the catalog selection list.
 class CatalogPlantCard extends StatelessWidget {
   final PlantCatalogModel species;
-  final bool isSelected;
   final VoidCallback onTap;
 
   const CatalogPlantCard({
     super.key,
     required this.species,
-    this.isSelected = false,
     required this.onTap,
   });
 
@@ -34,7 +32,7 @@ class CatalogPlantCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.pastelGreenBg : AppColors.surface,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -109,9 +107,7 @@ class CatalogPlantCard extends StatelessWidget {
                           Text(
                             species.commonName,
                             style: AppTypography.bodyRegular.copyWith(
-                              color: isSelected
-                                  ? AppColors.forest
-                                  : AppColors.ink,
+                              color: AppColors.ink,
                               fontWeight: FontWeight.w600,
                             ),
                             maxLines: 1,
@@ -167,18 +163,6 @@ class CatalogPlantCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                if (isSelected)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 8.0),
-                    child: Center(
-                      child: Icon(
-                        Icons.check_circle,
-                        color: AppColors.forest,
-                        size: 24,
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),

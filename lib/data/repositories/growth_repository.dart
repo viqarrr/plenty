@@ -29,12 +29,13 @@ class GrowthRepository {
   Future<List<GrowthLogModel>> getGrowthHistory(String userPlantId) =>
       getHeightSeries(userPlantId);
 
-  /// Retrieves growth logs containing photos for the photo timeline gallery.
+  /// Retrieves growth logs for the photo timeline and growth history gallery.
+  /// Returns all historical growth records ordered from newest to oldest.
   Future<List<GrowthLogModel>> getPhotoGallery(String userPlantId) async {
     final db = await _dbHelper.database;
     final maps = await db.query(
       DatabaseHelper.tableGrowthLogs,
-      where: 'user_plant_id = ? AND photo_path IS NOT NULL',
+      where: 'user_plant_id = ?',
       whereArgs: [userPlantId],
       orderBy: 'logged_at DESC',
     );
@@ -106,5 +107,51 @@ class GrowthRepository {
       DatabaseHelper.tableTimeCapsules,
       model.toMap(),
     );
+  }
+
+  /// Updates a specific growth log entry (height, note, photo) and refreshes plant height / cover if latest.
+  Future<void> updateGrowthLog({
+    required String logId,
+    required String userPlantId,
+    required double heightCm,
+    String? note,
+    String? photoPath,
+  }) async {
+    final db = await _dbHelper.database;
+    await db.transaction((txn) async {
+      final updateValues = <String, dynamic>{
+        'height_cm': heightCm,
+        'note': note,
+      };
+      if (photoPath != null && photoPath.isNotEmpty) {
+        updateValues['photo_path'] = photoPath;
+      }
+      await txn.update(
+        DatabaseHelper.tableGrowthLogs,
+        updateValues,
+        where: 'id = ?',
+        whereArgs: [logId],
+      );
+
+      // Check if this log is the most recent log for this plant
+      final latest = await txn.query(
+        DatabaseHelper.tableGrowthLogs,
+        where: 'user_plant_id = ?',
+        whereArgs: [userPlantId],
+        orderBy: 'logged_at DESC',
+        limit: 1,
+      );
+
+      if (latest.isNotEmpty && latest.first['id'] == logId) {
+        if (photoPath != null && photoPath.isNotEmpty) {
+          await txn.update(
+            DatabaseHelper.tableUserPlants,
+            {'cover_photo_path': photoPath},
+            where: 'id = ?',
+            whereArgs: [userPlantId],
+          );
+        }
+      }
+    });
   }
 }

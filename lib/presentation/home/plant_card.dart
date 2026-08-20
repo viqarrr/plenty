@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
@@ -8,11 +9,7 @@ class PlantCard extends StatelessWidget {
   final PlantModel plant;
   final VoidCallback onTap;
 
-  const PlantCard({
-    super.key,
-    required this.plant,
-    required this.onTap,
-  });
+  const PlantCard({super.key, required this.plant, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +20,6 @@ class PlantCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -44,9 +40,7 @@ class PlantCard extends StatelessWidget {
                     ),
                     child: Container(
                       width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppColors.pastelGreenBg,
-                      ),
+                      decoration: BoxDecoration(color: AppColors.pastelGreenBg),
                       child: _buildPlantImage(),
                     ),
                   ),

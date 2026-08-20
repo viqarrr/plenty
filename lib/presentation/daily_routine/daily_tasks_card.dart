@@ -40,7 +40,7 @@ class DailyTasksCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Semua Tugas Hari Ini Selesai! 🎉',
+                    'Semua Tugas Hari Ini Selesai',
                     style: AppTypography.calloutBold.copyWith(
                       color: AppColors.forest,
                     ),
@@ -84,40 +84,34 @@ class DailyTasksCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: tasks.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final task = tasks[index];
-            return TaskCard(
-              task: task,
-              onAction: () {
-                if (task.type == TaskType.monitorTinggi) {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => MonitorTinggiInputSheet(
-                      plant: task.plant,
-                      onSubmit: (heightCm, note, photoPath) {
-                        onCompleteTask(
-                          task,
-                          heightCm: heightCm,
-                          note: note,
-                          photoPath: photoPath,
-                        );
-                      },
-                    ),
-                  );
-                } else {
-                  onCompleteTask(task);
-                }
-              },
-            );
-          },
-        ),
+        for (int i = 0; i < tasks.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
+          TaskCard(
+            task: tasks[i],
+            onAction: () {
+              if (tasks[i].type == TaskType.monitorTinggi) {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => MonitorTinggiInputSheet(
+                    plant: tasks[i].plant,
+                    onSubmit: (heightCm, note, photoPath) {
+                      onCompleteTask(
+                        tasks[i],
+                        heightCm: heightCm,
+                        note: note,
+                        photoPath: photoPath,
+                      );
+                    },
+                  ),
+                );
+              } else {
+                onCompleteTask(tasks[i]);
+              }
+            },
+          ),
+        ],
       ],
     );
   }

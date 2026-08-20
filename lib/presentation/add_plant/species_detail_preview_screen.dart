@@ -11,11 +11,13 @@ import 'package:plenty/presentation/plant_details/plant_toxicity_banner.dart';
 class SpeciesDetailPreviewScreen extends StatelessWidget {
   final PlantCatalogModel species;
   final VoidCallback onAddToCollection;
+  final VoidCallback? onBack;
 
   const SpeciesDetailPreviewScreen({
     super.key,
     required this.species,
     required this.onAddToCollection,
+    this.onBack,
   });
 
   @override

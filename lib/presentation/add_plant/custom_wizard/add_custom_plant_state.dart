@@ -7,6 +7,8 @@ class AddCustomPlantState {
   final int currentStep;
   final String plantName;
   final String? imagePath;
+  final String growthStage;
+  final double initialHeightCm;
   final bool isIndoor;
   final String potSize;
   final String selectedRoom;
@@ -22,6 +24,8 @@ class AddCustomPlantState {
     this.currentStep = 0,
     this.plantName = '',
     this.imagePath,
+    this.growthStage = 'mature',
+    this.initialHeightCm = 25.0,
     this.isIndoor = true,
     this.potSize = 'Ada Lubang Drainase',
     this.selectedRoom = 'Ruang Tamu',
@@ -48,12 +52,14 @@ class AddCustomPlantState {
       case 0:
         return plantName.trim().isNotEmpty;
       case 1:
-        return potSize.isNotEmpty;
+        return growthStage.isNotEmpty;
       case 2:
-        return selectedRoom.trim().isNotEmpty;
+        return potSize.isNotEmpty;
       case 3:
-        return selectedLight.trim().isNotEmpty;
+        return selectedRoom.trim().isNotEmpty;
       case 4:
+        return selectedLight.trim().isNotEmpty;
+      case 5:
         return true;
       default:
         return true;
@@ -78,6 +84,8 @@ class AddCustomPlantState {
     int? currentStep,
     String? plantName,
     String? imagePath,
+    String? growthStage,
+    double? initialHeightCm,
     bool? isIndoor,
     String? potSize,
     String? selectedRoom,
@@ -94,6 +102,8 @@ class AddCustomPlantState {
       currentStep: currentStep ?? this.currentStep,
       plantName: plantName ?? this.plantName,
       imagePath: clearImagePath ? null : (imagePath ?? this.imagePath),
+      growthStage: growthStage ?? this.growthStage,
+      initialHeightCm: initialHeightCm ?? this.initialHeightCm,
       isIndoor: isIndoor ?? this.isIndoor,
       potSize: potSize ?? this.potSize,
       selectedRoom: selectedRoom ?? this.selectedRoom,

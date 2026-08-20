@@ -7,7 +7,7 @@ import 'package:sqflite/sqflite.dart';
 /// INTEGER PRIMARY KEY AUTOINCREMENT on users table and integer user_id foreign keys across tables.
 class DatabaseHelper {
   static const String _databaseName = 'plenty.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   // Table Names
   static const String tableUsers = 'users';
@@ -61,6 +61,8 @@ class DatabaseHelper {
       version: _databaseVersion,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+      onOpen: _onOpen,
     );
   }
 
@@ -74,6 +76,8 @@ class DatabaseHelper {
       version: _databaseVersion,
       onConfigure: _onConfigure,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+      onOpen: _onOpen,
     );
   }
 
@@ -81,6 +85,49 @@ class DatabaseHelper {
   /// Enforces foreign key constraint checks.
   Future<void> _onConfigure(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON;');
+  }
+
+  /// Handles schema upgrades across database versions.
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    await _ensureSchemaColumns(db);
+  }
+
+  /// Ensures required columns exist even on existing legacy local databases.
+  Future<void> _onOpen(Database db) async {
+    await _ensureSchemaColumns(db);
+  }
+
+  Future<void> _ensureSchemaColumns(Database db) async {
+    try {
+      final userPlantsColumns =
+          await db.rawQuery('PRAGMA table_info($tableUserPlants)');
+      final columnNames =
+          userPlantsColumns.map((col) => col['name'] as String).toSet();
+
+      if (!columnNames.contains('growth_stage')) {
+        await db.execute(
+          'ALTER TABLE $tableUserPlants ADD COLUMN growth_stage TEXT NOT NULL DEFAULT \'mature\';',
+        );
+      }
+      if (!columnNames.contains('initial_height_cm')) {
+        await db.execute(
+          'ALTER TABLE $tableUserPlants ADD COLUMN initial_height_cm REAL DEFAULT 30.0;',
+        );
+      }
+    } catch (_) {}
+
+    try {
+      final growthLogsColumns =
+          await db.rawQuery('PRAGMA table_info($tableGrowthLogs)');
+      final logColumnNames =
+          growthLogsColumns.map((col) => col['name'] as String).toSet();
+
+      if (!logColumnNames.contains('source')) {
+        await db.execute(
+          'ALTER TABLE $tableGrowthLogs ADD COLUMN source TEXT NOT NULL DEFAULT \'manual\';',
+        );
+      }
+    } catch (_) {}
   }
 
   /// Creates all 13 ERD tables and default indexes directly in _onCreate without migrations.
@@ -154,6 +201,7 @@ class DatabaseHelper {
         pot_size TEXT,
         window_distance TEXT,
         initial_height_cm REAL DEFAULT 30.0,
+        growth_stage TEXT NOT NULL DEFAULT 'mature',
         level INTEGER NOT NULL DEFAULT 1,
         xp INTEGER NOT NULL DEFAULT 0,
         health_status TEXT NOT NULL DEFAULT 'healthy',

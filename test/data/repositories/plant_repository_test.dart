@@ -100,6 +100,44 @@ void main() {
         defaultWateringInterval: 14,
       );
       expect(secondResult.isFirstPlant, isFalse);
+
+      // 3. Test updatePlantInfo & updatePlantPhoto
+      await plantRepository.updatePlantInfo(
+        plantId: result.plant.id,
+        nickname: 'Super Monstera Deluxe',
+        coverPhotoPath: 'https://example.com/new_photo.jpg',
+        updatePhoto: true,
+      );
+      final updatedPlant = await plantRepository.getPlantById(result.plant.id);
+      expect(updatedPlant?.nickname, 'Super Monstera Deluxe');
+      expect(updatedPlant?.coverPhotoPath, 'https://example.com/new_photo.jpg');
+
+      // 4. Test cascading deletePlant
+      await plantRepository.deletePlant(result.plant.id);
+      final remainingPlants = await plantRepository.getUserPlants('1');
+      expect(remainingPlants.any((p) => p.id == result.plant.id), isFalse);
+
+      // Verify cascading deletion across logs, schedules, capsules
+      final deletedGrowthLogs = await db.query(
+        DatabaseHelper.tableGrowthLogs,
+        where: 'user_plant_id = ?',
+        whereArgs: [result.plant.id],
+      );
+      expect(deletedGrowthLogs.isEmpty, isTrue);
+
+      final deletedSchedules = await db.query(
+        DatabaseHelper.tableCareSchedules,
+        where: 'user_plant_id = ?',
+        whereArgs: [result.plant.id],
+      );
+      expect(deletedSchedules.isEmpty, isTrue);
+
+      final deletedCapsules = await db.query(
+        DatabaseHelper.tableTimeCapsules,
+        where: 'user_plant_id = ?',
+        whereArgs: [result.plant.id],
+      );
+      expect(deletedCapsules.isEmpty, isTrue);
     });
   });
 }

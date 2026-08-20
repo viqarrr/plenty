@@ -58,7 +58,7 @@ class NicknameHeightStep extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Tinggi Awal Tanaman',
+                'Tinggi Tanaman',
                 style: AppTypography.title2Bold.copyWith(fontSize: 16),
               ),
               Container(

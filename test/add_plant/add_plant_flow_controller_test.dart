@@ -86,28 +86,36 @@ void main() {
         controller.setPlantName('Monty The Monster');
         controller.nextStep();
         expect(controller.state.currentStep, 3);
-        expect(controller.state.wizardStepIndex, 1); // Wizard Step 2: Environment & Drainage
+        expect(controller.state.wizardStepIndex, 1); // Wizard Step 2: Growth Stage (Asal Pertumbuhan)
 
-        // Step 3: Environment (Indoor vs Outdoor) & Drainage
+        // Step 3: Growth Stage (Dari Bibit vs Sudah Tumbuh)
+        controller.setGrowthStage('seed');
+        expect(controller.state.growthStage, 'seed');
+        expect(controller.state.initialHeightCm, 2.0); // automatically set to seedling height
+        controller.nextStep();
+        expect(controller.state.currentStep, 4);
+        expect(controller.state.wizardStepIndex, 2); // Wizard Step 3: Environment & Drainage
+
+        // Step 4: Environment (Indoor vs Outdoor) & Drainage
         controller.setEnvironment('Indoor');
         controller.setDrainage('Ada Lubang Drainase');
         controller.nextStep();
-        expect(controller.state.currentStep, 4);
-        expect(controller.state.wizardStepIndex, 2); // Wizard Step 3: Room / Area
+        expect(controller.state.currentStep, 5);
+        expect(controller.state.wizardStepIndex, 3); // Wizard Step 4: Room / Area
 
-        // Step 4: Area / Room
+        // Step 5: Area / Room
         controller.setRoom('Ruang Tamu');
         controller.nextStep();
-        expect(controller.state.currentStep, 5);
-        expect(controller.state.wizardStepIndex, 3); // Wizard Step 4: Light Conditions
+        expect(controller.state.currentStep, 6);
+        expect(controller.state.wizardStepIndex, 4); // Wizard Step 5: Light Conditions
 
-        // Step 5: Light Conditions
+        // Step 6: Light Conditions
         controller.setLight('Sinar Tidak Langsung Terang');
         controller.nextStep();
-        expect(controller.state.currentStep, 6);
-        expect(controller.state.wizardStepIndex, 4); // Wizard Step 5: Time Capsule
+        expect(controller.state.currentStep, 7);
+        expect(controller.state.wizardStepIndex, 5); // Wizard Step 6: Time Capsule
 
-        // Step 6: Time Capsule & Date
+        // Step 7: Time Capsule & Date
         controller.toggleTimeCapsule(true);
         controller.setTimeCapsuleMessage('Pesan kapsul waktu hari pertama!');
         expect(controller.state.timeCapsuleDraft, isNotNull);
@@ -116,6 +124,9 @@ void main() {
         final result = await controller.confirmAndSave();
         expect(result.plant.nickname, 'Monty The Monster');
         expect(result.plant.catalogId, 'cat_monstera');
+        expect(result.plant.growthStage, 'seed');
+        expect(result.plant.isFromSeed, true);
+        expect(result.plant.growthStageLabel, 'Dari Bibit');
         expect(result.isFirstPlant, true);
 
         // Verify SQLite user_plants
@@ -123,6 +134,8 @@ void main() {
         expect(userPlants.length, 1);
         expect(userPlants.first.nickname, 'Monty The Monster');
         expect(userPlants.first.catalogId, 'cat_monstera');
+        expect(userPlants.first.growthStage, 'seed');
+        expect(userPlants.first.isFromSeed, true);
         expect(userPlants.first.potSize, 'Ada Lubang Drainase');
       },
     );

@@ -92,8 +92,12 @@ class HomeController extends StateNotifier<HomeState> {
 
     try {
       final user = await PreferenceHandler.getUser();
-      final plants = await _plantRepo.getUserPlants(userId);
-      final streakModel = await _streakRepo.getStreak(userId);
+      final userIdVal = user?.id;
+      final effectiveUserId = (userIdVal != null && userIdVal > 0)
+          ? userIdVal.toString()
+          : (userId.isNotEmpty ? userId : 'usr_default');
+      final plants = await _plantRepo.getUserPlants(effectiveUserId);
+      final streakModel = await _streakRepo.getStreak(effectiveUserId);
       final name = (user?.displayName.trim().isNotEmpty ?? false)
           ? user!.displayName
           : (state.profileName.isNotEmpty && state.profileName != 'Teman Plenty'

@@ -237,7 +237,9 @@ class PlantRepositoryImpl implements IPlantRepository {
     String? potSize,
     String? windowDistance,
     double? initialHeightCm,
+    String growthStage = 'mature',
     String? coverPhotoPath,
+    String? customPhotoPath,
     TimeCapsuleDraft? timeCapsule,
     int defaultWateringInterval = 3,
   }) async {
@@ -311,8 +313,9 @@ class PlantRepositoryImpl implements IPlantRepository {
           potSize: potSize,
           windowDistance: windowDistance,
           initialHeightCm: initialHeightCm ?? 30.0,
+          growthStage: growthStage,
           adoptedAt: adoptedAt,
-          coverPhotoPath: coverPhotoPath ?? species?.imageUrl ?? species?.localImagePath,
+          coverPhotoPath: coverPhotoPath ?? customPhotoPath ?? species?.imageUrl ?? species?.localImagePath,
           healthStatus: 'healthy',
           level: 1,
           xp: 0,
@@ -332,7 +335,7 @@ class PlantRepositoryImpl implements IPlantRepository {
           userPlantId: plantId,
           loggedAt: adoptedAt,
           heightCm: initialHeightCm ?? 30.0,
-          photoPath: coverPhotoPath,
+          photoPath: customPhotoPath,
           source: 'initial',
           note: 'Adopsi pertama $nickname',
         );
@@ -356,8 +359,8 @@ class PlantRepositoryImpl implements IPlantRepository {
             id: 'sched_${plantId}_bersih',
             userPlantId: plantId,
             taskType: 'bersih_bersih',
-            intervalDays: 1,
-            nextDueDate: adoptedAt.add(const Duration(days: 1)),
+            intervalDays: 7,
+            nextDueDate: adoptedAt.add(const Duration(days: 7)),
             isActive: true,
           ),
           CareScheduleModel(
@@ -409,13 +412,34 @@ class PlantRepositoryImpl implements IPlantRepository {
     try {
       final db = await _dbHelper.database;
       final parsedUserId = int.tryParse(userId.toString()) ?? 1;
-      final maps = await db.rawQuery('''
+      
+      var maps = await db.rawQuery('''
         SELECT up.*, pc.common_name, pc.default_watering_interval
         FROM ${DatabaseHelper.tableUserPlants} up
         LEFT JOIN ${DatabaseHelper.tablePlantCatalog} pc ON up.catalog_id = pc.id
-        WHERE up.user_id = ? AND up.is_archived = 0
+        WHERE (up.user_id = ? OR CAST(up.user_id AS TEXT) = ?) AND up.is_archived = 0
         ORDER BY up.adopted_at DESC
-      ''', [parsedUserId]);
+      ''', [parsedUserId, userId.toString()]);
+
+      if (maps.isEmpty && parsedUserId != 1) {
+        maps = await db.rawQuery('''
+          SELECT up.*, pc.common_name, pc.default_watering_interval
+          FROM ${DatabaseHelper.tableUserPlants} up
+          LEFT JOIN ${DatabaseHelper.tablePlantCatalog} pc ON up.catalog_id = pc.id
+          WHERE (up.user_id = 1 OR CAST(up.user_id AS TEXT) = '1' OR CAST(up.user_id AS TEXT) = 'usr_default') AND up.is_archived = 0
+          ORDER BY up.adopted_at DESC
+        ''');
+      }
+
+      if (maps.isEmpty) {
+        maps = await db.rawQuery('''
+          SELECT up.*, pc.common_name, pc.default_watering_interval
+          FROM ${DatabaseHelper.tableUserPlants} up
+          LEFT JOIN ${DatabaseHelper.tablePlantCatalog} pc ON up.catalog_id = pc.id
+          WHERE up.is_archived = 0
+          ORDER BY up.adopted_at DESC
+        ''');
+      }
 
       final plants = maps.map((m) => PlantModel.fromMap(m)).toList();
       return Success(plants);
@@ -460,14 +484,82 @@ class PlantRepositoryImpl implements IPlantRepository {
   }
 
   @override
-  Future<Result<void>> deletePlant(String plantId) async {
+  Future<Result<void>> updatePlantInfo({
+    required String plantId,
+    required String nickname,
+    String? coverPhotoPath,
+    bool updatePhoto = false,
+  }) async {
     try {
       final db = await _dbHelper.database;
-      await db.delete(
+      final values = <String, dynamic>{
+        'nickname': nickname.trim(),
+      };
+      if (updatePhoto) {
+        values['cover_photo_path'] = coverPhotoPath;
+      }
+      await db.update(
         DatabaseHelper.tableUserPlants,
+        values,
         where: 'id = ?',
         whereArgs: [plantId],
       );
+      return const Success(null);
+    } catch (e) {
+      return Error(DatabaseFailure('Gagal memperbarui informasi tanaman: $e'));
+    }
+  }
+
+  @override
+  Future<Result<void>> updatePlantPhoto(
+    String plantId,
+    String? photoPath,
+  ) async {
+    try {
+      final db = await _dbHelper.database;
+      await db.update(
+        DatabaseHelper.tableUserPlants,
+        {'cover_photo_path': photoPath},
+        where: 'id = ?',
+        whereArgs: [plantId],
+      );
+      return const Success(null);
+    } catch (e) {
+      return Error(DatabaseFailure('Gagal memperbarui foto tanaman: $e'));
+    }
+  }
+
+  @override
+  Future<Result<void>> deletePlant(String plantId) async {
+    try {
+      final db = await _dbHelper.database;
+      await db.transaction((txn) async {
+        await txn.delete(
+          DatabaseHelper.tableCareSchedules,
+          where: 'user_plant_id = ?',
+          whereArgs: [plantId],
+        );
+        await txn.delete(
+          DatabaseHelper.tableCareActionLogs,
+          where: 'user_plant_id = ?',
+          whereArgs: [plantId],
+        );
+        await txn.delete(
+          DatabaseHelper.tableGrowthLogs,
+          where: 'user_plant_id = ?',
+          whereArgs: [plantId],
+        );
+        await txn.delete(
+          DatabaseHelper.tableTimeCapsules,
+          where: 'user_plant_id = ?',
+          whereArgs: [plantId],
+        );
+        await txn.delete(
+          DatabaseHelper.tableUserPlants,
+          where: 'id = ?',
+          whereArgs: [plantId],
+        );
+      });
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal menghapus tanaman: $e'));
