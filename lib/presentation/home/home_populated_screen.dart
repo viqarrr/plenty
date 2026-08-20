@@ -40,7 +40,7 @@ class HomePopulatedScreen extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
-                vertical: 16.0,
+                vertical: 32,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,6 +172,7 @@ class _StreakCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: Container(
+        height: 144,
         decoration: const BoxDecoration(
           color: Color(0xFFF2A33A), // Warm amber / gold
         ),
@@ -192,7 +193,6 @@ class _StreakCard extends StatelessWidget {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     '$streakCount',
@@ -241,6 +241,7 @@ class _TodayTasksOverviewCard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: Container(
+        height: 144,
         decoration: const BoxDecoration(color: AppColors.forest),
         child: Stack(
           children: [

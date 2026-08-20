@@ -364,30 +364,11 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                         const SizedBox(height: 24),
                         PlantGrowthSpecs(plant: _plant),
                         const SizedBox(height: 28),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Grafik Pertumbuhan Tinggi',
-                              style: AppTypography.title2Bold.copyWith(
-                                fontSize: 18,
-                              ),
-                            ),
-                            TextButton.icon(
-                              onPressed: _showGrowthTimelineModal,
-                              icon: const Icon(
-                                Icons.format_list_bulleted,
-                                size: 16,
-                                color: AppColors.forest,
-                              ),
-                              label: Text(
-                                'Lihat Selengkapnya',
-                                style: AppTypography.caption1Bold.copyWith(
-                                  color: AppColors.forest,
-                                ),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          'Grafik Pertumbuhan Tinggi',
+                          style: AppTypography.title2Bold.copyWith(
+                            fontSize: 18,
+                          ),
                         ),
                         const SizedBox(height: 12),
                         GrowthHeightChart(growthLogs: _growthLogs),
@@ -487,7 +468,7 @@ class _PlantDetailsScreenState extends ConsumerState<PlantDetailsScreen> {
                                     .withValues(alpha: 0.4),
                               ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(30),
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),

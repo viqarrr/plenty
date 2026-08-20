@@ -482,6 +482,31 @@ class CareRepository {
     return count ?? 0;
   }
 
+  /// Returns the total XP accumulated by a user across all their plants and care logs in SQLite.
+  Future<int> getTotalUserXp([String? userId]) async {
+    final db = await _dbHelper.database;
+    final parsedUserId = int.tryParse(userId ?? '1') ?? 1;
+
+    // 1. Sum XP from user_plants
+    final plantXpResult = await db.rawQuery('''
+      SELECT COALESCE(SUM(xp), 0) as total_xp
+      FROM ${DatabaseHelper.tableUserPlants}
+      WHERE (user_id = ? OR CAST(user_id AS TEXT) = ?)
+    ''', [parsedUserId, userId ?? '1']);
+    final plantXp = Sqflite.firstIntValue(plantXpResult) ?? 0;
+
+    // 2. Sum XP from care_action_logs
+    final logXpResult = await db.rawQuery('''
+      SELECT COALESCE(SUM(c.xp_awarded), 0) as total_xp
+      FROM ${DatabaseHelper.tableCareActionLogs} c
+      JOIN ${DatabaseHelper.tableUserPlants} p ON c.user_plant_id = p.id
+      WHERE (p.user_id = ? OR CAST(p.user_id AS TEXT) = ?)
+    ''', [parsedUserId, userId ?? '1']);
+    final logXp = Sqflite.firstIntValue(logXpResult) ?? 0;
+
+    return plantXp > logXp ? plantXp : logXp;
+  }
+
   /// Checks if all active plants for a user have completed all daily tasks today.
   Future<bool> isAllTasksCompleteTodayForUser(String userId) async {
     final db = await _dbHelper.database;

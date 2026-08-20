@@ -21,7 +21,7 @@ class PlentyApp extends StatelessWidget {
       title: 'Plenty',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.light,
       home: const SplashScreen(),
     );
   }

@@ -74,8 +74,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               excluding: _selectedTab != 3,
               child: ProfileTab(
                 profileName: homeState.profileName,
+                username: homeState.username,
+                avatarPath: homeState.avatarUrl,
+                bio: homeState.bio,
                 streakCount: homeState.streakCount,
                 totalPlants: homeState.userPlants.length,
+                totalXp: homeState.totalXp,
+                userLevel: homeState.userLevel,
+                badgeCount: homeState.badgeCount,
+                onProfileUpdated: () => homeController.loadDashboard(),
                 onLogout: () async {
                   await _authRepository.logout();
                   if (context.mounted) {

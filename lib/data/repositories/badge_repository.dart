@@ -180,6 +180,19 @@ class BadgeRepository {
     );
     return results.isNotEmpty;
   }
+
+  /// Returns the total count of badges unlocked by a user.
+  Future<int> getUserBadgeCount([String? userId]) async {
+    final db = await _dbHelper.database;
+    final parsedUserId = int.tryParse(userId ?? '1') ?? 1;
+    final count = Sqflite.firstIntValue(
+      await db.rawQuery(
+        'SELECT COUNT(*) FROM ${DatabaseHelper.tableUserBadges} WHERE user_id = ?',
+        [parsedUserId],
+      ),
+    );
+    return count ?? 0;
+  }
 }
 
 final badgeRepositoryProvider = Provider<BadgeRepository>((ref) {

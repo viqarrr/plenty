@@ -13,6 +13,7 @@ abstract final class AppColors {
   static const Color accentGreen = Color(0xFF44F1A6);
   static const Color lightGreen = Color(0xFF4ECA78);
   static const Color pastelGreenHighlight = Color(0xFF74E39A);
+  static const Color sprout = Color(0xFF84D448);
 
   // ----- Light Canvas & Surfaces -----
   static const Color canvasDefault = Color(0xFFF1F3F5);

@@ -1,5 +1,6 @@
 import 'package:plenty/data/datasources/database_helper.dart';
 import 'package:plenty/data/datasources/preference_handler.dart';
+import 'package:plenty/data/models/user_model.dart';
 import 'package:plenty/data/models/user_preference_model.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -132,5 +133,51 @@ class UserRepository {
 
     if (rows.isEmpty) return null;
     return UserPreferenceModel.fromMap(rows.first);
+  }
+
+  /// Retrieves user profile UserModel from SQLite users table.
+  Future<UserModel?> getUserProfile([String? userId]) async {
+    final targetUserId = await _resolveUserId(userId);
+    final db = await _dbHelper.database;
+    final rows = await db.query(
+      DatabaseHelper.tableUsers,
+      where: 'id = ?',
+      whereArgs: [targetUserId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return UserModel.fromMap(rows.first);
+  }
+
+  /// Updates profile attributes (displayName, username, bio, avatarUrl) in SQLite and active session.
+  Future<void> updateUserProfile({
+    String? userId,
+    String? displayName,
+    String? username,
+    String? bio,
+    String? avatarUrl,
+  }) async {
+    final targetUserId = await _resolveUserId(userId);
+    final db = await _dbHelper.database;
+
+    final updateValues = <String, dynamic>{};
+    if (displayName != null) updateValues['display_name'] = displayName;
+    if (username != null) updateValues['username'] = username;
+    if (bio != null) updateValues['bio'] = bio;
+    if (avatarUrl != null) updateValues['avatar_url'] = avatarUrl;
+
+    if (updateValues.isNotEmpty) {
+      await db.update(
+        DatabaseHelper.tableUsers,
+        updateValues,
+        where: 'id = ?',
+        whereArgs: [targetUserId],
+      );
+
+      final updated = await getUserProfile(targetUserId.toString());
+      if (updated != null) {
+        await PreferenceHandler.setUser(updated);
+      }
+    }
   }
 }

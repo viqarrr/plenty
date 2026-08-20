@@ -168,8 +168,6 @@ class DailyCareScreen extends ConsumerWidget {
                           // 3. Section 1: Mandatory Daily Log (Height Monitoring)
                           _buildSectionHeader(
                             title: 'Log Pertumbuhan Harian',
-                            subtitle:
-                                'Pengukuran tinggi tanaman harian (+15 XP)',
                           ),
                           const SizedBox(height: 12),
                           if (state.heightLogs.isEmpty)
@@ -189,7 +187,6 @@ class DailyCareScreen extends ConsumerWidget {
                           // 4. Section 2: Due Schedules (Cyclic Tasks)
                           _buildSectionHeader(
                             title: 'Jadwal Rutin',
-                            subtitle: 'Tugas perawatan berkala (+10 XP)',
                           ),
                           const SizedBox(height: 12),
                           if (state.dueSchedules.isEmpty)
@@ -265,7 +262,6 @@ class DailyCareScreen extends ConsumerWidget {
 
   Widget _buildSectionHeader({
     required String title,
-    required String subtitle,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,14 +271,6 @@ class DailyCareScreen extends ConsumerWidget {
           style: AppTypography.title2Bold.copyWith(
             color: AppColors.inkSoft,
             fontSize: 17,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          subtitle,
-          style: AppTypography.caption1Regular.copyWith(
-            color: AppColors.muted,
-            fontSize: 12,
           ),
         ),
       ],
@@ -429,7 +417,7 @@ class DailyCareScreen extends ConsumerWidget {
                 visualDensity: VisualDensity.compact,
               ),
               child: Text(
-                'Catat cm',
+                'Catat Log',
                 style: AppTypography.caption1Bold.copyWith(
                   color: Colors.white,
                   fontSize: 12,

@@ -1,124 +1,100 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
-import 'package:plenty/core/widgets/custom_button.dart';
+import 'package:plenty/presentation/home/profile/activity_summary_grid.dart';
+import 'package:plenty/presentation/home/profile/current_progress_card.dart';
+import 'package:plenty/presentation/home/profile/profile_header.dart';
+import 'package:plenty/presentation/profile/profile_edit_screen.dart';
 
+/// Modern, borderless profile & gamification tab with a full-width
+/// curved header and padded activity & progress cards.
 class ProfileTab extends StatelessWidget {
   final String profileName;
+  final String username;
+  final String? avatarPath;
+  final String? bio;
   final int streakCount;
   final int totalPlants;
+  final int totalXp;
+  final int userLevel;
+  final int badgeCount;
+  final VoidCallback? onProfileUpdated;
   final VoidCallback onLogout;
 
   const ProfileTab({
     super.key,
     required this.profileName,
+    this.username = 'alex_plants',
+    this.avatarPath,
+    this.bio,
     required this.streakCount,
     required this.totalPlants,
+    this.totalXp = 0,
+    this.userLevel = 1,
+    this.badgeCount = 0,
+    this.onProfileUpdated,
     required this.onLogout,
   });
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
-            child: Column(
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.forest.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.forest, width: 2),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 44,
-                    color: AppColors.forest,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  profileName,
-                  style: AppTypography.displayLarge.copyWith(fontSize: 22),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Orang Tua Tanaman 🌱',
-                  style: AppTypography.footnoteRegular.copyWith(
-                    color: AppColors.muted,
+          // ── Full-Width Curved Forest Header (Avatar from DB) ──
+          ProfileHeader(
+            profileName: profileName,
+            username: username,
+            avatarPath: avatarPath,
+            onSettingsTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => ProfileEditScreen(
+                    onLogout: onLogout,
+                    initialDisplayName: profileName,
+                    initialUsername: username,
+                    initialBio: bio ?? 'Urban gardener berlokasi di Jakarta...',
+                    initialAvatarPath: avatarPath,
                   ),
                 ),
-              ],
-            ),
+              );
+              onProfileUpdated?.call();
+            },
           ),
-          const SizedBox(height: 28),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatBox(
-                  title: 'Total Tanaman',
-                  value: '$totalPlants',
-                  icon: Icons.local_florist_outlined,
-                  color: AppColors.forest,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatBox(
-                  title: 'Streak Aktif',
-                  value: '$streakCount Hari',
-                  icon: Icons.local_fire_department_outlined,
-                  color: Colors.amber,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          CustomButton(
-            text: 'Keluar (Logout)',
-            isOutlined: true,
-            textColor: AppColors.pastelRedText,
-            height: 50,
-            borderRadius: BorderRadius.circular(30),
-            onPressed: onLogout,
-          ),
-        ],
-      ),
-    );
-  }
+          const SizedBox(height: 20),
 
-  Widget _buildStatBox({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: AppTypography.largeTitleBold.copyWith(fontSize: 20),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            style: AppTypography.caption1Regular.copyWith(
-              color: AppColors.muted,
+          // ── Padded Gamification & Progress Cards ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // ── Current Progress (Real Level & XP) ──
+                CurrentProgressCard(
+                  userLevel: userLevel,
+                  totalXp: totalXp,
+                ),
+                const SizedBox(height: 24),
+
+                // ── Activity Summary (Real Streak, XP, Plants, Badges) ──
+                Text(
+                  'RINGKASAN AKTIVITAS',
+                  style: AppTypography.caption2Bold.copyWith(
+                    color: AppColors.muted,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ActivitySummaryGrid(
+                  streakCount: streakCount,
+                  totalPlants: totalPlants,
+                  totalXp: totalXp,
+                  badgeCount: badgeCount,
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
           ),
         ],
