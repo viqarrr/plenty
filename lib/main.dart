@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plenty/core/constants/app_theme.dart';
-import 'package:plenty/data/datasources/preference_handler.dart';
-import 'package:plenty/presentation/onboarding/splash.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/profile/presentation/screens/splash.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PreferenceHandler.init();
   await dotenv.load(fileName: '.env');
-  runApp(const ProviderScope(child: PlentyApp()));
+  runApp(const PlentyApp());
 }
 
 class PlentyApp extends StatelessWidget {

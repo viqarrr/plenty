@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/models/plant_catalog_model.dart';
-import 'package:plenty/data/repositories/plant_repository.dart';
-import 'package:plenty/presentation/add_plant/add_plant_flow_controller.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/plant_catalog/presentation/controllers/add_plant_flow_controller.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {

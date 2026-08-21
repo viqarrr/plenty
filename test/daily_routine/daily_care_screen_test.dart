@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/daily_routine/care_history_screen.dart';
-import 'package:plenty/daily_routine/daily_care_controller.dart';
-import 'package:plenty/daily_routine/daily_care_screen.dart';
-import 'package:plenty/daily_routine/monitor_tinggi_input_sheet.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/models/plant_model.dart';
-import 'package:plenty/data/repositories/care_repository.dart';
-import 'package:plenty/data/repositories/plant_repository.dart';
-import 'package:plenty/data/repositories/streak_repository.dart';
+import 'package:plenty/features/daily_care/presentation/screens/care_history_screen.dart';
+import 'package:plenty/features/daily_care/presentation/daily_care_controller.dart';
+import 'package:plenty/features/daily_care/presentation/screens/daily_care_screen.dart';
+import 'package:plenty/features/daily_care/presentation/widgets/monitor_tinggi_input_sheet.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/features/garden/domain/models/plant_model.dart';
+import 'package:plenty/features/daily_care/data/care_repository.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/data/repositories/streak_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -78,14 +77,8 @@ void main() {
   });
 
   Widget createTestWidget(DailyCareController controller) {
-    return ProviderScope(
-      overrides: [
-        careRepositoryProvider.overrideWithValue(careRepo),
-        dailyCareControllerProvider.overrideWith((ref) => controller),
-      ],
-      child: const MaterialApp(
-        home: DailyCareScreen(),
-      ),
+    return MaterialApp(
+      home: DailyCareScreen(controller: controller),
     );
   }
 
@@ -114,12 +107,12 @@ void main() {
       expect(find.text('Log Pertumbuhan Harian'), findsOneWidget);
       expect(find.text('Fiddle Leaf'), findsWidgets);
       expect(find.text('Tinggi terakhir: 45.0 cm'), findsOneWidget);
-      expect(find.text('Catat cm'), findsOneWidget);
+      expect(find.text('Catat Log'), findsOneWidget);
 
       expect(find.text('Jadwal Rutin'), findsOneWidget);
     });
 
-    testWidgets('Tapping Catat cm opens MonitorTinggiInputSheet', (tester) async {
+    testWidgets('Tapping Catat Log opens MonitorTinggiInputSheet', (tester) async {
       late final DailyCareController controller;
       await tester.runAsync(() async {
         controller = DailyCareController(
@@ -136,7 +129,7 @@ void main() {
       });
       await tester.pump();
 
-      await tester.tap(find.text('Catat cm'));
+      await tester.tap(find.text('Catat Log'));
       await tester.pumpAndSettle();
 
       expect(find.byType(MonitorTinggiInputSheet), findsOneWidget);

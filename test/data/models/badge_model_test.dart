@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/models/badge_model.dart';
-import 'package:plenty/data/models/user_badge_model.dart';
+import 'package:plenty/features/garden/domain/models/badge_model.dart';
 
 void main() {
   group('BadgeModel Serialization', () {

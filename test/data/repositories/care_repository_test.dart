@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/constants/xp_config.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/repositories/care_repository.dart';
-import 'package:plenty/data/repositories/plant_repository.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/features/daily_care/data/care_repository.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {

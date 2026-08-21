@@ -19,6 +19,8 @@ class CustomTextField extends StatefulWidget {
   final FocusNode? focusNode;
   final String? customErrorText;
   final bool enabled;
+  final bool autofocus;
+  final void Function(String)? onSubmitted;
 
   const CustomTextField({
     super.key,
@@ -37,6 +39,8 @@ class CustomTextField extends StatefulWidget {
     this.focusNode,
     this.customErrorText,
     this.enabled = true,
+    this.autofocus = false,
+    this.onSubmitted,
   });
 
   @override
@@ -138,6 +142,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
                 ],
               ),
               child: TextField(
+                autofocus: widget.autofocus,
                 controller: widget.controller,
                 focusNode: _focusNode,
                 enabled: widget.enabled,
@@ -145,6 +150,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
                 keyboardType: widget.keyboardType,
                 maxLines: widget.maxLines,
                 textInputAction: widget.textInputAction,
+                onSubmitted: widget.onSubmitted,
                 style: AppTypography.bodyRegular.copyWith(
                   color: AppColors.ink,
                   fontSize: 15,

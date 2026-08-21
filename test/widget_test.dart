@@ -1,6 +1,5 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/datasources/preference_handler.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,7 +12,7 @@ void main() {
   });
 
   testWidgets('PlentyApp initial render smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: PlentyApp()));
+    await tester.pumpWidget(const PlentyApp());
     expect(find.byType(PlentyApp), findsOneWidget);
 
     // Fast-forward past splash screen delay

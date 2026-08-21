@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/models/plant_model.dart';
+import 'package:plenty/features/garden/domain/models/plant_model.dart';
 
 void main() {
   group('PlantModel Serialization Tests', () {
@@ -33,6 +33,8 @@ void main() {
       expect(plant.isIndoor, isTrue);
       expect(plant.sunlightCondition, 'Sinar Tidak Langsung');
       expect(plant.potSize, 'Pot Keramik 20cm');
+      expect(plant.site, 'Dekat Jendela (1-1.5 meter)');
+      expect(plant.siteName, 'Dekat Jendela (1-1.5 meter)');
       expect(plant.windowDistance, 'Dekat Jendela (1-1.5 meter)');
       expect(plant.initialHeightCm, 35.5);
       expect(plant.adoptedAt, testAdoptedAt);
@@ -54,6 +56,7 @@ void main() {
       expect(serialized['is_indoor'], 1);
       expect(serialized['sunlight_condition'], 'Sinar Tidak Langsung');
       expect(serialized['pot_size'], 'Pot Keramik 20cm');
+      expect(serialized['site'], 'Dekat Jendela (1-1.5 meter)');
       expect(serialized['window_distance'], 'Dekat Jendela (1-1.5 meter)');
       expect(serialized['initial_height_cm'], 35.5);
       expect(serialized['adopted_at'], testAdoptedAt.toIso8601String());

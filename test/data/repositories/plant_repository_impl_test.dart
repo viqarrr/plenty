@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/utils/result.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/datasources/plant_remote_data_source.dart';
-import 'package:plenty/data/models/perenual_care_guide_model.dart';
-import 'package:plenty/data/models/perenual_detail_model.dart';
-import 'package:plenty/data/models/perenual_species_model.dart';
-import 'package:plenty/data/models/plant_catalog_model.dart';
-import 'package:plenty/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/features/plant_catalog/data/datasources/plant_remote_data_source.dart';
+import 'package:plenty/features/plant_catalog/domain/models/perenual_care_guide_model.dart';
+import 'package:plenty/features/plant_catalog/domain/models/perenual_detail_model.dart';
+import 'package:plenty/features/plant_catalog/domain/models/perenual_species_model.dart';
+import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockPlantRemoteDataSource implements PlantRemoteDataSource {

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/repositories/badge_repository.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/features/garden/data/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 

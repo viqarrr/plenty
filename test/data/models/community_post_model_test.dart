@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/models/community_post_model.dart';
-import 'package:plenty/data/models/post_comment_model.dart';
+import 'package:plenty/features/forum/domain/models/community_post_model.dart';
+import 'package:plenty/features/forum/domain/models/post_comment_model.dart';
 
 void main() {
   group('CommunityPostModel Serialization', () {

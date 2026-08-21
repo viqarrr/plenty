@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/daily_routine/daily_care_screen.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/datasources/preference_handler.dart';
-import 'package:plenty/data/repositories/care_repository.dart';
-import 'package:plenty/data/repositories/plant_repository.dart';
-import 'package:plenty/data/repositories/streak_repository.dart';
-import 'package:plenty/presentation/home/home_controller.dart';
-import 'package:plenty/presentation/home/home_populated_screen.dart';
+import 'package:plenty/features/daily_care/presentation/screens/daily_care_screen.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/daily_care/data/care_repository.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/data/repositories/streak_repository.dart';
+import 'package:plenty/features/garden/presentation/controllers/home_controller.dart';
+import 'package:plenty/features/garden/presentation/screens/home_populated_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -43,20 +42,10 @@ void main() {
         'id': 1,
         'email': 'nabila@plenty.app',
         'display_name': 'Nabila',
-        'created_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-    await db.insert(
-      DatabaseHelper.tableUserStreaks,
-      {
-        'id': 'streak_1',
-        'user_id': 1,
-        'current_streak': 5,
+        'streak_count': 5,
         'longest_streak': 5,
-        'current_tier': 2,
         'last_streak_date': '2026-08-19',
-        'freeze_tokens_available': 1,
+        'created_at': DateTime.now().toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
@@ -78,15 +67,11 @@ void main() {
   });
 
   Widget createTestWidget(HomeController homeController) {
-    return ProviderScope(
-      overrides: [
-        homeControllerProvider.overrideWith((ref) => homeController),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: HomePopulatedScreen(
-            onRefresh: () async => homeController.loadDashboard(),
-          ),
+    return MaterialApp(
+      home: Scaffold(
+        body: HomePopulatedScreen(
+          controller: homeController,
+          onRefresh: () async => homeController.loadDashboard(),
         ),
       ),
     );
@@ -145,18 +130,14 @@ void main() {
       });
 
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            homeControllerProvider.overrideWith((ref) => controller),
-          ],
-          child: MaterialApp(
-            home: Scaffold(
-              body: HomePopulatedScreen(
-                onRefresh: () async => controller.loadDashboard(),
-                onNavigateToDailyCare: () {
-                  callbackInvoked = true;
-                },
-              ),
+        MaterialApp(
+          home: Scaffold(
+            body: HomePopulatedScreen(
+              controller: controller,
+              onRefresh: () async => controller.loadDashboard(),
+              onNavigateToDailyCare: () {
+                callbackInvoked = true;
+              },
             ),
           ),
         ),

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/utils/botanical_translator.dart';
 import 'package:plenty/core/utils/botanical_unit_converter.dart';
-import 'package:plenty/data/models/plant_catalog_model.dart';
+import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
 
 void main() {
   group('BotanicalUnitConverter Unit Tests', () {

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/models/growth_log_model.dart';
-import 'package:plenty/data/models/plant_model.dart';
-import 'package:plenty/data/models/time_capsule_model.dart';
-import 'package:plenty/data/repositories/growth_repository.dart';
-import 'package:plenty/data/repositories/plant_repository.dart';
-import 'package:plenty/presentation/plant_details/plant_details_screen.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
+import 'package:plenty/features/garden/domain/models/plant_model.dart';
+import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
+import 'package:plenty/features/garden/data/repositories/growth_repository.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/presentation/screens/plant_details_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -88,13 +87,11 @@ void main() {
         );
 
         await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              home: PlantDetailsScreen(
-                plant: plant,
-                growthRepository: growthRepo,
-                plantRepository: plantRepo,
-              ),
+          MaterialApp(
+            home: PlantDetailsScreen(
+              plant: plant,
+              growthRepository: growthRepo,
+              plantRepository: plantRepo,
             ),
           ),
         );
@@ -143,13 +140,11 @@ void main() {
           );
 
           await tester.pumpWidget(
-            ProviderScope(
-              child: MaterialApp(
-                home: PlantDetailsScreen(
-                  plant: plant,
-                  growthRepository: growthRepo,
-                  plantRepository: plantRepo,
-                ),
+            MaterialApp(
+              home: PlantDetailsScreen(
+                plant: plant,
+                growthRepository: growthRepo,
+                plantRepository: plantRepo,
               ),
             ),
           );
@@ -182,13 +177,11 @@ void main() {
         await db.insert(DatabaseHelper.tableUserPlants, plant.toMap());
 
         await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              home: PlantDetailsScreen(
-                plant: plant,
-                growthRepository: growthRepo,
-                plantRepository: plantRepo,
-              ),
+          MaterialApp(
+            home: PlantDetailsScreen(
+              plant: plant,
+              growthRepository: growthRepo,
+              plantRepository: plantRepo,
             ),
           ),
         );
@@ -227,13 +220,11 @@ void main() {
         await db.insert(DatabaseHelper.tableUserPlants, plant.toMap());
 
         await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              home: PlantDetailsScreen(
-                plant: plant,
-                growthRepository: growthRepo,
-                plantRepository: plantRepo,
-              ),
+          MaterialApp(
+            home: PlantDetailsScreen(
+              plant: plant,
+              growthRepository: growthRepo,
+              plantRepository: plantRepo,
             ),
           ),
         );

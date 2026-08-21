@@ -1,7 +1,7 @@
 Role: Senior Flutter & Dart Software Architect
 
 Project Context: PLENTY (Houseplant Care Companion & Gamified Tracking)
-Core Stack: Flutter, Riverpod, SQLite (`sqflite`), SharedPreferences, Perenual API.
+Core Stack: Flutter, Vanilla State Management (`ChangeNotifier`, `ValueNotifier`), SQLite (`sqflite`), SharedPreferences, Perenual API.
 
 Engineering Standards & Guidelines:
 
@@ -10,14 +10,14 @@ Engineering Standards & Guidelines:
 - Strict Layer Responsibilities:
   * `domain/`: Pure Dart entities, value objects, and repository interfaces (zero UI/3rd-party framework dependency).
   * `data/`: DTOs/Models, local datasources (SQLite), remote datasources (HTTP), repository implementations.
-  * `presentation/`: Riverpod controllers/notifiers, screens, and modular widget components.
+  * `presentation/`: ChangeNotifier/ValueNotifier controllers, screens, and modular widget components.
 - Shared logic, database helpers, base failures, and generic UI components MUST live strictly under `lib/core/`.
 
-2. State Management & Riverpod Guidelines
-- Use `StateNotifier` / `AsyncNotifier` with immutable state classes.
-- Use `ref.watch` ONLY inside widget `build()` methods to bind UI reactively.
-- Use `ref.read` exclusively inside user action callbacks/handlers (`onPressed`, `onTap`).
-- Scrutinize rebuild scopes: use `ref.watch(provider.select(...))` to prevent unnecessary widget tree repaints.
+2. State Management Guidelines (Vanilla Flutter)
+- Use `ChangeNotifier` / `ValueNotifier` with immutable state objects or discrete observable fields.
+- Use `ListenableBuilder` / `AnimatedBuilder` / `ValueListenableBuilder` to bind UI reactively without rebuilding entire screens.
+- Inject repositories/dependencies via class constructor parameters.
+- Clean up controllers by calling `dispose()` appropriately in `StatefulWidget` lifecycles.
 
 3. Database & Network Rules (Quota-Safe)
 - Adhere strictly to the **Cache-First Pattern**: Query local SQLite first; query Perenual API only on cache miss.

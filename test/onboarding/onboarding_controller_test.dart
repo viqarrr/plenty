@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/datasources/preference_handler.dart';
-import 'package:plenty/data/repositories/user_repository.dart';
-import 'package:plenty/presentation/onboarding/onboarding_controller.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/profile/data/repositories/user_repository.dart';
+import 'package:plenty/features/profile/presentation/controllers/onboarding_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 

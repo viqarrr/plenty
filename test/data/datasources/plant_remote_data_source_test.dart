@@ -4,8 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/network/api_client.dart';
-import 'package:plenty/data/datasources/plant_remote_data_source.dart';
-import 'package:plenty/data/models/perenual_species_list_response.dart';
+import 'package:plenty/features/plant_catalog/data/datasources/plant_remote_data_source.dart';
+import 'package:plenty/features/plant_catalog/domain/models/perenual_species_list_response.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

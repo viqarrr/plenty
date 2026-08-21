@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/models/user_streak_model.dart';
+import 'package:plenty/features/garden/domain/models/streak_model.dart';
 
 void main() {
   group('UserStreakModel Serialization & Tier Logic', () {

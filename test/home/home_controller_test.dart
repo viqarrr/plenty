@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/datasources/preference_handler.dart';
-import 'package:plenty/data/models/plant_catalog_model.dart';
-import 'package:plenty/data/repositories/care_repository.dart';
-import 'package:plenty/data/repositories/plant_repository.dart';
-import 'package:plenty/presentation/home/home_controller.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
+import 'package:plenty/features/daily_care/data/care_repository.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/presentation/controllers/home_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -40,20 +40,10 @@ void main() {
         'id': 1,
         'email': 'user@plenty.app',
         'display_name': 'Alice',
-        'created_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-    await db.insert(
-      DatabaseHelper.tableUserStreaks,
-      {
-        'id': 'streak_1',
-        'user_id': 1,
-        'current_streak': 3,
+        'streak_count': 3,
         'longest_streak': 3,
-        'current_tier': 2,
         'last_streak_date': '2026-08-19',
-        'freeze_tokens_available': 1,
+        'created_at': DateTime.now().toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
@@ -108,7 +98,7 @@ void main() {
       },
     );
 
-    test('Room filter updates filtered plants', () async {
+    test('Room filter updates filtered plants based on plant site', () async {
       await plantRepo.addPlant(
         userId: '1',
         species: PlantCatalogModel(
@@ -118,11 +108,37 @@ void main() {
         ),
         nickname: 'Living Room Plant',
         isIndoor: true,
+        site: 'Ruang Tamu',
+      );
+
+      await plantRepo.addPlant(
+        userId: '1',
+        species: PlantCatalogModel(
+          id: 'cat_snake',
+          commonName: 'Snake Plant',
+          cachedAt: DateTime.now(),
+        ),
+        nickname: 'Bedroom Plant',
+        isIndoor: true,
+        site: 'Kamar Tidur',
       );
 
       await controller.loadDashboard();
+      expect(controller.state.userPlants.length, 2);
+      expect(controller.state.filteredPlants.length, 2);
+
       controller.setRoomFilter('Ruang Tamu');
       expect(controller.state.selectedRoomFilter, 'Ruang Tamu');
+      expect(controller.state.filteredPlants.length, 1);
+      expect(controller.state.filteredPlants.first.nickname, 'Living Room Plant');
+
+      controller.setRoomFilter('Kamar');
+      expect(controller.state.selectedRoomFilter, 'Kamar');
+      expect(controller.state.filteredPlants.length, 1);
+      expect(controller.state.filteredPlants.first.nickname, 'Bedroom Plant');
+
+      controller.setRoomFilter('Semua');
+      expect(controller.state.filteredPlants.length, 2);
     });
   });
 }

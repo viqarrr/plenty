@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/models/time_capsule_model.dart';
-import 'package:plenty/data/repositories/plant_repository.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -91,6 +91,10 @@ void main() {
       expect(capsuleRows.length, 1);
       expect(capsuleRows.first['user_plant_id'], result.plant.id);
       expect(capsuleRows.first['note'], 'Harapan untuk tanaman pertamaku');
+
+      // Verify badges awarded on user record in SQLite
+      final userRecord = await db.query(DatabaseHelper.tableUsers, where: 'id = ?', whereArgs: [1]);
+      expect(userRecord.first['unlocked_badges_count'], greaterThanOrEqualTo(1));
 
       // 2. Add second plant and verify isFirstPlant is false
       final secondResult = await plantRepository.addPlant(

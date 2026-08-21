@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/data/datasources/database_helper.dart';
-import 'package:plenty/data/datasources/preference_handler.dart';
-import 'package:plenty/data/repositories/streak_repository.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/garden/data/repositories/streak_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -29,6 +29,11 @@ void main() {
         'id': 1,
         'email': 'test@plenty.app',
         'display_name': 'Test User',
+        'streak_count': 0,
+        'longest_streak': 0,
+        'total_xp': 0,
+        'level': 1,
+        'unlocked_badges_count': 0,
         'created_at': DateTime.now().toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -44,33 +49,78 @@ void main() {
       final streak = await streakRepo.getStreak('1');
 
       expect(streak.userId, '1');
-      expect(streak.currentStreak, 1);
+      expect(streak.currentStreak, 0);
       expect(streak.currentTier, 1);
-      expect(streak.freezeTokensAvailable, 1);
-      expect(PreferenceHandler.streakCount, 1);
+      expect(PreferenceHandler.streakCount, 0);
     });
 
     test('getStreak returns existing record without overwriting', () async {
       final db = await dbHelper.database;
-      await db.insert(
-        DatabaseHelper.tableUserStreaks,
+      await db.update(
+        DatabaseHelper.tableUsers,
         {
-          'id': 'streak_1',
-          'user_id': 1,
-          'current_streak': 14,
+          'streak_count': 14,
           'longest_streak': 20,
-          'current_tier': 5,
           'last_streak_date': '2026-08-18',
-          'freeze_tokens_available': 0,
         },
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        where: 'id = ?',
+        whereArgs: [1],
       );
 
       final streak = await streakRepo.getStreak('1');
 
       expect(streak.currentStreak, 14);
       expect(streak.currentTier, 5);
-      expect(streak.freezeTokensAvailable, 0);
+      expect(streak.longestStreak, 20);
+    });
+
+    test('evaluateDailyStreak calculates streak = 2 for yesterday + today care logs', () async {
+      final db = await dbHelper.database;
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} 10:00:00';
+      final yesterday = now.subtract(const Duration(days: 1));
+      final yesterdayStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')} 10:00:00';
+
+      // Insert plant
+      await db.insert(
+        DatabaseHelper.tableUserPlants,
+        {
+          'id': 'plt_streak_test',
+          'user_id': '1',
+          'nickname': 'Streak Test Plant',
+          'is_indoor': 1,
+          'adopted_at': yesterdayStr,
+        },
+      );
+
+      // Insert log yesterday
+      await db.insert(
+        DatabaseHelper.tableCareActionLogs,
+        {
+          'id': 'log_yesterday',
+          'user_plant_id': 'plt_streak_test',
+          'task_type': 'siram',
+          'xp_awarded': 10,
+          'completed_at': yesterdayStr,
+        },
+      );
+
+      // Insert log today
+      await db.insert(
+        DatabaseHelper.tableCareActionLogs,
+        {
+          'id': 'log_today',
+          'user_plant_id': 'plt_streak_test',
+          'task_type': 'siram',
+          'xp_awarded': 10,
+          'completed_at': todayStr,
+        },
+      );
+
+      final result = await streakRepo.evaluateDailyStreak('1');
+
+      expect(result.currentStreak, 2);
+      expect(PreferenceHandler.streakCount, 2);
     });
   });
 }
