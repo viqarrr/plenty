@@ -118,7 +118,7 @@ class _AddPlantFlowScreenState extends State<AddPlantFlowScreen> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => context.pop(),
           ),
         ),
         body: SafeArea(
@@ -146,6 +146,8 @@ class _AddPlantFlowScreenState extends State<AddPlantFlowScreen> {
       WizardGrowthStageStep(
         selectedStage: state.growthStage,
         onStageChanged: controller.setGrowthStage,
+        plantedDate: state.plantedDate,
+        onDateChanged: controller.setPlantedDate,
       ),
       WizardEnvironmentStep(
         environment: state.environment,
@@ -245,17 +247,15 @@ class _AddPlantFlowScreenState extends State<AddPlantFlowScreen> {
                     if (isLastStep) {
                       final result = await controller.confirmAndSave();
 
-                      if (context.mounted) {
-                        if (result.isFirstPlant) {
-                          await showDialog(
-                            context: context,
-                            barrierDismissible: false,
-                            builder: (_) => FirstRewardPopup(
-                              plantNickname: result.plant.nickname,
-                              onDismiss: () {
-                                Navigator.of(context).pop();
-                              },
+                      if (context.mounted && result.isSuccess) {
+                        final addResult = result.dataOrNull;
+                        if (addResult != null && addResult.isFirstPlant) {
+                          await context.showAppDialog(
+                            FirstRewardPopup(
+                              plantNickname: addResult.plant.nickname,
+                              onDismiss: () => context.pop(),
                             ),
+                            barrierDismissible: false,
                           );
                         }
 

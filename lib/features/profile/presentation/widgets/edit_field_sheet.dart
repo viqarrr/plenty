@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/core/widgets/custom_text_field.dart';
 
@@ -43,11 +44,8 @@ class EditFieldSheet extends StatefulWidget {
     int? maxLength,
     String? Function(String?)? validator,
   }) {
-    return showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => EditFieldSheet(
+    return context.showAppBottomSheet<String>(
+      EditFieldSheet(
         title: title,
         label: label,
         initialValue: initialValue,
@@ -84,7 +82,7 @@ class _EditFieldSheetState extends State<EditFieldSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final trimmed = _controller.text.trim();
     if (trimmed.isNotEmpty) {
-      Navigator.of(context).pop(trimmed);
+      context.pop(trimmed);
     }
   }
 
@@ -152,7 +150,7 @@ class _EditFieldSheetState extends State<EditFieldSheet> {
                       isOutlined: true,
                       height: 48,
                       borderRadius: BorderRadius.circular(24),
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () => context.pop(),
                     ),
                   ),
                   const SizedBox(width: 12),

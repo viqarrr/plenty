@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:plenty/core/constants/app_colors.dart';
+import 'package:flutter/foundation.dart';
 
 /// Data Model representing user streak state, tier, and freeze tokens.
 @immutable
@@ -31,19 +30,6 @@ class UserStreakModel {
     if (streakDays >= 5) return 3;
     if (streakDays >= 3) return 2;
     return 1;
-  }
-
-  /// Returns corresponding tier display color.
-  Color get tierColor {
-    return switch (currentTier) {
-      7 => AppColors.tierMythicText,
-      6 => AppColors.tierLegendText,
-      5 => AppColors.tierEpicText,
-      4 => AppColors.tierSpecialText,
-      3 => AppColors.tierEliteText,
-      2 => AppColors.pastelGreenText,
-      _ => AppColors.tierNormalText,
-    };
   }
 
   /// Returns corresponding tier badge name in Indonesian.
@@ -108,6 +94,7 @@ class UserStreakModel {
   Map<String, dynamic> toJson() => toMap();
 
   UserStreakModel copyWith({
+    String? id,
     String? userId,
     int? currentStreak,
     int? longestStreak,

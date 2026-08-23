@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/features/daily_care/presentation/screens/daily_care_screen.dart';
 import 'package:plenty/features/garden/presentation/controllers/home_controller.dart';
 import 'package:plenty/features/garden/presentation/widgets/plant_collection_grid.dart';
@@ -273,11 +274,7 @@ class _TodayTasksOverviewCard extends StatelessWidget {
                         if (onNavigateToDailyCare != null) {
                           onNavigateToDailyCare!();
                         } else {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const DailyCareScreen(),
-                            ),
-                          );
+                          context.push(const DailyCareScreen());
                         }
                       },
                       borderRadius: BorderRadius.circular(20),

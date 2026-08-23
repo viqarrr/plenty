@@ -1,11 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/features/forum/data/repositories/forum_repository.dart';
+import 'package:plenty/features/community/data/repositories/community_repository_impl.dart';
+import 'package:plenty/features/community/domain/models/community_post.dart';
+import 'package:plenty/features/community/domain/repositories/community_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   late DatabaseHelper dbHelper;
-  late ForumRepository forumRepo;
+  late ICommunityRepository communityRepo;
 
   setUpAll(() {
     sqfliteFfiInit();
@@ -13,9 +15,9 @@ void main() {
   });
 
   setUp(() async {
-    dbHelper = DatabaseHelper.forTesting('forum_repo_test.db');
+    dbHelper = DatabaseHelper.forTesting('community_repo_suite_test.db');
     await dbHelper.deleteDb();
-    forumRepo = ForumRepository(dbHelper: dbHelper);
+    communityRepo = CommunityRepositoryImpl(dbHelper: dbHelper);
 
     final db = await dbHelper.database;
     await db.insert(
@@ -34,61 +36,57 @@ void main() {
     await dbHelper.close();
   });
 
-  group('ForumRepository', () {
+  group('CommunityRepository Suite Tests', () {
     test('getPosts auto-seeds default posts and filters by category', () async {
-      final allPosts = await forumRepo.getPosts();
+      final allPostsRes = await communityRepo.getPosts();
+      final allPosts = allPostsRes.dataOrNull ?? [];
       expect(allPosts.isNotEmpty, isTrue);
 
-      final tipsPosts = await forumRepo.getPosts(category: 'Tips & Trik');
-      expect(tipsPosts.every((p) => p.category == 'Tips & Trik'), isTrue);
+      final tipsPostsRes = await communityRepo.getPosts(category: 'tips');
+      final tipsPosts = tipsPostsRes.dataOrNull ?? [];
+      expect(tipsPosts.every((p) => p.category == 'tips'), isTrue);
     });
 
     test('createPost inserts new community post successfully', () async {
-      final created = await forumRepo.createPost(
-        userId: '1',
-        category: 'Tanya Jawab',
-        caption: 'Daun monsteraku menguning, kenapa ya?',
+      final newPost = CommunityPost(
+        id: 'cp_test_1',
+        authorName: 'Botanist User',
+        timeAgo: 'Baru saja',
+        category: 'pertanyaan',
+        content: 'Daun monsteraku menguning, kenapa ya?',
+        createdAt: DateTime.now(),
       );
-      expect(created, isNotNull);
-      expect(created.caption, 'Daun monsteraku menguning, kenapa ya?');
 
-      final posts = await forumRepo.getPosts(category: 'Tanya Jawab');
-      expect(posts.any((p) => p.id == created.id), isTrue);
+      final createdRes = await communityRepo.createPost(newPost, userId: 1);
+      final created = createdRes.dataOrNull;
+      expect(created?.id, 'cp_test_1');
+
+      final postsRes = await communityRepo.getPosts(category: 'pertanyaan');
+      final posts = postsRes.dataOrNull ?? [];
+      expect(posts.any((p) => p.id == 'cp_test_1'), isTrue);
     });
 
-    test('toggleKudos updates kudos count', () async {
-      final created = await forumRepo.createPost(
-        userId: '1',
-        category: 'Tips & Trik',
-        caption: 'Tips menyiram sukulen',
+    test('toggleLike updates like status and count', () async {
+      final newPost = CommunityPost(
+        id: 'cp_test_2',
+        authorName: 'Botanist User',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Tips menyiram sukulen',
+        createdAt: DateTime.now(),
       );
-      expect(created, isNotNull);
 
-      final count1 = await forumRepo.toggleKudos(created.id);
-      expect(count1, equals(1));
+      await communityRepo.createPost(newPost, userId: 1);
 
-      final count2 = await forumRepo.toggleKudos(created.id);
-      expect(count2, equals(2));
-    });
+      final likedRes = await communityRepo.toggleLike('cp_test_2', userId: 1);
+      final liked = likedRes.dataOrNull;
+      expect(liked?.isLiked, isTrue);
+      expect(liked?.likesCount, 1);
 
-    test('addComment inserts comment and increments post comment_count', () async {
-      final post = await forumRepo.createPost(
-        userId: '1',
-        category: 'Show off',
-        caption: 'Lihat monstera baruku!',
-      );
-      expect(post, isNotNull);
-
-      final comment = await forumRepo.addComment(
-        postId: post.id,
-        userId: '1',
-        content: 'Bagus banget!',
-      );
-      expect(comment, isNotNull);
-
-      final comments = await forumRepo.getComments(post.id);
-      expect(comments.length, equals(1));
-      expect(comments.first.content, 'Bagus banget!');
+      final unlikedRes = await communityRepo.toggleLike('cp_test_2', userId: 1);
+      final unliked = unlikedRes.dataOrNull;
+      expect(unliked?.isLiked, isFalse);
+      expect(unliked?.likesCount, 0);
     });
   });
 }

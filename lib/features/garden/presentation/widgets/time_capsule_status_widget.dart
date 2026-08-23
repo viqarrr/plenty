@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/presentation/widgets/time_capsule_reveal_modal.dart';
@@ -100,9 +101,8 @@ class TimeCapsuleStatusWidget extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        showDialog(
-          context: context,
-          builder: (ctx) => TimeCapsuleRevealModal(
+        context.showAppDialog(
+          TimeCapsuleRevealModal(
             capsule: capsule!,
             plantNickname: plantNickname,
           ),

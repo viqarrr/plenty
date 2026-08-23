@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/features/daily_care/domain/models/daily_care_state.dart';
-import 'package:plenty/features/daily_care/presentation/daily_care_controller.dart';
+import 'package:plenty/features/daily_care/presentation/controllers/daily_care_controller.dart';
 import 'package:plenty/features/daily_care/presentation/screens/care_history_screen.dart';
 import 'package:plenty/features/daily_care/presentation/widgets/monitor_tinggi_input_sheet.dart';
 
@@ -18,16 +19,22 @@ class DailyCareScreen extends StatefulWidget {
 
 class _DailyCareScreenState extends State<DailyCareScreen> {
   late final DailyCareController _controller;
+  bool _ownsController = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ?? DailyCareController();
+    if (widget.controller != null) {
+      _controller = widget.controller!;
+    } else {
+      _controller = DailyCareController();
+      _ownsController = true;
+    }
   }
 
   @override
   void dispose() {
-    if (widget.controller == null) {
+    if (_ownsController) {
       _controller.dispose();
     }
     super.dispose();
@@ -45,18 +52,18 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
       'Minggu',
     ];
     const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
       'Mei',
-      'Jun',
-      'Jul',
-      'Agu',
-      'Sep',
-      'Okt',
-      'Nov',
-      'Des',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
     ];
     return '${days[now.weekday - 1]}, ${now.day} ${months[now.month - 1]} ${now.year}';
   }
@@ -71,11 +78,8 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
         ? item.loggedHeightToday!
         : item.lastRecordedHeight;
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => MonitorTinggiInputSheet(
+    context.showAppBottomSheet(
+      MonitorTinggiInputSheet(
         plant: item.plant,
         lastRecordedHeight: initialHeight,
         isPhotoRequired: item.isPhotoDue,
@@ -131,7 +135,7 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Expanded(
                                     child: Column(
@@ -140,20 +144,17 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
                                       children: [
                                         Text(
                                           'Tugas Hari Ini',
-                                          style: AppTypography.displayLarge
+                                          style: AppTypography.largeTitleBold
                                               .copyWith(
-                                                color: AppColors.inkSoft,
-                                                fontWeight: FontWeight.w700,
+                                                fontSize: 28,
+                                                color: AppColors.inkDark,
                                               ),
                                         ),
-                                        const SizedBox(height: 6),
+                                        const SizedBox(height: 2),
                                         Text(
                                           _formatCurrentDate(),
-                                          style: AppTypography.footnoteRegular
-                                              .copyWith(
-                                                color: AppColors.muted,
-                                                fontSize: 16,
-                                              ),
+                                          style: AppTypography.caption1Regular
+                                              .copyWith(color: AppColors.muted),
                                         ),
                                       ],
                                     ),
@@ -162,12 +163,7 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
                                     color: Colors.transparent,
                                     child: InkWell(
                                       onTap: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const CareHistoryScreen(),
-                                          ),
-                                        );
+                                        context.push(const CareHistoryScreen());
                                       },
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
@@ -180,7 +176,7 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
                                             Icon(
                                               Icons.history,
                                               color: AppColors.forest,
-                                              size: 32,
+                                              size: 28,
                                             ),
                                           ],
                                         ),
@@ -325,10 +321,14 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDone ? AppColors.surface.withValues(alpha: 0.8) : AppColors.surface,
+        color: isDone
+            ? AppColors.surface.withValues(alpha: 0.8)
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDone ? AppColors.border.withValues(alpha: 0.6) : AppColors.border,
+          color: isDone
+              ? AppColors.border.withValues(alpha: 0.6)
+              : AppColors.border,
         ),
       ),
       child: Row(
@@ -363,7 +363,9 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
                         style: AppTypography.calloutBold.copyWith(
                           color: isDone ? AppColors.muted : AppColors.inkSoft,
                           fontSize: 15,
-                          decoration: isDone ? TextDecoration.lineThrough : null,
+                          decoration: isDone
+                              ? TextDecoration.lineThrough
+                              : null,
                           decorationColor: AppColors.muted,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -400,9 +402,7 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
                       ? 'Tercatat: ${item.loggedHeightToday?.toStringAsFixed(1) ?? item.lastRecordedHeight.toStringAsFixed(1)} cm'
                       : 'Tinggi terakhir: ${item.lastRecordedHeight.toStringAsFixed(1)} cm',
                   style: AppTypography.caption1Regular.copyWith(
-                    color: isDone
-                        ? AppColors.muted
-                        : AppColors.muted,
+                    color: isDone ? AppColors.muted : AppColors.muted,
                     fontSize: 13,
                     decoration: isDone ? TextDecoration.lineThrough : null,
                     decorationColor: AppColors.muted,
@@ -479,10 +479,14 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDone ? AppColors.surface.withValues(alpha: 0.8) : AppColors.surface,
+        color: isDone
+            ? AppColors.surface.withValues(alpha: 0.8)
+            : AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDone ? AppColors.border.withValues(alpha: 0.6) : AppColors.border,
+          color: isDone
+              ? AppColors.border.withValues(alpha: 0.6)
+              : AppColors.border,
         ),
       ),
       child: Row(

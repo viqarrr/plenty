@@ -4,14 +4,14 @@ import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/features/auth/domain/repositories/auth_repository.dart';
 import 'package:plenty/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:plenty/features/auth/presentation/screens/auth_selection_screen.dart';
-import 'package:plenty/features/daily_care/presentation/daily_care_controller.dart';
+import 'package:plenty/features/daily_care/presentation/controllers/daily_care_controller.dart';
 import 'package:plenty/features/daily_care/presentation/screens/daily_care_screen.dart';
 import 'package:plenty/features/garden/presentation/controllers/home_controller.dart';
 import 'package:plenty/features/garden/presentation/screens/home_empty_state_screen.dart';
 import 'package:plenty/features/garden/presentation/screens/home_populated_screen.dart';
 import 'package:plenty/features/garden/presentation/widgets/home_bottom_nav.dart';
-import 'package:plenty/features/profile/presentation/widgets/profile_tab.dart';
-import 'package:sqlite_viewer2/sqlite_viewer.dart';
+import 'package:plenty/features/community/presentation/screens/community_screen.dart';
+import 'package:plenty/features/profile/presentation/screens/profile_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   final AuthRepository? authRepository;
@@ -76,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final homeState = _homeController.state;
 
         return Scaffold(
-          backgroundColor: AppColors.canvasDefault,
+          backgroundColor: AppColors.surface,
           body: SafeArea(
             bottom: false,
             child: IndexedStack(
@@ -110,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 ExcludeSemantics(
                   excluding: _selectedTab != 2,
-                  child: const DatabaseList(),
+                  child: const CommunityScreen(),
                 ),
                 ExcludeSemantics(
                   excluding: _selectedTab != 3,

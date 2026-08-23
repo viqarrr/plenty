@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
-import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
+import 'package:plenty/core/domain/models/growth_log_model.dart';
 
 /// Vertical Stepper Timeline widget displaying chronological photo & height progress of a plant.
 class PhotoTimelineStepper extends StatelessWidget {

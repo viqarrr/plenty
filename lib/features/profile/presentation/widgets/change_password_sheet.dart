@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/core/widgets/custom_text_field.dart';
 
@@ -12,11 +13,8 @@ class ChangePasswordSheet extends StatefulWidget {
 
   /// Opens the modal bottom sheet and returns `true` if password change was submitted.
   static Future<bool?> show(BuildContext context) {
-    return showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const ChangePasswordSheet(),
+    return context.showAppBottomSheet<bool>(
+      const ChangePasswordSheet(),
     );
   }
 
@@ -44,7 +42,7 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
 
   void _handleSubmit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    Navigator.of(context).pop(true);
+    context.pop(true);
   }
 
   @override
@@ -93,7 +91,7 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: AppColors.muted),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => context.pop(),
                   ),
                 ],
               ),

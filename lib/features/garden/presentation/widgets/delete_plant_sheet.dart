@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 
@@ -18,11 +19,11 @@ class DeletePlantSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
       decoration: const BoxDecoration(
-        color: AppColors.canvasDefault,
+        color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -40,18 +41,14 @@ class DeletePlantSheet extends StatelessWidget {
           const SizedBox(height: 20),
           Center(
             child: Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
+              width: 60,
+              height: 60,
+              decoration: const BoxDecoration(
                 color: AppColors.pastelRedBg,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.pastelRedText.withValues(alpha: 0.3),
-                  width: 2,
-                ),
               ),
               child: const Icon(
-                Icons.delete_forever_rounded,
+                Icons.delete_forever_outlined,
                 color: AppColors.pastelRedText,
                 size: 32,
               ),
@@ -59,24 +56,26 @@ class DeletePlantSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Hapus ${plant.nickname}?',
+            'Hapus Tanaman?',
             textAlign: TextAlign.center,
             style: AppTypography.title2Bold.copyWith(
-              fontSize: 20,
               color: AppColors.inkSoft,
+              fontSize: 20,
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Apakah kamu yakin ingin menghapus tanaman ini dari koleksimu? Seluruh riwayat pertumbuhan, jadwal perawatan, dan kapsul waktu terkait akan dihapus secara permanen.',
-            textAlign: TextAlign.center,
-            style: AppTypography.bodyRegular.copyWith(
-              fontSize: 14,
-              color: AppColors.muted,
-              height: 1.4,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              'Apakah Anda yakin ingin menghapus "${plant.nickname}" dari koleksi kebun Anda? Riwayat perawatan dan foto juga akan dihapus.',
+              textAlign: TextAlign.center,
+              style: AppTypography.bodyRegular.copyWith(
+                color: AppColors.muted,
+                fontSize: 14,
+              ),
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
           CustomButton(
             text: 'Ya, Hapus Tanaman',
             backgroundColor: AppColors.pastelRedText,
@@ -84,7 +83,7 @@ class DeletePlantSheet extends StatelessWidget {
             height: 48,
             borderRadius: BorderRadius.circular(24),
             onPressed: () {
-              Navigator.of(context).pop();
+              context.pop();
               onConfirmDelete();
             },
           ),
@@ -94,7 +93,7 @@ class DeletePlantSheet extends StatelessWidget {
             isOutlined: true,
             height: 48,
             borderRadius: BorderRadius.circular(24),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => context.pop(),
           ),
         ],
       ),

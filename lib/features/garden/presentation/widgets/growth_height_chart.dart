@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
-import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
+import 'package:plenty/core/domain/models/growth_log_model.dart';
 
 /// FlChart-based growth height curve widget for PlantDetailsScreen.
 class GrowthHeightChart extends StatelessWidget {

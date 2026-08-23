@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/features/garden/data/repositories/badge_repository.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:plenty/features/profile/data/repositories/badge_repository_impl.dart';
+import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   late DatabaseHelper dbHelper;
-  late BadgeRepository badgeRepo;
+  late IBadgeRepository badgeRepo;
 
   setUpAll(() {
     sqfliteFfiInit();
@@ -16,7 +16,7 @@ void main() {
   setUp(() async {
     dbHelper = DatabaseHelper.forTesting('badge_repo_test.db');
     await dbHelper.deleteDb();
-    badgeRepo = BadgeRepository(dbHelper: dbHelper);
+    badgeRepo = BadgeRepositoryImpl(dbHelper: dbHelper);
 
     final db = await dbHelper.database;
     await db.insert(
@@ -29,7 +29,6 @@ void main() {
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-    await badgeRepo.seedInitialBadges();
   });
 
   tearDown(() async {
@@ -37,37 +36,35 @@ void main() {
   });
 
   group('BadgeRepository', () {
-    test('seedInitialBadges inserts default badges', () async {
-      await badgeRepo.seedInitialBadges();
-      final db = await dbHelper.database;
-      final count = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT COUNT(*) FROM ${DatabaseHelper.tableBadges}'),
-      );
-
-      expect(count, equals(BadgeRepository.defaultBadges.length));
+    test('getBadges retrieves all seeded badges', () async {
+      final badgesRes = await badgeRepo.getBadges(userId: 1);
+      final badges = badgesRes.dataOrNull ?? [];
+      expect(badges.isNotEmpty, isTrue);
     });
 
     test('awardBadge unlocks new badge and prevents duplicates', () async {
-      final awardedFirst = await badgeRepo.awardBadge(
+      final awardedFirstRes = await badgeRepo.awardBadge(
         userId: '1',
-        badgeId: 'FIRST_PLANT',
+        badgeId: 'first_plant',
       );
+      final awardedFirst = awardedFirstRes.dataOrNull ?? false;
       expect(awardedFirst, isTrue);
 
-      final hasFirstPlant =
-          await badgeRepo.hasBadge('1', 'FIRST_PLANT');
-      expect(hasFirstPlant, isTrue);
+      final badgeRes = await badgeRepo.getBadgeById('first_plant', userId: 1);
+      final badge = badgeRes.dataOrNull;
+      expect(badge?.isUnlocked, isTrue);
 
       // Second attempt should return false (already unlocked)
-      final awardedAgain = await badgeRepo.awardBadge(
+      final awardedAgainRes = await badgeRepo.awardBadge(
         userId: '1',
-        badgeId: 'FIRST_PLANT',
+        badgeId: 'first_plant',
       );
+      final awardedAgain = awardedAgainRes.dataOrNull ?? true;
       expect(awardedAgain, isFalse);
 
-      final badges = await badgeRepo.getUserBadges('1');
-      expect(badges.length, 1);
-      expect(badges.first.badge?.title, 'Tunas Pertama 🌱');
+      final unlockedCountRes = await badgeRepo.getUnlockedBadgeCount(userId: 1);
+      final unlockedCount = unlockedCountRes.dataOrNull ?? 0;
+      expect(unlockedCount, 1);
     });
   });
 }

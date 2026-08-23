@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/utils/image_picker_helper.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
@@ -169,7 +170,7 @@ class _EditPlantSheetState extends State<EditPlantSheet> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, color: AppColors.muted),
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => context.pop(),
                 ),
               ],
             ),
@@ -231,7 +232,7 @@ class _EditPlantSheetState extends State<EditPlantSheet> {
                   ? () {
                       final newName = _nameController.text.trim();
                       widget.onSave(newName, _currentPhoto, _photoChanged);
-                      Navigator.of(context).pop();
+                      context.pop();
                     }
                   : null,
             ),

@@ -286,14 +286,14 @@ class WizardEnvironmentStep extends StatelessWidget {
         const SizedBox(height: 12),
         _buildRadioRow(
           'Ada Lubang Drainase',
-          'Di dalam ruangan menggunakan pot.',
+          'Media tanam dengan lubang drainase.',
           drainage == 'Ada Lubang Drainase',
           () => onDrainageChanged('Ada Lubang Drainase'),
         ),
         const SizedBox(height: 12),
         _buildRadioRow(
           'Tanpa Lubang Drainase',
-          'Di luar ruangan menggunakan pot.',
+          'Media tanam tanpa lubang drainase.',
           drainage == 'Tanpa Lubang Drainase',
           () => onDrainageChanged('Tanpa Lubang Drainase'),
         ),

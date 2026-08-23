@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:plenty/core/di/injector.dart';
+import 'package:plenty/core/error/failure.dart';
+import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
 
 enum AddPlantEntryPoint { onboarding, emptyState, fabHome }
@@ -135,7 +138,7 @@ class AddPlantFlowState {
 }
 
 class AddPlantFlowController extends ChangeNotifier {
-  final PlantRepository _plantRepo;
+  final IPlantRepository _plantRepo;
   final String userId;
 
   late AddPlantFlowState _state;
@@ -144,10 +147,10 @@ class AddPlantFlowController extends ChangeNotifier {
   bool _isDisposed = false;
 
   AddPlantFlowController({
-    PlantRepository? plantRepo,
+    IPlantRepository? plantRepo,
     AddPlantEntryPoint entryPoint = AddPlantEntryPoint.fabHome,
     this.userId = 'usr_default',
-  })  : _plantRepo = plantRepo ?? PlantRepository(),
+  })  : _plantRepo = plantRepo ?? Injector.plantRepository,
         _state = AddPlantFlowState.initial(entryPoint);
 
   @override
@@ -186,6 +189,7 @@ class AddPlantFlowController extends ChangeNotifier {
     _updateState(
       _state.copyWith(
         growthStage: stage,
+        plantedDate: stage == 'seed' ? DateTime.now() : _state.plantedDate,
         initialHeightCm: stage == 'seed' && _state.initialHeightCm == 25.0
             ? 2.0
             : (stage == 'mature' && _state.initialHeightCm == 2.0 ? 25.0 : _state.initialHeightCm),
@@ -251,7 +255,7 @@ class AddPlantFlowController extends ChangeNotifier {
     }
   }
 
-  Future<AddPlantResult> confirmAndSave() async {
+  Future<Result<AddPlantResult>> confirmAndSave() async {
     _updateState(_state.copyWith(isLoading: true, errorMessage: null));
 
     try {
@@ -283,6 +287,7 @@ class AddPlantFlowController extends ChangeNotifier {
         windowDistance: _state.selectedRoom,
         initialHeightCm: _state.initialHeightCm,
         growthStage: _state.growthStage,
+        adoptedAt: _state.plantedDate,
         coverPhotoPath: coverPhoto,
         customPhotoPath: customPhoto,
         timeCapsule: _state.timeCapsuleDraft,
@@ -290,11 +295,17 @@ class AddPlantFlowController extends ChangeNotifier {
             _state.selectedSpecies?.defaultWateringInterval ?? 4,
       );
 
-      _updateState(_state.copyWith(isLoading: false));
-      return result;
+      switch (result) {
+        case Success():
+          _updateState(_state.copyWith(isLoading: false));
+          return result;
+        case Error(:final failure):
+          _updateState(_state.copyWith(isLoading: false, errorMessage: failure.message));
+          return result;
+      }
     } catch (e) {
       _updateState(_state.copyWith(isLoading: false, errorMessage: e.toString()));
-      rethrow;
+      return Error(DatabaseFailure(e.toString()));
     }
   }
 }

@@ -1,6 +1,6 @@
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
-import 'package:plenty/core/utils/result.dart';
+import 'package:plenty/core/error/result.dart';
 import 'package:plenty/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:plenty/features/auth/domain/models/user_model.dart';
 import 'package:plenty/features/auth/domain/repositories/auth_repository.dart';

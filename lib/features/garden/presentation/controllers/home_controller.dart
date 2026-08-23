@@ -1,15 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:plenty/core/constants/xp_config.dart';
+import 'package:plenty/core/di/injector.dart';
+import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/daily_care/domain/models/care_task_model.dart';
-import 'package:plenty/features/daily_care/data/care_repository.dart';
-import 'package:plenty/features/garden/data/repositories/site_repository.dart';
+import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
 import 'package:plenty/features/garden/domain/models/custom_site_model.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
-import 'package:plenty/features/garden/data/repositories/badge_repository.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
-import 'package:plenty/features/garden/data/repositories/streak_repository.dart';
-import 'package:plenty/features/profile/data/repositories/user_repository.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/domain/repositories/site_repository.dart';
+import 'package:plenty/features/garden/domain/repositories/streak_repository.dart';
+import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
+import 'package:plenty/features/profile/domain/repositories/user_repository.dart';
 
 enum HomeStatus { empty, populated }
 
@@ -100,7 +102,6 @@ class HomeState {
     ];
     final filters = <String>[...defaultFilters];
 
-    // Add saved custom sites from database
     for (final s in customSites) {
       final siteName = s.name.trim();
       if (siteName.isNotEmpty &&
@@ -109,7 +110,6 @@ class HomeState {
       }
     }
 
-    // Add any site associated with existing user plants
     for (final plant in userPlants) {
       final site = plant.siteName.trim();
       if (site.isNotEmpty &&
@@ -171,13 +171,17 @@ class HomeState {
   }
 }
 
+/// Dashboard / Home Controller coordinating user garden, daily care tasks, and gamification state.
+///
+/// NOTE: HomeController serves as the central home dashboard aggregator, coordinating across
+/// plant, care, streak, badge, site, and user domains via explicit interface injection.
 class HomeController extends ChangeNotifier {
-  final PlantRepository _plantRepo;
-  final CareRepository _careRepo;
-  final StreakRepository _streakRepo;
-  final BadgeRepository _badgeRepo;
-  final UserRepository _userRepo;
-  final SiteRepository _siteRepo;
+  final IPlantRepository _plantRepo;
+  final IDailyCareRepository _careRepo;
+  final IStreakRepository _streakRepo;
+  final IBadgeRepository _badgeRepo;
+  final IUserRepository _userRepo;
+  final ISiteRepository _siteRepo;
   final String userId;
 
   HomeState _state = const HomeState(isLoading: true);
@@ -186,26 +190,19 @@ class HomeController extends ChangeNotifier {
   bool _isDisposed = false;
 
   HomeController({
-    PlantRepository? plantRepo,
-    CareRepository? careRepo,
-    StreakRepository? streakRepo,
-    BadgeRepository? badgeRepo,
-    UserRepository? userRepo,
-    SiteRepository? siteRepo,
+    IPlantRepository? plantRepo,
+    IDailyCareRepository? careRepo,
+    IStreakRepository? streakRepo,
+    IBadgeRepository? badgeRepo,
+    IUserRepository? userRepo,
+    ISiteRepository? siteRepo,
     this.userId = 'usr_default',
-  })  : _plantRepo = plantRepo ?? PlantRepository(),
-        _careRepo = careRepo ??
-            CareRepository(dbHelper: (plantRepo ?? PlantRepository()).dbHelper),
-        _streakRepo = streakRepo ??
-            StreakRepository(
-                dbHelper: (plantRepo ?? PlantRepository()).dbHelper),
-        _badgeRepo = badgeRepo ??
-            BadgeRepository(
-                dbHelper: (plantRepo ?? PlantRepository()).dbHelper),
-        _userRepo = userRepo ??
-            UserRepository(dbHelper: (plantRepo ?? PlantRepository()).dbHelper),
-        _siteRepo = siteRepo ??
-            SiteRepository(dbHelper: (plantRepo ?? PlantRepository()).dbHelper) {
+  })  : _plantRepo = plantRepo ?? Injector.plantRepository,
+        _careRepo = careRepo ?? Injector.dailyCareRepository,
+        _streakRepo = streakRepo ?? Injector.streakRepository,
+        _badgeRepo = badgeRepo ?? Injector.badgeRepository,
+        _userRepo = userRepo ?? Injector.userRepository,
+        _siteRepo = siteRepo ?? Injector.siteRepository {
     loadDashboard();
   }
 
@@ -225,17 +222,28 @@ class HomeController extends ChangeNotifier {
     _updateState(_state.copyWith(isLoading: true, errorMessage: null));
 
     try {
-      final user = await _userRepo.getUserProfile() ??
-          await PreferenceHandler.getUser();
+      final userProfileResult = await _userRepo.getUserProfile();
+      final user = userProfileResult.dataOrNull ?? await PreferenceHandler.getUser();
       final userIdVal = user?.id;
       final effectiveUserId = (userIdVal != null && userIdVal > 0)
           ? userIdVal.toString()
           : (userId.isNotEmpty ? userId : 'usr_default');
-      final plants = await _plantRepo.getUserPlants(effectiveUserId);
-      final streakModel = await _streakRepo.getStreak(effectiveUserId);
-      final totalXp = await _careRepo.getTotalUserXp(effectiveUserId);
-      final badgeCount = await _badgeRepo.getUserBadgeCount(effectiveUserId);
-      final customSites = await _siteRepo.getCustomSites(effectiveUserId);
+
+      final plantsResult = await _plantRepo.getUserPlants(effectiveUserId);
+      final plants = plantsResult.dataOrNull ?? [];
+
+      final streakResult = await _streakRepo.getStreak(effectiveUserId);
+      final streakModel = streakResult.dataOrNull;
+
+      final xpResult = await _careRepo.getTotalUserXp(effectiveUserId);
+      final totalXp = xpResult.dataOrNull ?? 0;
+
+      final badgeCountResult = await _badgeRepo.getUserBadgeCount(effectiveUserId);
+      final badgeCount = badgeCountResult.dataOrNull ?? 0;
+
+      final sitesResult = await _siteRepo.getCustomSites(effectiveUserId);
+      final customSites = sitesResult.dataOrNull ?? [];
+
       final userLevel = XpConfig.levelForXp(totalXp);
       final name = (user?.displayName.trim().isNotEmpty ?? false)
           ? user!.displayName
@@ -258,8 +266,8 @@ class HomeController extends ChangeNotifier {
             userPlants: [],
             dailyTasks: [],
             customSites: customSites,
-            streakCount: streakModel.currentStreak,
-            streakTier: streakModel.currentTier,
+            streakCount: streakModel?.currentStreak ?? 0,
+            streakTier: streakModel?.currentTier ?? 1,
             totalXp: totalXp,
             userLevel: userLevel,
             badgeCount: badgeCount,
@@ -275,7 +283,8 @@ class HomeController extends ChangeNotifier {
 
       final tasks = <CareTaskModel>[];
       for (final plant in plants) {
-        final taskTypes = await _careRepo.getTodaysTaskTypes(plant.id);
+        final taskTypesResult = await _careRepo.getTodaysTaskTypes(plant.id);
+        final taskTypes = taskTypesResult.dataOrNull ?? [];
         for (final typeStr in taskTypes) {
           final type = TaskType.fromDbString(typeStr);
           tasks.add(
@@ -298,8 +307,8 @@ class HomeController extends ChangeNotifier {
           userPlants: plants,
           dailyTasks: tasks,
           customSites: customSites,
-          streakCount: streakModel.currentStreak,
-          streakTier: streakModel.currentTier,
+          streakCount: streakModel?.currentStreak ?? 0,
+          streakTier: streakModel?.currentTier ?? 1,
           totalXp: totalXp,
           userLevel: userLevel,
           badgeCount: badgeCount,
@@ -325,24 +334,15 @@ class HomeController extends ChangeNotifier {
   }
 
   Future<void> completeTask(CareTaskModel task) async {
-    try {
-      if (task.type == TaskType.siram) {
-        await _careRepo.completeWateringTask(
-          userPlantId: task.plant.id,
-        );
-      } else if (task.type == TaskType.bersihBersih) {
-        await _careRepo.completeSimpleTask(
-          userPlantId: task.plant.id,
-          taskType: 'bersih_bersih',
-        );
-      }
-      await loadDashboard();
-    } catch (e) {
-      _updateState(
-        _state.copyWith(
-          errorMessage: 'Gagal menyelesaikan tugas: $e',
-        ),
-      );
+    final result = await _careRepo.completeRoutineTask(
+      plant: task.plant,
+      taskType: task.type.dbString,
+    );
+    switch (result) {
+      case Success():
+        await loadDashboard();
+      case Error(:final failure):
+        _updateState(_state.copyWith(errorMessage: failure.message));
     }
   }
 

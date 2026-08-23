@@ -1,8 +1,8 @@
-import 'package:plenty/core/utils/result.dart';
+import 'package:plenty/core/error/result.dart';
 import 'package:plenty/features/auth/domain/models/user_model.dart';
 
 /// Contract interface for Authentication Repository.
-abstract interface class AuthRepository {
+abstract interface class IAuthRepository {
   Future<Result<UserModel>> login({
     required String email,
     required String password,
@@ -18,3 +18,6 @@ abstract interface class AuthRepository {
 
   Future<Result<void>> logout();
 }
+
+/// Backwards-compatible alias for [IAuthRepository].
+typedef AuthRepository = IAuthRepository;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/core/widgets/custom_text_field.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
@@ -136,10 +137,10 @@ class _TimeCapsuleModalState extends State<TimeCapsuleModal> {
             onPressed: () {
               final msg = _messageController.text.trim();
               if (msg.isEmpty) {
-                Navigator.of(context).pop();
+                context.pop();
                 return;
               }
-              Navigator.of(context).pop(
+              context.pop(
                 TimeCapsuleDraft(
                   message: msg,
                   durationMonths: _selectedMonths,
@@ -151,7 +152,7 @@ class _TimeCapsuleModalState extends State<TimeCapsuleModal> {
             const SizedBox(height: 8),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(TimeCapsuleDraft(message: '', durationMonths: 0));
+                context.pop(TimeCapsuleDraft(message: '', durationMonths: 0));
               },
               child: Text(
                 'Hapus Kapsul Waktu',

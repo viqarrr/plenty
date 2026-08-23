@@ -1,13 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
-import 'package:plenty/features/garden/data/repositories/streak_repository.dart';
+import 'package:plenty/features/garden/data/repositories/streak_repository_impl.dart';
+import 'package:plenty/features/garden/domain/repositories/streak_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   late DatabaseHelper dbHelper;
-  late StreakRepository streakRepo;
+  late IStreakRepository streakRepo;
 
   setUpAll(() {
     sqfliteFfiInit();
@@ -20,7 +21,7 @@ void main() {
 
     dbHelper = DatabaseHelper.forTesting('streak_repo_test.db');
     await dbHelper.deleteDb();
-    streakRepo = StreakRepository(dbHelper: dbHelper);
+    streakRepo = StreakRepositoryImpl(dbHelper: dbHelper);
 
     final db = await dbHelper.database;
     await db.insert(
@@ -46,7 +47,8 @@ void main() {
 
   group('StreakRepository', () {
     test('getStreak initializes record if not existing', () async {
-      final streak = await streakRepo.getStreak('1');
+      final streakRes = await streakRepo.getStreak('1');
+      final streak = streakRes.dataOrNull!;
 
       expect(streak.userId, '1');
       expect(streak.currentStreak, 0);
@@ -67,7 +69,8 @@ void main() {
         whereArgs: [1],
       );
 
-      final streak = await streakRepo.getStreak('1');
+      final streakRes = await streakRepo.getStreak('1');
+      final streak = streakRes.dataOrNull!;
 
       expect(streak.currentStreak, 14);
       expect(streak.currentTier, 5);
@@ -117,7 +120,8 @@ void main() {
         },
       );
 
-      final result = await streakRepo.evaluateDailyStreak('1');
+      final resultRes = await streakRepo.evaluateDailyStreak('1');
+      final result = resultRes.dataOrNull!;
 
       expect(result.currentStreak, 2);
       expect(PreferenceHandler.streakCount, 2);

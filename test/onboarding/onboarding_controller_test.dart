@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
-import 'package:plenty/features/profile/data/repositories/user_repository.dart';
-import 'package:plenty/features/profile/presentation/controllers/onboarding_controller.dart';
+import 'package:plenty/features/onboarding/presentation/controllers/onboarding_controller.dart';
+import 'package:plenty/features/profile/data/repositories/user_repository_impl.dart';
+import 'package:plenty/features/profile/domain/repositories/user_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -10,7 +11,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late UserRepository userRepo;
+  late IUserRepository userRepo;
   late OnboardingController controller;
 
   setUpAll(() {
@@ -39,7 +40,7 @@ void main() {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    userRepo = UserRepository(dbHelper: dbHelper);
+    userRepo = UserRepositoryImpl(dbHelper: dbHelper);
     controller = OnboardingController(
       userRepo: userRepo,
       userId: '1',
@@ -81,7 +82,8 @@ void main() {
         expect(controller.state.currentStep, 3);
 
         // Check SQLite persistence
-        final savedPrefs = await userRepo.getUserPreferences('1');
+        final savedPrefsRes = await userRepo.getUserPreferences('1');
+        final savedPrefs = savedPrefsRes.dataOrNull;
         expect(savedPrefs, isNotNull);
         expect(savedPrefs!.experienceLevel, 'intermediate');
         expect(savedPrefs.dailyTimeMinutes, 30.0);
@@ -101,7 +103,8 @@ void main() {
 
         expect(controller.state.isCompleted, true);
 
-        final savedPrefs = await userRepo.getUserPreferences('1');
+        final savedPrefsRes = await userRepo.getUserPreferences('1');
+        final savedPrefs = savedPrefsRes.dataOrNull;
         expect(savedPrefs, isNotNull);
         expect(savedPrefs!.hasCompletedOnboarding, true);
         expect(savedPrefs.hasPets, true);

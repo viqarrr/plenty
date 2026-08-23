@@ -24,49 +24,37 @@ class CurrentProgressCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Progres Saat Ini',
-          style: AppTypography.title2Bold,
-        ),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Column(
-            children: [
-              // Level and XP text row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Level $userLevel',
-                    style: AppTypography.headlineSemiBold,
-                  ),
-                  Text(
-                    '$xpToNextLevel XP menuju Level ${userLevel + 1}',
-                    style: AppTypography.caption1Regular.copyWith(
-                      color: AppColors.muted,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Dynamic Linear progress bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(5),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 10,
-                  backgroundColor: AppColors.canvasDefault,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.sprout),
+        Column(
+          children: [
+            // Level and XP text row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Level $userLevel',
+                  style: AppTypography.headlineSemiBold,
                 ),
+                Text(
+                  '$xpToNextLevel XP menuju Level ${userLevel + 1}',
+                  style: AppTypography.caption1Regular.copyWith(
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+        
+            // Dynamic Linear progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 10,
+                backgroundColor: AppColors.canvasDefault,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.sprout),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );

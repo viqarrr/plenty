@@ -171,6 +171,15 @@ abstract final class AppTypography {
   );
 
   /// Caption 2 / Badge Tags (10px / 11px Bold)
+  static final TextStyle caption2Regular = GoogleFonts.plusJakartaSans(
+    textStyle: const TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.w400,
+      height: 15 / 10,
+      letterSpacing: 0,
+    ),
+  );
+
   static final TextStyle caption2Bold = GoogleFonts.plusJakartaSans(
     textStyle: const TextStyle(
       fontSize: 10,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 
 /// Modal bottom sheet for selecting the application theme.
@@ -16,10 +17,8 @@ class ThemeSelectorSheet extends StatelessWidget {
     BuildContext context, {
     required String currentTheme,
   }) {
-    return showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ThemeSelectorSheet(currentTheme: currentTheme),
+    return context.showAppBottomSheet<String>(
+      ThemeSelectorSheet(currentTheme: currentTheme),
     );
   }
 
@@ -61,7 +60,7 @@ class ThemeSelectorSheet extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.close, color: AppColors.muted),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => context.pop(),
               ),
             ],
           ),
@@ -72,7 +71,7 @@ class ThemeSelectorSheet extends StatelessWidget {
             subtitle: 'Tema bawaan aplikasi Plenty saat ini (Aktif)',
             icon: Icons.wb_sunny_outlined,
             isSelected: currentTheme == 'Mode Terang' || currentTheme == 'Light',
-            onTap: () => Navigator.of(context).pop('Mode Terang'),
+            onTap: () => context.pop('Mode Terang'),
           ),
           const SizedBox(height: 8),
 
@@ -81,7 +80,7 @@ class ThemeSelectorSheet extends StatelessWidget {
             subtitle: 'Menggunakan preferensi sistem (Default: Terang)',
             icon: Icons.phone_android_outlined,
             isSelected: currentTheme == 'Sistem',
-            onTap: () => Navigator.of(context).pop('Sistem'),
+            onTap: () => context.pop('Sistem'),
           ),
           const SizedBox(height: 8),
 
@@ -90,7 +89,7 @@ class ThemeSelectorSheet extends StatelessWidget {
             subtitle: 'Tampilan tema gelap',
             icon: Icons.nightlight_outlined,
             isSelected: currentTheme == 'Mode Gelap' || currentTheme == 'Dark',
-            onTap: () => Navigator.of(context).pop('Mode Gelap'),
+            onTap: () => context.pop('Mode Gelap'),
           ),
           const SizedBox(height: 24),
 
@@ -99,7 +98,7 @@ class ThemeSelectorSheet extends StatelessWidget {
             isOutlined: true,
             height: 48,
             borderRadius: BorderRadius.circular(24),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => context.pop(),
           ),
         ],
       ),

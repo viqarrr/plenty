@@ -107,6 +107,8 @@ class _AddCustomPlantWizardScreenState
                       WizardGrowthStageStep(
                         selectedStage: state.growthStage,
                         onStageChanged: _controller.setGrowthStage,
+                        plantedDate: state.plantedDate,
+                        onDateChanged: _controller.setPlantedDate,
                       ),
                       WizardEnvironmentStep(
                         environment: state.environment,

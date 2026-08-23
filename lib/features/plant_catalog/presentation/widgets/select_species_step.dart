@@ -3,19 +3,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/di/injector.dart';
+import 'package:plenty/core/error/result.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/presentation/widgets/catalog_plant_card.dart';
 import 'package:plenty/features/plant_catalog/presentation/widgets/catalog_search_bar.dart';
 
 class SelectSpeciesStep extends StatefulWidget {
   final PlantCatalogModel? selectedSpecies;
   final ValueChanged<PlantCatalogModel> onSpeciesSelected;
+  final IPlantRepository? plantRepository;
 
   const SelectSpeciesStep({
     super.key,
     required this.selectedSpecies,
     required this.onSpeciesSelected,
+    this.plantRepository,
   });
 
   @override
@@ -24,7 +28,7 @@ class SelectSpeciesStep extends StatefulWidget {
 
 class _SelectSpeciesStepState extends State<SelectSpeciesStep> {
   final _searchController = TextEditingController();
-  final _plantRepo = PlantRepository();
+  late final IPlantRepository _plantRepo;
   Timer? _debounceTimer;
 
   List<PlantCatalogModel> _catalog = [];
@@ -32,9 +36,12 @@ class _SelectSpeciesStepState extends State<SelectSpeciesStep> {
   String _searchQuery = '';
   String _selectedFilter = 'Semua';
 
+  String? _errorMessage;
+
   @override
   void initState() {
     super.initState();
+    _plantRepo = widget.plantRepository ?? Injector.plantRepository;
     _loadCatalog();
   }
 
@@ -46,17 +53,24 @@ class _SelectSpeciesStepState extends State<SelectSpeciesStep> {
   }
 
   Future<void> _loadCatalog({String query = ''}) async {
-    setState(() => _isLoading = true);
-    try {
-      final list = await _plantRepo.getCatalogPlants(query: query);
-      if (!mounted) return;
-      setState(() {
-        _catalog = list;
-        _isLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    final result = await _plantRepo.getCatalogPlants(query: query);
+    if (!mounted) return;
+    switch (result) {
+      case Success(:final data):
+        setState(() {
+          _catalog = data;
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      case Error(:final failure):
+        setState(() {
+          _isLoading = false;
+          _errorMessage = failure.message;
+        });
     }
   }
 
@@ -134,6 +148,41 @@ class _SelectSpeciesStepState extends State<SelectSpeciesStep> {
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(color: AppColors.forest),
+                  )
+                : _errorMessage != null && _filteredSpecies.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.wifi_off_rounded,
+                          size: 48,
+                          color: AppColors.muted,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: AppTypography.headline.copyWith(
+                            color: AppColors.ink,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => _loadCatalog(query: _searchQuery),
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Coba Lagi'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.forest,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   )
                 : _filteredSpecies.isEmpty
                 ? Center(

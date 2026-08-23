@@ -8,15 +8,16 @@ class DatabaseHelper {
   // Table Names
   static const String tableUsers = 'users';
   static const String tableUserPreferences = 'user_preferences';
-  static const String tablePlantCatalog = 'plant_catalog';
   static const String tableUserPlants = 'user_plants';
   static const String tableCareSchedules = 'care_schedules';
   static const String tableCareActionLogs = 'care_action_logs';
   static const String tableGrowthLogs = 'growth_logs';
   static const String tableTimeCapsules = 'time_capsules';
   static const String tableBadges = 'badges';
+  static const String tableUserBadges = 'user_badges';
   static const String tableCommunityPosts = 'community_posts';
   static const String tablePostComments = 'post_comments';
+  static const String tablePostLikes = 'post_likes';
   static const String tableCustomSites = 'custom_sites';
 
   static final DatabaseHelper instance = DatabaseHelper._internal();
@@ -108,50 +109,43 @@ class DatabaseHelper {
     ''');
 
     batch.execute('''
-      CREATE TABLE plant_catalog (
-        id TEXT PRIMARY KEY,
-        common_name TEXT NOT NULL,
-        scientific_name TEXT,
-        family TEXT,
-        default_watering_interval INTEGER NOT NULL DEFAULT 3,
-        sunlight_level TEXT,
-        care_level TEXT,
-        image_url TEXT,
-        local_image_path TEXT,
-        toxicity TEXT,
-        dimension TEXT,
-        growth_rate TEXT,
-        cycle TEXT,
-        pruning_month TEXT,
-        flowering_season TEXT,
-        description TEXT,
-        origin TEXT,
-        is_toxic INTEGER DEFAULT 0,
-        cached_at TEXT
-      );
-    ''');
-
-    batch.execute('''
       CREATE TABLE user_plants (
         id TEXT PRIMARY KEY,
-        user_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        species_id INTEGER,
         catalog_id TEXT,
-        nickname TEXT NOT NULL,
+        species_name TEXT NOT NULL DEFAULT '',
+        scientific_name TEXT,
+        nickname TEXT NOT NULL DEFAULT 'Tanaman Hias',
+        room_name TEXT NOT NULL DEFAULT 'Ruang Tamu',
+        placement_type TEXT NOT NULL DEFAULT 'Indoor',
+        window_distance TEXT,
+        pot_size TEXT,
+        initial_height REAL NOT NULL DEFAULT 30.0,
+        current_height REAL NOT NULL DEFAULT 30.0,
+        image_path TEXT,
+        watering_interval_days INTEGER NOT NULL DEFAULT 7,
+        sunlight_preference TEXT,
+        is_pet_friendly INTEGER DEFAULT 0,
+        adopted_at TEXT NOT NULL DEFAULT '',
         is_indoor INTEGER NOT NULL DEFAULT 1,
         sunlight_condition TEXT,
-        pot_size TEXT,
         site TEXT,
-        window_distance TEXT,
         initial_height_cm REAL DEFAULT 30.0,
         growth_stage TEXT NOT NULL DEFAULT 'mature',
         level INTEGER NOT NULL DEFAULT 1,
         xp INTEGER NOT NULL DEFAULT 0,
         health_status TEXT NOT NULL DEFAULT 'healthy',
         cover_photo_path TEXT,
-        adopted_at TEXT NOT NULL,
-        is_archived INTEGER NOT NULL DEFAULT 0,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-        FOREIGN KEY (catalog_id) REFERENCES plant_catalog (id) ON DELETE SET NULL
+        default_watering_interval INTEGER NOT NULL DEFAULT 7,
+        care_level TEXT,
+        toxicity TEXT,
+        description TEXT,
+        growth_rate TEXT,
+        growth_cycle TEXT,
+        pruning_season TEXT,
+        flower_status TEXT,
+        is_archived INTEGER NOT NULL DEFAULT 0
       );
     ''');
 
@@ -210,12 +204,32 @@ class DatabaseHelper {
       );
     ''');
 
+    // 7. Master Badges Definition
     batch.execute('''
       CREATE TABLE badges (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         description TEXT NOT NULL,
-        icon_asset_path TEXT NOT NULL
+        icon_name TEXT NOT NULL,
+        tier_name TEXT NOT NULL DEFAULT 'Normal',
+        level INTEGER NOT NULL DEFAULT 1,
+        target_total INTEGER NOT NULL DEFAULT 1,
+        bg_color_hex TEXT NOT NULL DEFAULT '#EBF7F1',
+        accent_color_hex TEXT NOT NULL DEFAULT '#2D6A4F'
+      );
+    ''');
+
+    // 8. User Unlocked Badges Junction
+    batch.execute('''
+      CREATE TABLE user_badges (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        badge_id TEXT NOT NULL,
+        is_unlocked INTEGER NOT NULL DEFAULT 0,
+        current_progress INTEGER NOT NULL DEFAULT 0,
+        unlocked_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (badge_id) REFERENCES badges (id) ON DELETE CASCADE
       );
     ''');
 
@@ -226,10 +240,13 @@ class DatabaseHelper {
         category TEXT NOT NULL,
         caption TEXT,
         image_url TEXT,
+        badge_id TEXT,
         kudos_count INTEGER DEFAULT 0,
+        is_liked INTEGER DEFAULT 0,
         comment_count INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (badge_id) REFERENCES badges (id) ON DELETE SET NULL
       );
     ''');
 
@@ -240,6 +257,17 @@ class DatabaseHelper {
         user_id INTEGER NOT NULL,
         content TEXT NOT NULL,
         created_at TEXT NOT NULL,
+        FOREIGN KEY (post_id) REFERENCES community_posts (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      );
+    ''');
+
+    batch.execute('''
+      CREATE TABLE post_likes (
+        post_id TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (post_id, user_id),
         FOREIGN KEY (post_id) REFERENCES community_posts (id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       );
@@ -260,6 +288,28 @@ class DatabaseHelper {
     batch.execute('''
       INSERT OR IGNORE INTO users (id, email, username, password, display_name, streak_count, longest_streak, total_xp, level, unlocked_badges_count, created_at)
       VALUES (1, 'default@plenty.app', 'user_default', '', 'Pecinta Tanaman', 0, 0, 0, 1, 0, '${DateTime.now().toIso8601String()}');
+    ''');
+
+    // Initial Badge Seeds
+    batch.execute('''
+      INSERT OR IGNORE INTO badges (id, title, description, icon_name, tier_name, level, target_total, bg_color_hex, accent_color_hex) VALUES
+      ('first_plant', 'Adopsi Pertama', 'Mengadopsi tanaman pertama untuk memulai perjalanan berkebunmu.', 'sprout', '', 1, 1, '#EBF7F1', '#2D6A4F'),
+      ('water_streak', 'Penyiram Setia', 'Menyiram tanaman tepat waktu selama 7 hari berturut-turut.', 'droplets', '', 7, 7, '#FBF3DB', '#956400'),
+      ('time_capsule', 'Kapsul Waktu', 'Membuat pesan kapsul waktu pertama saat menanam.', 'hourglass', '', 1, 1, '#E3F0FF', '#1F6C9F'),
+      ('plant_collector', 'Kolektor Rimbun', 'Memiliki minimal 5 tanaman aktif di kebun virtualmu.', 'trees', '', 5, 5, '#EBF7F1', '#2D6A4F'),
+      ('doctor_green', 'Dokter Tanaman', 'Mencatat jurnal kondisi kesehatan tanaman sebanyak 10 kali.', 'activity', '', 10, 10, '#EFEBF7', '#5B4B8A'),
+      ('sun_master', 'Pencari Cahaya', 'Menempatkan tanaman di lokasi dengan intensitas cahaya ideal.', 'sun', '', 1, 1, '#FBF3DB', '#956400');
+    ''');
+
+    // Default User Initial Progress Seed (User ID 1 starts with 0 unlocked badges)
+    batch.execute('''
+      INSERT OR IGNORE INTO user_badges (id, user_id, badge_id, is_unlocked, current_progress, unlocked_at) VALUES
+      ('ub_1', 1, 'first_plant', 0, 0, NULL),
+      ('ub_2', 1, 'water_streak', 0, 0, NULL),
+      ('ub_3', 1, 'time_capsule', 0, 0, NULL),
+      ('ub_4', 1, 'plant_collector', 0, 0, NULL),
+      ('ub_5', 1, 'doctor_green', 0, 0, NULL),
+      ('ub_6', 1, 'sun_master', 0, 0, NULL);
     ''');
 
     await batch.commit(noResult: true);

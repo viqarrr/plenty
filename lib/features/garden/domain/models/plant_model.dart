@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 class PlantModel {
   final String id;
   final String userId;
+  final int? speciesId;
   final String? catalogId;
   final String nickname;
   final bool isIndoor;
@@ -21,7 +22,9 @@ class PlantModel {
   final int xp;
   final bool isArchived;
   final String? commonName;
+  final String? _scientificName;
   final int defaultWateringInterval;
+  final bool isPetFriendly;
 
   // Additional descriptive fields (with sensible defaults)
   final String _specificArea;
@@ -44,34 +47,45 @@ class PlantModel {
   PlantModel({
     String? id,
     String? userId,
+    this.speciesId,
     this.catalogId,
     String? nickname,
     String? name,
     bool? isIndoor,
     String? location,
+    String? placementType,
     String? sunlightCondition,
+    String? sunlightPreference,
     String? lightIntensity,
     String? lightSchedule,
     String? potSize,
     String? containerDetail,
     String? site,
+    String? roomName,
     String? windowDistance,
     String? distanceFromWindow,
     String? selectedRoom,
     String? room,
     String? area,
-    this.initialHeightCm,
+    double? initialHeightCm,
+    double? initialHeight,
+    double? currentHeight,
     this.growthStage = 'mature',
     DateTime? adoptedAt,
     String? coverPhotoPath,
+    String? imagePath,
     String? imageAsset,
     this.healthStatus = 'healthy',
     this.level = 1,
     this.xp = 0,
     this.isArchived = false,
     String? commonName,
+    String? speciesName,
     String? scientificName,
-    this.defaultWateringInterval = 3,
+    int? defaultWateringInterval,
+    int? wateringIntervalDays,
+    bool? isPetFriendly,
+    bool? isToxic,
     String? specificArea,
     String? careLevel,
     String? waterSchedule,
@@ -93,79 +107,164 @@ class PlantModel {
        nickname = nickname ?? name ?? 'Tanaman Hias',
        isIndoor =
            isIndoor ??
-           (location != null ? location.toLowerCase() == 'indoor' : true),
-       sunlightCondition = sunlightCondition ?? lightIntensity ?? lightSchedule,
+           (placementType != null
+               ? placementType.toLowerCase() == 'indoor'
+               : (location != null ? location.toLowerCase() == 'indoor' : true)),
+       sunlightCondition =
+           sunlightCondition ??
+           sunlightPreference ??
+           lightIntensity ??
+           lightSchedule,
        potSize = potSize ?? containerDetail,
-       site = site ?? windowDistance ?? distanceFromWindow ?? selectedRoom ?? room ?? area,
+       site =
+           site ??
+           roomName ??
+           windowDistance ??
+           distanceFromWindow ??
+           selectedRoom ??
+           room ??
+           area,
        windowDistance = windowDistance ?? site ?? distanceFromWindow,
+       initialHeightCm = initialHeightCm ?? initialHeight,
        adoptedAt = adoptedAt ?? DateTime.now(),
-       coverPhotoPath = coverPhotoPath ?? imageAsset,
-       commonName = commonName ?? scientificName,
+       coverPhotoPath = coverPhotoPath ?? imagePath ?? imageAsset,
+       commonName = commonName ?? speciesName ?? scientificName,
+       _scientificName = scientificName,
+       defaultWateringInterval =
+           defaultWateringInterval ?? wateringIntervalDays ?? 7,
+       isPetFriendly =
+           isPetFriendly ??
+           (isToxic != null ? !isToxic : (toxicity != null ? !toxicity.toLowerCase().contains('beracun') : true)),
        _specificArea =
-           specificArea ?? site ?? windowDistance ?? ((isIndoor ?? true) ? 'Ruang Tamu' : 'Balkon'),
+           specificArea ??
+           site ??
+           roomName ??
+           windowDistance ??
+           ((isIndoor ?? true) ? 'Ruang Tamu' : 'Balkon'),
        _careLevel = careLevel ?? 'EASY CARE',
-       _waterSchedule = waterSchedule ?? 'Setiap $defaultWateringInterval Hari',
+       _waterSchedule =
+           waterSchedule ??
+           'Setiap ${defaultWateringInterval ?? wateringIntervalDays ?? 7} Hari',
        _toxicity = toxicity ?? '',
        _description =
            description ?? 'Tanaman hias favorit dengan perawatan teratur.',
-       _maxHeight = maxHeight ?? '${(initialHeightCm ?? 30.0).toInt()} cm',
+       _maxHeight =
+           maxHeight ?? '${(initialHeightCm ?? initialHeight ?? 30.0).toInt()} cm',
        _growthRate = growthRate ?? 'Sedang',
        _growthCycle = growthCycle ?? 'Perenial',
        _pruningSeason = pruningSeason ?? 'Musim Semi',
        _flowerStatus = flowerStatus ?? 'Jarang Berbunga',
        _pests = pests ?? 'Kutu putih, tungau',
-       _isCustom = isCustom ?? (catalogId == null),
+       _isCustom = isCustom ?? (catalogId == null && speciesId == null),
        _hasTimeCapsule = hasTimeCapsule ?? false,
        _timeCapsuleMessage = timeCapsuleMessage ?? '',
        _nextWaterDate =
-           nextWaterDate ?? 'Siram dalam $defaultWateringInterval hari',
+           nextWaterDate ??
+           'Siram dalam ${defaultWateringInterval ?? wateringIntervalDays ?? 7} hari',
        _lastCleanedDate = lastCleanedDate ?? 'Kemarin';
 
   factory PlantModel.fromMap(Map<String, dynamic> map) {
-    final rawSite = (map['site'] ?? map['window_distance']) as String?;
+    final rawSite = (map['room_name'] ?? map['site'] ?? map['window_distance']) as String?;
+    final commonNameVal = (map['species_name'] ?? map['common_name']) as String?;
+    final isIndoorVal = map['placement_type'] != null
+        ? (map['placement_type'] == 'Indoor')
+        : ((map['is_indoor'] as int? ?? 1) == 1);
+    final rawHeight = (map['current_height'] ?? map['initial_height'] ?? map['initial_height_cm']) as num?;
+    final initialH = (map['initial_height'] as num?)?.toDouble() ??
+        (map['initial_height_cm'] as num?)?.toDouble() ??
+        (rawHeight?.toDouble() ?? 30.0);
+    final photo = (map['image_path'] ?? map['cover_photo_path']) as String?;
+    final interval = (map['watering_interval_days'] ?? map['default_watering_interval']) as int? ?? 7;
+    final petFriendly = (map['is_pet_friendly'] as int? ?? (map['is_toxic'] != null && map['is_toxic'] == 0 ? 1 : 0)) == 1;
+
+    DateTime? parseAdoptedAt(dynamic val) {
+      if (val == null) return null;
+      if (val is int) {
+        return val > 1000000000000
+            ? DateTime.fromMillisecondsSinceEpoch(val)
+            : DateTime.fromMillisecondsSinceEpoch(val * 1000);
+      }
+      return DateTime.tryParse(val.toString());
+    }
+
     return PlantModel(
       id: map['id'] as String?,
       userId: map['user_id']?.toString() ?? '1',
+      speciesId: (map['species_id'] as num?)?.toInt(),
       catalogId: map['catalog_id'] as String?,
-      nickname: map['nickname'] as String?,
-      isIndoor: (map['is_indoor'] as int? ?? 1) == 1,
-      sunlightCondition: map['sunlight_condition'] as String?,
+      nickname: (map['nickname'] ?? map['name']) as String?,
+      isIndoor: isIndoorVal,
+      placementType: isIndoorVal ? 'Indoor' : 'Outdoor',
+      sunlightCondition: (map['sunlight_preference'] ?? map['sunlight_condition']) as String?,
+      sunlightPreference: (map['sunlight_preference'] ?? map['sunlight_condition']) as String?,
       potSize: map['pot_size'] as String?,
       site: rawSite,
+      roomName: rawSite,
       windowDistance: rawSite,
-      initialHeightCm: (map['initial_height_cm'] as num?)?.toDouble(),
+      initialHeightCm: initialH,
+      initialHeight: initialH,
+      currentHeight: rawHeight?.toDouble(),
       growthStage: map['growth_stage'] as String? ?? 'mature',
-      adoptedAt: map['adopted_at'] != null
-          ? DateTime.tryParse(map['adopted_at'] as String)
-          : null,
-      coverPhotoPath: map['cover_photo_path'] as String?,
+      adoptedAt: parseAdoptedAt(map['adopted_at']),
+      coverPhotoPath: photo,
+      imagePath: photo,
       healthStatus: map['health_status'] as String? ?? 'healthy',
       level: map['level'] as int? ?? 1,
       xp: map['xp'] as int? ?? 0,
       isArchived: (map['is_archived'] as int? ?? 0) == 1,
-      commonName: map['common_name'] as String?,
-      defaultWateringInterval: map['default_watering_interval'] as int? ?? 3,
+      commonName: commonNameVal,
+      speciesName: commonNameVal,
+      scientificName: map['scientific_name'] as String?,
+      defaultWateringInterval: interval,
+      wateringIntervalDays: interval,
+      isPetFriendly: petFriendly,
+      careLevel: map['care_level'] as String?,
+      toxicity: map['toxicity'] as String?,
+      description: map['description'] as String?,
+      growthRate: map['growth_rate'] as String?,
+      growthCycle: map['growth_cycle'] as String?,
+      pruningSeason: map['pruning_season'] as String?,
+      flowerStatus: map['flower_status'] as String?,
     );
   }
 
   Map<String, dynamic> toMap() => {
     'id': id,
-    'user_id': int.tryParse(userId) ?? 1,
+    'user_id': userId,
     'catalog_id': catalogId,
+    'species_id': speciesId,
+    'species_name': commonName ?? nickname,
+    'scientific_name': scientificName,
     'nickname': nickname,
+    'room_name': site ?? 'Ruang Tamu',
+    'placement_type': isIndoor ? 'Indoor' : 'Outdoor',
+    'window_distance': windowDistance ?? site,
+    'pot_size': potSize,
+    'initial_height': initialHeightCm ?? 30.0,
+    'current_height': currentHeightCm,
+    'image_path': coverPhotoPath,
+    'watering_interval_days': defaultWateringInterval,
+    'sunlight_preference': sunlightCondition,
+    'is_pet_friendly': isPetFriendly ? 1 : 0,
+    'adopted_at': adoptedAt.toIso8601String(),
     'is_indoor': isIndoor ? 1 : 0,
     'sunlight_condition': sunlightCondition,
-    'pot_size': potSize,
     'site': site ?? windowDistance,
-    'window_distance': windowDistance ?? site,
-    'initial_height_cm': initialHeightCm,
+    'initial_height_cm': initialHeightCm ?? 30.0,
     'growth_stage': growthStage,
-    'adopted_at': adoptedAt.toIso8601String(),
     'cover_photo_path': coverPhotoPath,
     'health_status': healthStatus,
     'level': level,
     'xp': xp,
     'is_archived': isArchived ? 1 : 0,
+    'default_watering_interval': defaultWateringInterval,
+    'care_level': careLevel,
+    'toxicity': toxicity,
+    'description': description,
+    'growth_rate': growthRate,
+    'growth_cycle': growthCycle,
+    'pruning_season': pruningSeason,
+    'flower_status': flowerStatus,
   };
 
   factory PlantModel.fromJson(Map<String, dynamic> json) =>
@@ -175,7 +274,7 @@ class PlantModel {
 
   // Helper getters for presentation layer convenience
   String get name => nickname;
-  String get scientificName => commonName ?? 'Tanaman Hias';
+  String get scientificName => _scientificName ?? commonName ?? 'Tanaman Hias';
   String get location => isIndoor ? 'Indoor' : 'Outdoor';
   String get containerDetail => potSize ?? 'Pot Standar';
   String get lightIntensity => sunlightCondition ?? 'Sinar Tidak Langsung';
@@ -208,34 +307,73 @@ class PlantModel {
   bool get isFromSeed => growthStage == 'seed';
   String get growthStageLabel => isFromSeed ? 'Dari Bibit' : 'Sudah Tumbuh';
 
+  /// Formatted plant age string derived from [adoptedAt] (e.g., '1 Hari', '24 Hari', '3 Bulan', '1 Thn 2 Bln').
+  String get ageDisplay {
+    final now = DateTime.now();
+    final startDate = DateTime(adoptedAt.year, adoptedAt.month, adoptedAt.day);
+    final today = DateTime(now.year, now.month, now.day);
+    final days = today.difference(startDate).inDays;
+
+    if (days <= 0) {
+      return '1 Hari';
+    } else if (days < 30) {
+      return '$days Hari';
+    } else if (days < 365) {
+      final months = days ~/ 30;
+      final remainingDays = days % 30;
+      if (remainingDays > 0) {
+        return '$months Bln $remainingDays Hr';
+      }
+      return '$months Bulan';
+    } else {
+      final years = days ~/ 365;
+      final remainingMonths = (days % 365) ~/ 30;
+      if (remainingMonths > 0) {
+        return '$years Thn $remainingMonths Bln';
+      }
+      return '$years Tahun';
+    }
+  }
+
   PlantModel copyWith({
     String? id,
     String? userId,
+    int? speciesId,
     String? catalogId,
     String? nickname,
     String? name,
     bool? isIndoor,
     String? location,
+    String? placementType,
     String? sunlightCondition,
+    String? sunlightPreference,
     String? lightIntensity,
     String? lightSchedule,
     String? potSize,
     String? containerDetail,
     String? site,
+    String? roomName,
     String? windowDistance,
     String? distanceFromWindow,
     double? initialHeightCm,
+    double? initialHeight,
+    double? currentHeight,
     String? growthStage,
     DateTime? adoptedAt,
     String? coverPhotoPath,
+    String? imagePath,
     String? imageAsset,
     String? healthStatus,
     int? level,
     int? xp,
     bool? isArchived,
     String? commonName,
+    String? speciesName,
     String? scientificName,
     int? defaultWateringInterval,
+    int? wateringIntervalDays,
+    bool? isPetFriendly,
+    bool? isToxic,
     String? specificArea,
     String? careLevel,
     String? waterSchedule,
@@ -255,24 +393,36 @@ class PlantModel {
   }) => PlantModel(
     id: id ?? this.id,
     userId: userId ?? this.userId,
+    speciesId: speciesId ?? this.speciesId,
     catalogId: catalogId ?? this.catalogId,
     nickname: nickname ?? this.nickname,
     isIndoor: isIndoor ?? this.isIndoor,
+    placementType: placementType ?? (isIndoor != null ? (isIndoor ? 'Indoor' : 'Outdoor') : null),
     sunlightCondition: sunlightCondition ?? this.sunlightCondition,
+    sunlightPreference: sunlightPreference ?? this.sunlightCondition,
     potSize: potSize ?? this.potSize,
     site: site ?? this.site,
+    roomName: roomName ?? this.site,
     windowDistance: windowDistance ?? this.windowDistance,
-    initialHeightCm: initialHeightCm ?? this.initialHeightCm,
+    initialHeightCm: initialHeightCm ?? initialHeight ?? this.initialHeightCm,
+    initialHeight: initialHeight ?? initialHeightCm ?? this.initialHeightCm,
+    currentHeight: currentHeight ?? currentHeightCm,
     growthStage: growthStage ?? this.growthStage,
     adoptedAt: adoptedAt ?? this.adoptedAt,
-    coverPhotoPath: coverPhotoPath ?? this.coverPhotoPath,
+    coverPhotoPath: coverPhotoPath ?? imagePath ?? this.coverPhotoPath,
+    imagePath: imagePath ?? coverPhotoPath ?? this.coverPhotoPath,
     healthStatus: healthStatus ?? this.healthStatus,
     level: level ?? this.level,
     xp: xp ?? this.xp,
     isArchived: isArchived ?? this.isArchived,
-    commonName: commonName ?? this.commonName,
+    commonName: commonName ?? speciesName ?? this.commonName,
+    speciesName: speciesName ?? commonName ?? this.commonName,
+    scientificName: scientificName ?? this.scientificName,
     defaultWateringInterval:
-        defaultWateringInterval ?? this.defaultWateringInterval,
+        defaultWateringInterval ?? wateringIntervalDays ?? this.defaultWateringInterval,
+    wateringIntervalDays:
+        wateringIntervalDays ?? defaultWateringInterval ?? this.defaultWateringInterval,
+    isPetFriendly: isPetFriendly ?? (isToxic != null ? !isToxic : this.isPetFriendly),
     specificArea: specificArea ?? this.specificArea,
     careLevel: careLevel ?? this.careLevel,
     waterSchedule: waterSchedule ?? this.waterSchedule,

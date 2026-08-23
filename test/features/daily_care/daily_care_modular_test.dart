@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/daily_care/data/repositories/daily_care_repository_impl.dart';
+import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
+import 'package:plenty/features/daily_care/presentation/controllers/daily_care_controller.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
-import 'package:plenty/features/daily_care/data/daily_care_repository.dart';
-import 'package:plenty/features/daily_care/presentation/daily_care_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -12,8 +14,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late PlantRepository plantRepo;
-  late DailyCareRepository dailyCareRepo;
+  late IPlantRepository plantRepo;
+  late IDailyCareRepository dailyCareRepo;
   late DailyCareController controller;
 
   setUpAll(() {
@@ -44,8 +46,8 @@ void main() {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    plantRepo = PlantRepository(dbHelper: dbHelper);
-    dailyCareRepo = DailyCareRepository(
+    plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
+    dailyCareRepo = DailyCareRepositoryImpl(
       dbHelper: dbHelper,
       plantRepo: plantRepo,
     );
@@ -70,7 +72,7 @@ void main() {
 
     test('DailyCareRepository loads plant height and schedule tasks', () async {
       // Add a plant
-      final addResult = await plantRepo.addPlant(
+      final addResultRes = await plantRepo.addPlant(
         userId: '1',
         species: PlantCatalogModel(
           id: 'cat_calathea',
@@ -83,6 +85,7 @@ void main() {
         initialHeightCm: 20.0,
       );
 
+      final addResult = addResultRes.dataOrNull!;
       expect(addResult, isA<AddPlantResult>());
       expect(addResult.plant.nickname, 'Calathea Beautiful');
 

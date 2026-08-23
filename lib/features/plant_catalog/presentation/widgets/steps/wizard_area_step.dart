@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
+import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/core/widgets/custom_text_field.dart';
-import 'package:plenty/features/garden/data/repositories/site_repository.dart';
 import 'package:plenty/features/garden/domain/models/custom_site_model.dart';
+import 'package:plenty/features/garden/domain/repositories/site_repository.dart';
+import 'package:plenty/features/garden/presentation/extensions/custom_site_extension.dart';
 
 /// Representation of a room or area site option.
 class SiteOption {
@@ -43,7 +46,7 @@ class SiteOption {
 class WizardAreaStep extends StatefulWidget {
   final String selectedRoom;
   final ValueChanged<String> onRoomSelected;
-  final SiteRepository? siteRepo;
+  final ISiteRepository? siteRepo;
 
   const WizardAreaStep({
     super.key,
@@ -76,14 +79,14 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
     Icons.local_florist_outlined,
   ];
 
-  late final SiteRepository _siteRepo;
+  late final ISiteRepository _siteRepo;
   late List<SiteOption> _indoorSites;
   late List<SiteOption> _outdoorSites;
 
   @override
   void initState() {
     super.initState();
-    _siteRepo = widget.siteRepo ?? SiteRepository();
+    _siteRepo = widget.siteRepo ?? Injector.siteRepository;
 
     _indoorSites = [
       const SiteOption(
@@ -144,7 +147,8 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
 
   Future<void> _loadSavedCustomSites() async {
     try {
-      final savedSites = await _siteRepo.getCustomSites();
+      final savedSitesResult = await _siteRepo.getCustomSites();
+      final savedSites = savedSitesResult.dataOrNull ?? [];
       if (!mounted) return;
 
       setState(() {
@@ -175,20 +179,16 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
     IconData selectedIcon =
         isIndoor ? Icons.meeting_room_outlined : Icons.park_outlined;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-              padding: EdgeInsets.only(
-                top: 24,
-                left: 24,
-                right: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-              ),
+    context.showAppBottomSheet(
+      StatefulBuilder(
+        builder: (sheetContext, setModalState) {
+          return Container(
+            padding: EdgeInsets.only(
+              top: 24,
+              left: 24,
+              right: 24,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            ),
               decoration: const BoxDecoration(
                 color: AppColors.canvasDefault,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -313,8 +313,8 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
                         });
 
                         widget.onRoomSelected(trimmed);
-                        if (sheetContext.mounted) {
-                          Navigator.of(sheetContext).pop();
+                        if (mounted) {
+                          context.pop();
                         }
                       },
                     ),
@@ -323,94 +323,93 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
               ),
             );
           },
-        );
-      },
-    );
-  }
+        ),
+      );
+    }
 
   void _showCustomSiteOptions(SiteOption site) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-          decoration: const BoxDecoration(
-            color: AppColors.canvasDefault,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
+    context.showAppBottomSheet(
+      Builder(
+        builder: (sheetContext) {
+          return Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+            decoration: const BoxDecoration(
+              color: AppColors.canvasDefault,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Kelola Lokasi: ${site.name}',
-                style: AppTypography.title2Bold.copyWith(fontSize: 16),
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: AppColors.pastelGreenBg,
-                    shape: BoxShape.circle,
+                const SizedBox(height: 16),
+                Text(
+                  'Kelola Lokasi: ${site.name}',
+                  style: AppTypography.title2Bold.copyWith(fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: AppColors.pastelGreenBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.edit_outlined,
+                      color: AppColors.forest,
+                      size: 20,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.edit_outlined,
-                    color: AppColors.forest,
-                    size: 20,
+                  title: const Text('Ubah Nama & Ikon'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  onTap: () {
+                    sheetContext.pop();
+                    _openEditCustomSiteSheet(site);
+                  },
                 ),
-                title: const Text('Ubah Nama & Ikon'),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _openEditCustomSiteSheet(site);
-                },
-              ),
-              const SizedBox(height: 6),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: AppColors.pastelRedBg,
-                    shape: BoxShape.circle,
+                const SizedBox(height: 6),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: AppColors.pastelRedBg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: AppColors.pastelRedText,
+                      size: 20,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.delete_outline,
-                    color: AppColors.pastelRedText,
-                    size: 20,
+                  title: Text(
+                    'Hapus Lokasi',
+                    style: TextStyle(color: AppColors.pastelRedText),
                   ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onTap: () {
+                    sheetContext.pop();
+                    _confirmDeleteCustomSite(site);
+                  },
                 ),
-                title: Text(
-                  'Hapus Lokasi',
-                  style: TextStyle(color: AppColors.pastelRedText),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _confirmDeleteCustomSite(site);
-                },
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -418,20 +417,16 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
     final nameController = TextEditingController(text: site.name);
     IconData selectedIcon = site.icon;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-              padding: EdgeInsets.only(
-                top: 24,
-                left: 24,
-                right: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-              ),
+    context.showAppBottomSheet(
+      StatefulBuilder(
+        builder: (sheetContext, setModalState) {
+          return Container(
+            padding: EdgeInsets.only(
+              top: 24,
+              left: 24,
+              right: 24,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            ),
               decoration: const BoxDecoration(
                 color: AppColors.canvasDefault,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -547,8 +542,8 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
                           widget.onRoomSelected(trimmed);
                         }
 
-                        if (sheetContext.mounted) {
-                          Navigator.of(sheetContext).pop();
+                        if (mounted) {
+                          context.pop();
                         }
                       },
                     ),
@@ -557,77 +552,77 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
               ),
             );
           },
-        );
-      },
-    );
-  }
+        ),
+      );
+    }
 
   void _confirmDeleteCustomSite(SiteOption site) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            'Hapus Lokasi?',
-            style: AppTypography.title2Bold.copyWith(fontSize: 18),
-          ),
-          content: Text(
-            'Lokasi "${site.name}" akan dihapus dari daftar pilihan.',
-            style: AppTypography.bodyRegular.copyWith(
-              color: AppColors.muted,
-              fontSize: 14,
+    context.showAppDialog(
+      Builder(
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: AppColors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(
-                'Batal',
-                style: AppTypography.calloutBold.copyWith(
-                  color: AppColors.muted,
-                ),
+            title: Text(
+              'Hapus Lokasi?',
+              style: AppTypography.title2Bold.copyWith(fontSize: 18),
+            ),
+            content: Text(
+              'Lokasi "${site.name}" akan dihapus dari daftar pilihan.',
+              style: AppTypography.bodyRegular.copyWith(
+                color: AppColors.muted,
+                fontSize: 14,
               ),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                await _siteRepo.deleteCustomSite(site.id);
+            actions: [
+              TextButton(
+                onPressed: () => dialogContext.pop(),
+                child: Text(
+                  'Batal',
+                  style: AppTypography.calloutBold.copyWith(
+                    color: AppColors.muted,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await _siteRepo.deleteCustomSite(site.id);
 
-                setState(() {
-                  if (site.isIndoor) {
-                    _indoorSites.removeWhere((s) => s.id == site.id);
-                  } else {
-                    _outdoorSites.removeWhere((s) => s.id == site.id);
+                  setState(() {
+                    if (site.isIndoor) {
+                      _indoorSites.removeWhere((s) => s.id == site.id);
+                    } else {
+                      _outdoorSites.removeWhere((s) => s.id == site.id);
+                    }
+                  });
+
+                  if (widget.selectedRoom == site.name) {
+                    final fallback = _indoorSites.isNotEmpty
+                        ? _indoorSites.first.name
+                        : 'Ruang Tamu';
+                    widget.onRoomSelected(fallback);
                   }
-                });
 
-                if (widget.selectedRoom == site.name) {
-                  final fallback = _indoorSites.isNotEmpty
-                      ? _indoorSites.first.name
-                      : 'Ruang Tamu';
-                  widget.onRoomSelected(fallback);
-                }
-
-                if (dialogContext.mounted) {
-                  Navigator.of(dialogContext).pop();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.pastelRedBg,
-                foregroundColor: AppColors.pastelRedText,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  if (mounted) {
+                    context.pop();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.pastelRedBg,
+                  foregroundColor: AppColors.pastelRedText,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
+                child: const Text('Hapus'),
               ),
-              child: const Text('Hapus'),
-            ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 

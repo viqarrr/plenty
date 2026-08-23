@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
+import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/utils/image_picker_helper.dart';
-import 'package:plenty/features/profile/data/repositories/user_repository.dart';
+import 'package:plenty/features/profile/domain/repositories/user_repository.dart';
 import 'package:plenty/features/profile/presentation/widgets/change_password_sheet.dart';
 import 'package:plenty/features/profile/presentation/widgets/edit_field_sheet.dart';
 import 'package:plenty/features/profile/presentation/widgets/settings_item_tile.dart';
@@ -14,10 +16,11 @@ import 'package:plenty/features/profile/presentation/widgets/theme_selector_shee
 /// iOS-style profile edit & settings screen.
 ///
 /// Persists profile changes (avatar, name, username, bio) to SQLite database
-/// via [UserRepository] and active session.
+/// via [IUserRepository] and active session.
 class ProfileEditScreen extends StatefulWidget {
   /// Called when the user confirms logout via the confirmation dialog.
   final VoidCallback onLogout;
+  final IUserRepository? userRepo;
 
   final String initialDisplayName;
   final String initialUsername;
@@ -27,6 +30,7 @@ class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({
     super.key,
     required this.onLogout,
+    this.userRepo,
     this.initialDisplayName = 'Alex Gardner',
     this.initialUsername = 'alex_plants',
     this.initialBio = 'Urban gardener berlokasi di Jakarta...',
@@ -49,7 +53,7 @@ class ProfileEditScreen extends StatefulWidget {
 }
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
-  final _userRepo = UserRepository();
+  late final IUserRepository _userRepo;
   late String _displayName;
   late String _username;
   late String _bio;
@@ -59,6 +63,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   @override
   void initState() {
     super.initState();
+    _userRepo = widget.userRepo ?? Injector.userRepository;
     _displayName = widget.initialDisplayName;
     _username = widget.initialUsername;
     _bio = widget.initialBio;
@@ -182,37 +187,38 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   void _showLogoutConfirmation() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Keluar dari Akun?'),
-        content: const Text(
-          'Anda harus masuk kembali untuk mengakses data Anda.',
+    context.showAppDialog<void>(
+      Builder(
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Keluar dari Akun?'),
+          content: const Text(
+            'Anda harus masuk kembali untuk mengakses data Anda.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => ctx.pop(),
+              child: Text(
+                'Batal',
+                style: AppTypography.calloutRegular.copyWith(
+                  color: AppColors.muted,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                ctx.pop();
+                widget.onLogout();
+              },
+              child: Text(
+                'Keluar',
+                style: AppTypography.calloutBold.copyWith(
+                  color: AppColors.pastelRedText,
+                ),
+              ),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Batal',
-              style: AppTypography.calloutRegular.copyWith(
-                color: AppColors.muted,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              widget.onLogout();
-            },
-            child: Text(
-              'Keluar',
-              style: AppTypography.calloutBold.copyWith(
-                color: AppColors.pastelRedText,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -231,7 +237,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.inkSoft),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => context.pop(),
         ),
         title: Text(
           'Profil',

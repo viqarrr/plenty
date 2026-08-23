@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/core/utils/debouncer.dart';
 import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/core/utils/debouncer.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/data/datasources/plant_remote_data_source.dart';
 import 'package:plenty/features/plant_catalog/domain/models/perenual_care_guide_model.dart';
 import 'package:plenty/features/plant_catalog/domain/models/perenual_detail_model.dart';
 import 'package:plenty/features/plant_catalog/domain/models/perenual_species_model.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/presentation/controllers/choose_species_controller.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -21,6 +21,13 @@ class FakePlantRemoteDataSource implements PlantRemoteDataSource {
     String? watering,
     String? sunlight,
   }) async {
+    if (query != null && query.trim().isNotEmpty) {
+      final q = query.trim().toLowerCase();
+      return mockList.where((item) {
+        return item.commonName.toLowerCase().contains(q) ||
+            item.scientificName.any((s) => s.toLowerCase().contains(q));
+      }).toList();
+    }
     return mockList;
   }
 
@@ -40,7 +47,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late PlantRepository plantRepository;
+  late IPlantRepository plantRepository;
   late FakePlantRemoteDataSource fakeRemoteDataSource;
 
   setUpAll(() {
@@ -55,49 +62,37 @@ void main() {
     await dbHelper.deleteDb();
 
     fakeRemoteDataSource = FakePlantRemoteDataSource();
-    plantRepository = PlantRepository(
-      dbHelper: dbHelper,
-      remoteDataSource: fakeRemoteDataSource,
-    );
-
-    // Pre-populate SQLite with seed test plants
-    final db = await dbHelper.database;
-    final testPlants = [
-      PlantCatalogModel(
-        id: 'cat_monstera',
+    fakeRemoteDataSource.mockList = [
+      const PerenualSpeciesModel(
+        id: 1,
         commonName: 'Monstera Deliciosa',
-        scientificName: 'Monstera deliciosa',
+        scientificName: ['Monstera deliciosa'],
         family: 'Araceae',
-        defaultWateringInterval: 7,
-        sunlightLevel: 'Sinar Tidak Langsung Terang',
-        careLevel: 'EASY CARE',
-        cachedAt: DateTime.now(),
+        watering: 'Average',
+        sunlight: ['Sinar Tidak Langsung Terang'],
       ),
-      PlantCatalogModel(
-        id: 'cat_snake_plant',
+      const PerenualSpeciesModel(
+        id: 2,
         commonName: 'Snake Plant',
-        scientificName: 'Dracaena trifasciata',
+        scientificName: ['Dracaena trifasciata'],
         family: 'Asparagaceae',
-        defaultWateringInterval: 14,
-        sunlightLevel: 'Pencahayaan Rendah',
-        careLevel: 'EASY CARE',
-        cachedAt: DateTime.now(),
+        watering: 'Minimum',
+        sunlight: ['Pencahayaan Rendah'],
       ),
-      PlantCatalogModel(
-        id: 'cat_calathea',
+      const PerenualSpeciesModel(
+        id: 3,
         commonName: 'Calathea Orbifolia',
-        scientificName: 'Calathea orbifolia',
+        scientificName: ['Calathea orbifolia'],
         family: 'Marantaceae',
-        defaultWateringInterval: 4,
-        sunlightLevel: 'Sinar Sedang',
-        careLevel: 'INTERMEDIATE',
-        cachedAt: DateTime.now(),
+        watering: 'Frequent',
+        sunlight: ['Sinar Sedang'],
       ),
     ];
 
-    for (final plant in testPlants) {
-      await db.insert(DatabaseHelper.tablePlantCatalog, plant.toMap());
-    }
+    plantRepository = PlantRepositoryImpl(
+      dbHelper: dbHelper,
+      remoteDataSource: fakeRemoteDataSource,
+    );
   });
 
   tearDown(() async {
@@ -141,7 +136,7 @@ void main() {
       expect(controller.state.isLoading, isTrue);
 
       // Wait for debouncer delay to lapse
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
 
       expect(controller.state.isLoading, isFalse);
       expect(controller.state.filteredList.length, 1);

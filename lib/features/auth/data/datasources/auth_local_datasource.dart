@@ -1,3 +1,4 @@
+import 'package:bcrypt/bcrypt.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/features/auth/domain/models/user_model.dart';
 import 'package:sqflite/sqflite.dart';
@@ -26,6 +27,12 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
           (userMap['created_at'] as String).isEmpty) {
         userMap['created_at'] = DateTime.now().toIso8601String();
       }
+
+      // Hash password using BCrypt before storing
+      if (user.password.isNotEmpty) {
+        userMap['password'] = BCrypt.hashpw(user.password, BCrypt.gensalt());
+      }
+
       final id = await db.insert(
         DatabaseHelper.tableUsers,
         userMap,
@@ -42,12 +49,26 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     final db = await _dbService.database;
     final List<Map<String, dynamic>> results = await db.query(
       DatabaseHelper.tableUsers,
-      where: '(email = ? OR username = ?) AND password = ?',
-      whereArgs: [emailOrUsername, emailOrUsername, password],
+      where: 'email = ? OR username = ?',
+      whereArgs: [emailOrUsername, emailOrUsername],
     );
 
     if (results.isNotEmpty) {
-      return UserModel.fromMap(results.first);
+      final userRow = results.first;
+      final storedHash = userRow['password'] as String?;
+      if (storedHash != null && storedHash.isNotEmpty) {
+        bool isValid = false;
+        try {
+          isValid = BCrypt.checkpw(password, storedHash);
+        } catch (_) {
+          // Fallback check for unhashed legacy plaintext
+          isValid = (storedHash == password);
+        }
+        if (isValid) {
+          // Return user model with sanitized empty password
+          return UserModel.fromMap(userRow).copyWith(password: '');
+        }
+      }
     }
     return null;
   }
@@ -58,7 +79,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     final List<Map<String, dynamic>> results = await db.query(
       DatabaseHelper.tableUsers,
     );
-    return results.map(UserModel.fromMap).toList();
+    return results.map((row) => UserModel.fromMap(row).copyWith(password: '')).toList();
   }
 
   @override
@@ -76,9 +97,16 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   Future<bool> updateUser(UserModel user) async {
     if (user.id == null) return false;
     final db = await _dbService.database;
+    final userMap = user.toMap();
+    // Only hash if a new non-empty password was provided
+    if (user.password.isNotEmpty) {
+      userMap['password'] = BCrypt.hashpw(user.password, BCrypt.gensalt());
+    } else {
+      userMap.remove('password');
+    }
     final count = await db.update(
       DatabaseHelper.tableUsers,
-      user.toMap(),
+      userMap,
       where: 'id = ?',
       whereArgs: [user.id],
     );

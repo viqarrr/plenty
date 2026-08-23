@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_text_field.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/plant_catalog/presentation/widgets/time_capsule_modal.dart';
@@ -110,12 +111,8 @@ class NicknameHeightStep extends StatelessWidget {
           const SizedBox(height: 12),
           InkWell(
             onTap: () async {
-              final result = await showModalBottomSheet<TimeCapsuleDraft?>(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) =>
-                    TimeCapsuleModal(initialDraft: timeCapsuleDraft),
+              final result = await context.showAppBottomSheet<TimeCapsuleDraft?>(
+                TimeCapsuleModal(initialDraft: timeCapsuleDraft),
               );
               if (result != null) {
                 onTimeCapsuleChanged(result);

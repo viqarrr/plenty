@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/features/garden/data/repositories/site_repository.dart';
+import 'package:plenty/features/garden/data/repositories/site_repository_impl.dart';
 import 'package:plenty/features/garden/domain/models/custom_site_model.dart';
+import 'package:plenty/features/garden/domain/repositories/site_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late SiteRepository siteRepo;
+  late ISiteRepository siteRepo;
 
   setUpAll(() {
     sqfliteFfiInit();
@@ -34,7 +35,7 @@ void main() {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    siteRepo = SiteRepository(dbHelper: dbHelper);
+    siteRepo = SiteRepositoryImpl(dbHelper: dbHelper);
   });
 
   tearDown(() async {
@@ -43,7 +44,8 @@ void main() {
 
   group('SiteRepository CRUD Tests', () {
     test('Can save, fetch, update, and delete custom sites in SQLite', () async {
-      final initialSites = await siteRepo.getCustomSites('1');
+      final initialSitesRes = await siteRepo.getCustomSites('1');
+      final initialSites = initialSitesRes.dataOrNull ?? [];
       expect(initialSites, isEmpty);
 
       // 1. Create
@@ -58,7 +60,8 @@ void main() {
       await siteRepo.saveCustomSite(newSite);
 
       // 2. Read
-      final savedSites = await siteRepo.getCustomSites('1');
+      final savedSitesRes = await siteRepo.getCustomSites('1');
+      final savedSites = savedSitesRes.dataOrNull ?? [];
       expect(savedSites.length, 1);
       expect(savedSites.first.id, 'site_rooftop_1');
       expect(savedSites.first.name, 'Rooftop Garden');
@@ -70,12 +73,14 @@ void main() {
       );
       await siteRepo.updateCustomSite(updatedSite);
 
-      final reFetched = await siteRepo.getCustomSites('1');
+      final reFetchedRes = await siteRepo.getCustomSites('1');
+      final reFetched = reFetchedRes.dataOrNull ?? [];
       expect(reFetched.first.name, 'Rooftop Sunset Oasis');
 
       // 4. Delete
       await siteRepo.deleteCustomSite('site_rooftop_1');
-      final afterDelete = await siteRepo.getCustomSites('1');
+      final afterDeleteRes = await siteRepo.getCustomSites('1');
+      final afterDelete = afterDeleteRes.dataOrNull ?? [];
       expect(afterDelete, isEmpty);
     });
   });

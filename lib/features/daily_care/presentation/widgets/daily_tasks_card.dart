@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/features/daily_care/domain/models/care_task_model.dart';
 import 'package:plenty/features/daily_care/presentation/widgets/monitor_tinggi_input_sheet.dart';
 import 'package:plenty/features/daily_care/presentation/widgets/task_card.dart';
@@ -90,11 +91,8 @@ class DailyTasksCard extends StatelessWidget {
             task: tasks[i],
             onAction: () {
               if (tasks[i].type == TaskType.monitorTinggi) {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => MonitorTinggiInputSheet(
+                context.showAppBottomSheet(
+                  MonitorTinggiInputSheet(
                     plant: tasks[i].plant,
                     onSubmit: (heightCm, note, photoPath) {
                       onCompleteTask(

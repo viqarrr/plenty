@@ -1,29 +1,26 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/features/forum/domain/models/community_post_model.dart';
-import 'package:plenty/features/forum/domain/models/post_comment_model.dart';
+import 'package:plenty/features/community/domain/models/community_post.dart';
+import 'package:plenty/features/community/domain/models/post_comment_model.dart';
 
 void main() {
-  group('CommunityPostModel Serialization', () {
-    test('fromMap and toMap handle all fields accurately', () {
-      final map = {
-        'id': 'post_100',
-        'user_id': 1,
-        'category': 'Tips & Trik',
-        'caption': 'Cara mudah merawat monstera',
-        'image_url': null,
-        'kudos_count': 15,
-        'comment_count': 3,
-        'created_at': '2026-08-19T08:00:00.000Z',
-      };
+  group('CommunityPost Model Tests', () {
+    test('initializes and formats time correctly', () {
+      final post = CommunityPost(
+        id: 'post_100',
+        authorName: 'Botanist User',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Cara mudah merawat monstera',
+        likesCount: 15,
+        commentsCount: 3,
+        createdAt: DateTime.now(),
+      );
 
-      final model = CommunityPostModel.fromMap(map, authorName: 'Botanist User');
-
-      expect(model.id, 'post_100');
-      expect(model.authorName, 'Botanist User');
-      expect(model.category, 'Tips & Trik');
-      expect(model.kudosCount, 15);
-      expect(model.commentCount, 3);
-      expect(model.toMap(), equals(map));
+      expect(post.id, 'post_100');
+      expect(post.authorName, 'Botanist User');
+      expect(post.category, 'tips');
+      expect(post.likesCount, 15);
+      expect(post.commentsCount, 3);
     });
   });
 

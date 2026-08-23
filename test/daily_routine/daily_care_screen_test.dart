@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/features/daily_care/data/repositories/daily_care_repository_impl.dart';
+import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
+import 'package:plenty/features/daily_care/presentation/controllers/daily_care_controller.dart';
 import 'package:plenty/features/daily_care/presentation/screens/care_history_screen.dart';
-import 'package:plenty/features/daily_care/presentation/daily_care_controller.dart';
 import 'package:plenty/features/daily_care/presentation/screens/daily_care_screen.dart';
 import 'package:plenty/features/daily_care/presentation/widgets/monitor_tinggi_input_sheet.dart';
-import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
-import 'package:plenty/features/daily_care/data/care_repository.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
-import 'package:plenty/features/garden/data/repositories/streak_repository.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late PlantRepository plantRepo;
-  late CareRepository careRepo;
-  late StreakRepository streakRepo;
+  late IPlantRepository plantRepo;
+  late IDailyCareRepository careRepo;
 
   setUpAll(() {
     sqfliteFfiInit();
@@ -45,9 +44,8 @@ void main() {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    plantRepo = PlantRepository(dbHelper: dbHelper);
-    careRepo = CareRepository(dbHelper: dbHelper);
-    streakRepo = StreakRepository(dbHelper: dbHelper, careRepo: careRepo);
+    plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
+    careRepo = DailyCareRepositoryImpl(dbHelper: dbHelper, plantRepo: plantRepo);
 
     final plant = PlantModel(
       id: 'plt_fiddle_1',
@@ -88,9 +86,7 @@ void main() {
       late final DailyCareController controller;
       await tester.runAsync(() async {
         controller = DailyCareController(
-          plantRepo: plantRepo,
-          careRepo: careRepo,
-          streakRepo: streakRepo,
+          repository: careRepo,
         );
         await controller.loadTodayCare();
       });
@@ -116,9 +112,7 @@ void main() {
       late final DailyCareController controller;
       await tester.runAsync(() async {
         controller = DailyCareController(
-          plantRepo: plantRepo,
-          careRepo: careRepo,
-          streakRepo: streakRepo,
+          repository: careRepo,
         );
         await controller.loadTodayCare();
       });
@@ -140,9 +134,7 @@ void main() {
       late final DailyCareController controller;
       await tester.runAsync(() async {
         controller = DailyCareController(
-          plantRepo: plantRepo,
-          careRepo: careRepo,
-          streakRepo: streakRepo,
+          repository: careRepo,
         );
         await controller.loadTodayCare();
       });
@@ -165,9 +157,7 @@ void main() {
       late final DailyCareController controller;
       await tester.runAsync(() async {
         controller = DailyCareController(
-          plantRepo: plantRepo,
-          careRepo: careRepo,
-          streakRepo: streakRepo,
+          repository: careRepo,
         );
         await controller.loadTodayCare();
         final plant = controller.state.heightLogs.first.plant;

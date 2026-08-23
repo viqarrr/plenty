@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/features/daily_care/domain/models/care_task_model.dart';
 import 'package:plenty/features/daily_care/presentation/widgets/monitor_tinggi_input_sheet.dart';
 import 'package:plenty/features/daily_care/presentation/widgets/task_card.dart';
@@ -29,10 +30,31 @@ class TasksTab extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20.0, 16.0, 20.0, 8.0),
-          child: Text(
-            'Daftar Tugas Perawatan',
-            style: AppTypography.title2Bold.copyWith(color: AppColors.inkSoft),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'TUGAS HARIAN',
+                style: AppTypography.caption2Bold.copyWith(
+                  color: AppColors.muted,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.pastelGreenBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${tasks.length} Tersisa',
+                  style: AppTypography.caption1Bold.copyWith(
+                    color: AppColors.forest,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -43,22 +65,23 @@ class TasksTab extends StatelessWidget {
                     children: [
                       const Icon(
                         Icons.check_circle_outline,
-                        size: 64,
                         color: AppColors.forest,
+                        size: 48,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       Text(
-                        'Semua Tugas Selesai!',
-                        style: AppTypography.title2Bold.copyWith(
-                          color: AppColors.ink,
+                        'Semua tugas hari ini selesai!',
+                        style: AppTypography.calloutBold.copyWith(
+                          color: AppColors.inkSoft,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Tidak ada perawatan yang tertunda.',
+                        'Tanaman Anda sudah mendapatkan perawatan terbaik.',
                         style: AppTypography.footnoteRegular.copyWith(
                           color: AppColors.muted,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -77,11 +100,8 @@ class TasksTab extends StatelessWidget {
                       task: task,
                       onAction: () {
                         if (task.type == TaskType.monitorTinggi) {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) => MonitorTinggiInputSheet(
+                          context.showAppBottomSheet(
+                            MonitorTinggiInputSheet(
                               plant: task.plant,
                               onSubmit: (heightCm, note, photoPath) {
                                 onCompleteTask(

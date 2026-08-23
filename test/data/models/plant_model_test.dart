@@ -50,7 +50,7 @@ void main() {
       final serialized = plant.toMap();
 
       expect(serialized['id'], 'plant_123');
-      expect(serialized['user_id'], 456);
+      expect(serialized['user_id'], '456');
       expect(serialized['catalog_id'], 'cat_monstera');
       expect(serialized['nickname'], 'Monsty');
       expect(serialized['is_indoor'], 1);

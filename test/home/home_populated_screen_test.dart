@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/features/daily_care/presentation/screens/daily_care_screen.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
-import 'package:plenty/features/daily_care/data/care_repository.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
-import 'package:plenty/features/garden/data/repositories/streak_repository.dart';
+import 'package:plenty/features/daily_care/data/repositories/daily_care_repository_impl.dart';
+import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
+import 'package:plenty/features/daily_care/presentation/screens/daily_care_screen.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/data/repositories/site_repository_impl.dart';
+import 'package:plenty/features/garden/data/repositories/streak_repository_impl.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/domain/repositories/streak_repository.dart';
 import 'package:plenty/features/garden/presentation/controllers/home_controller.dart';
 import 'package:plenty/features/garden/presentation/screens/home_populated_screen.dart';
+import 'package:plenty/features/profile/data/repositories/badge_repository_impl.dart';
+import 'package:plenty/features/profile/data/repositories/user_repository_impl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -15,8 +21,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late PlantRepository plantRepo;
-  late CareRepository careRepo;
+  late IPlantRepository plantRepo;
+  late IDailyCareRepository careRepo;
+  late IStreakRepository streakRepo;
   late HomeController controller;
 
   setUpAll(() {
@@ -50,14 +57,20 @@ void main() {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    plantRepo = PlantRepository(dbHelper: dbHelper);
-    careRepo = CareRepository(dbHelper: dbHelper);
-    final streakRepo = StreakRepository(dbHelper: dbHelper, careRepo: careRepo);
+    plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
+    careRepo = DailyCareRepositoryImpl(dbHelper: dbHelper);
+    streakRepo = StreakRepositoryImpl(dbHelper: dbHelper);
+    final badgeRepo = BadgeRepositoryImpl(dbHelper: dbHelper);
+    final siteRepo = SiteRepositoryImpl(dbHelper: dbHelper);
+    final userRepo = UserRepositoryImpl(dbHelper: dbHelper);
 
     controller = HomeController(
       plantRepo: plantRepo,
       careRepo: careRepo,
       streakRepo: streakRepo,
+      badgeRepo: badgeRepo,
+      siteRepo: siteRepo,
+      userRepo: userRepo,
       userId: '1',
     );
   });

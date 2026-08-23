@@ -3,13 +3,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/di/injector.dart';
+import 'package:plenty/core/error/result.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/daily_care/domain/models/care_history_item.dart';
-import 'package:plenty/features/daily_care/data/care_repository.dart';
+import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
 
 /// Care Action History screen matching Plenty design language.
 class CareHistoryScreen extends StatefulWidget {
-  final CareRepository? careRepo;
+  final IDailyCareRepository? careRepo;
 
   const CareHistoryScreen({super.key, this.careRepo});
 
@@ -18,7 +21,7 @@ class CareHistoryScreen extends StatefulWidget {
 }
 
 class _CareHistoryScreenState extends State<CareHistoryScreen> {
-  late final CareRepository _careRepo;
+  late final IDailyCareRepository _careRepo;
   List<CareHistoryItem> _items = [];
   bool _isLoading = true;
   String? _errorMessage;
@@ -26,7 +29,7 @@ class _CareHistoryScreenState extends State<CareHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _careRepo = widget.careRepo ?? CareRepository();
+    _careRepo = widget.careRepo ?? Injector.dailyCareRepository;
     _loadHistory();
   }
 
@@ -36,22 +39,22 @@ class _CareHistoryScreenState extends State<CareHistoryScreen> {
       _errorMessage = null;
     });
 
-    try {
-      final user = await PreferenceHandler.getUser();
-      final userId =
-          (user?.id != null && user!.id! > 0) ? user.id.toString() : '1';
-      final results = await _careRepo.getCareHistory(userId: userId);
-      if (!mounted) return;
-      setState(() {
-        _items = results;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+    final user = await PreferenceHandler.getUser();
+    final userId =
+        (user?.id != null && user!.id! > 0) ? user.id.toString() : '1';
+    final result = await _careRepo.getCareHistory(userId: userId);
+    if (!mounted) return;
+    switch (result) {
+      case Success(:final data):
+        setState(() {
+          _items = data;
+          _isLoading = false;
+        });
+      case Error(:final failure):
+        setState(() {
+          _errorMessage = failure.message;
+          _isLoading = false;
+        });
     }
   }
 
@@ -115,9 +118,7 @@ class _CareHistoryScreenState extends State<CareHistoryScreen> {
             size: 20,
           ),
           onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            }
+            context.maybePop();
           },
         ),
         title: Text(

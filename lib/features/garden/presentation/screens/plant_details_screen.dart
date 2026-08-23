@@ -1,14 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
+import 'package:plenty/core/di/injector.dart';
+import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
-import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
+import 'package:plenty/core/domain/models/growth_log_model.dart';
+import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
-import 'package:plenty/features/garden/data/repositories/growth_repository.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/domain/repositories/growth_repository.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/daily_care/presentation/widgets/monitor_tinggi_input_sheet.dart';
 import 'package:plenty/features/plant_catalog/presentation/widgets/time_capsule_modal.dart';
 import 'package:plenty/features/garden/presentation/controllers/home_controller.dart';
@@ -26,17 +28,17 @@ import 'package:plenty/features/garden/presentation/widgets/time_capsule_status_
 /// height chart, vertical photo timeline, and time capsule status.
 class PlantDetailsScreen extends StatefulWidget {
   final PlantModel plant;
-  final DatabaseHelper? dbHelper;
-  final GrowthRepository? growthRepository;
-  final PlantRepository? plantRepository;
+  final IGrowthRepository? growthRepository;
+  final IPlantRepository? plantRepository;
+  final IDailyCareRepository? dailyCareRepository;
   final HomeController? homeController;
 
   const PlantDetailsScreen({
     super.key,
     required this.plant,
-    this.dbHelper,
     this.growthRepository,
     this.plantRepository,
+    this.dailyCareRepository,
     this.homeController,
   });
 
@@ -45,8 +47,9 @@ class PlantDetailsScreen extends StatefulWidget {
 }
 
 class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
-  late final GrowthRepository _growthRepo;
-  late final PlantRepository _plantRepo;
+  late final IGrowthRepository _growthRepo;
+  late final IPlantRepository _plantRepo;
+  late final IDailyCareRepository _dailyCareRepo;
   late PlantModel _plant;
 
   List<GrowthLogModel> _growthLogs = [];
@@ -58,49 +61,49 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   void initState() {
     super.initState();
     _plant = widget.plant;
-    _growthRepo =
-        widget.growthRepository ?? GrowthRepository(dbHelper: widget.dbHelper);
-    _plantRepo =
-        widget.plantRepository ?? PlantRepository(dbHelper: widget.dbHelper);
+    _growthRepo = widget.growthRepository ?? Injector.growthRepository;
+    _plantRepo = widget.plantRepository ?? Injector.plantRepository;
+    _dailyCareRepo = widget.dailyCareRepository ?? Injector.dailyCareRepository;
     _loadData();
   }
 
   Future<void> _loadData() async {
-    final logs = await _growthRepo.getGrowthHistory(_plant.id);
-    final photos = await _growthRepo.getPhotoGallery(_plant.id);
-    final capsule = await _growthRepo.getTimeCapsule(_plant.id);
+    final logsRes = await _growthRepo.getHeightSeries(_plant.id);
+    final photosRes = await _growthRepo.getPhotoGallery(_plant.id);
+    final capsuleRes = await _growthRepo.getTimeCapsule(_plant.id);
     if (!mounted) return;
     setState(() {
-      _growthLogs = logs;
-      _photoLogs = photos;
-      _timeCapsule = capsule;
+      _growthLogs = logsRes.dataOrNull ?? [];
+      _photoLogs = photosRes.dataOrNull ?? [];
+      _timeCapsule = capsuleRes.dataOrNull;
       _isLoading = false;
     });
   }
 
   Future<void> _handleCreateTimeCapsule() async {
-    final draft = await showModalBottomSheet<TimeCapsuleDraft?>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const TimeCapsuleModal(),
+    final draft = await context.showAppBottomSheet<TimeCapsuleDraft?>(
+      const TimeCapsuleModal(),
     );
     if (draft != null && draft.message.isNotEmpty) {
-      await _growthRepo.createTimeCapsule(
+      final now = DateTime.now();
+      final unlockAt = DateTime(now.year, now.month + draft.durationMonths, now.day);
+      final capsule = TimeCapsuleModel(
+        id: 'tc_${now.millisecondsSinceEpoch}',
         userPlantId: _plant.id,
-        message: draft.message,
-        durationMonths: draft.durationMonths,
+        unlockAt: unlockAt,
+        photoPath: draft.photoPath,
+        note: draft.message,
+        isUnlocked: false,
+        createdAt: now,
       );
+      await _growthRepo.saveTimeCapsule(capsule);
       _loadData();
     }
   }
 
   void _showGrowthTimelineModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+    context.showAppBottomSheet(
+      Container(
         height: MediaQuery.of(context).size.height * 0.8,
         decoration: const BoxDecoration(
           color: AppColors.canvasDefault,
@@ -145,7 +148,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: AppColors.muted),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => context.pop(),
                   ),
                 ],
               ),
@@ -168,18 +171,15 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
 
   void _showEditGrowthLogSheet(GrowthLogModel log) {
     final messenger = ScaffoldMessenger.of(context);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => MonitorTinggiInputSheet(
+    context.showAppBottomSheet(
+      MonitorTinggiInputSheet(
         plant: _plant,
         lastRecordedHeight: log.heightCm ?? _plant.currentHeightCm,
         isEditMode: true,
         initialNote: log.note,
         initialPhotoPath: log.photoPath,
         onSubmit: (heightCm, note, photoPath) async {
-          await _growthRepo.updateGrowthLog(
+          await _dailyCareRepo.updateGrowthLog(
             logId: log.id,
             userPlantId: _plant.id,
             heightCm: heightCm,
@@ -203,11 +203,8 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   }
 
   void _showEditPlantBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => EditPlantSheet(
+    context.showAppBottomSheet(
+      EditPlantSheet(
         plant: _plant,
         onSave: (newNickname, newPhotoPath, photoChanged) async {
           await _handleUpdatePlantInfo(
@@ -225,49 +222,44 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     required String? newPhotoPath,
     required bool photoChanged,
   }) async {
-    try {
-      await _plantRepo.updatePlantInfo(
-        plantId: _plant.id,
-        nickname: newNickname,
-        coverPhotoPath: newPhotoPath,
-        updatePhoto: photoChanged,
-      );
-      if (!mounted) return;
+    final result = await _plantRepo.updatePlantInfo(
+      plantId: _plant.id,
+      nickname: newNickname,
+      coverPhotoPath: newPhotoPath,
+      updatePhoto: photoChanged,
+    );
+    if (!mounted) return;
 
-      setState(() {
-        _plant = _plant.copyWith(
-          nickname: newNickname,
-          coverPhotoPath: photoChanged ? newPhotoPath : _plant.coverPhotoPath,
+    switch (result) {
+      case Success():
+        setState(() {
+          _plant = _plant.copyWith(
+            nickname: newNickname,
+            coverPhotoPath: photoChanged ? newPhotoPath : _plant.coverPhotoPath,
+          );
+        });
+        widget.homeController?.loadDashboard();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_plant.nickname} berhasil diperbarui!'),
+            backgroundColor: AppColors.forest,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
-      });
-
-      widget.homeController?.loadDashboard();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_plant.nickname} berhasil diperbarui!'),
-          backgroundColor: AppColors.forest,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memperbarui tanaman: $e'),
-          backgroundColor: AppColors.pastelRedText,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      case Error(:final failure):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui tanaman: ${failure.message}'),
+            backgroundColor: AppColors.pastelRedText,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
     }
   }
 
   void _showDeleteConfirmationBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DeletePlantSheet(
+    context.showAppBottomSheet(
+      DeletePlantSheet(
         plant: _plant,
         onConfirmDelete: _handleDeletePlant,
       ),
@@ -275,30 +267,28 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   }
 
   Future<void> _handleDeletePlant() async {
-    try {
-      await _plantRepo.deletePlant(_plant.id);
-      if (!mounted) return;
+    final result = await _plantRepo.deletePlant(_plant.id);
+    if (!mounted) return;
 
-      widget.homeController?.loadDashboard();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_plant.nickname} berhasil dihapus dari koleksi.'),
-          backgroundColor: AppColors.forest,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-
-      context.pop();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal menghapus tanaman: $e'),
-          backgroundColor: AppColors.pastelRedText,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    switch (result) {
+      case Success():
+        widget.homeController?.loadDashboard();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_plant.nickname} berhasil dihapus dari koleksi.'),
+            backgroundColor: AppColors.forest,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        context.pop();
+      case Error(:final failure):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menghapus tanaman: ${failure.message}'),
+            backgroundColor: AppColors.pastelRedText,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
     }
   }
 
@@ -352,10 +342,10 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: PlantStatCard(
-                                label: 'Kesehatan',
-                                value: _plant.healthStatus.toUpperCase(),
-                                icon: Icons.favorite_border,
-                                iconColor: AppColors.pastelGreenText,
+                                label: 'Usia Tanaman',
+                                value: _plant.ageDisplay,
+                                icon: Icons.history_rounded,
+                                iconColor: AppColors.forest,
                               ),
                             ),
                           ],

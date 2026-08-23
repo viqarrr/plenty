@@ -1,4 +1,4 @@
-import 'package:plenty/core/utils/result.dart';
+import 'package:plenty/core/error/result.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/plant_catalog/domain/models/perenual_care_guide_model.dart';
@@ -46,6 +46,7 @@ abstract class IPlantRepository {
     String? windowDistance,
     double? initialHeightCm,
     String growthStage = 'mature',
+    DateTime? adoptedAt,
     String? coverPhotoPath,
     String? customPhotoPath,
     TimeCapsuleDraft? timeCapsule,

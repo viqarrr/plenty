@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/presentation/controllers/add_custom_plant_controller.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -8,7 +9,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late PlantRepository plantRepository;
+  late IPlantRepository plantRepository;
   late AddCustomPlantController controller;
 
   setUpAll(() {
@@ -33,7 +34,7 @@ void main() {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    plantRepository = PlantRepository(dbHelper: dbHelper);
+    plantRepository = PlantRepositoryImpl(dbHelper: dbHelper);
     controller = AddCustomPlantController(plantRepo: plantRepository, userId: '1');
   });
 
@@ -87,7 +88,8 @@ void main() {
       expect(controller.state.isSuccess, true);
 
       // Verify saved in SQLite
-      final plants = await plantRepository.getUserPlants('1');
+      final plantsRes = await plantRepository.getUserPlants('1');
+      final plants = plantsRes.dataOrNull ?? [];
       expect(plants.length, 1);
       expect(plants.first.nickname, 'Kaktus Mini');
       expect(plants.first.isIndoor, true);

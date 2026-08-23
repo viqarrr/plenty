@@ -1,16 +1,18 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/constants/xp_config.dart';
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/features/daily_care/data/care_repository.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/daily_care/data/repositories/daily_care_repository_impl.dart';
+import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late PlantRepository plantRepository;
-  late CareRepository careRepository;
+  late IPlantRepository plantRepository;
+  late IDailyCareRepository careRepository;
   late String plantId;
 
   setUpAll(() {
@@ -21,8 +23,8 @@ void main() {
   setUp(() async {
     dbHelper = DatabaseHelper.forTesting('care_repo_test.db');
     await dbHelper.deleteDb();
-    plantRepository = PlantRepository(dbHelper: dbHelper);
-    careRepository = CareRepository(dbHelper: dbHelper);
+    plantRepository = PlantRepositoryImpl(dbHelper: dbHelper);
+    careRepository = DailyCareRepositoryImpl(dbHelper: dbHelper, plantRepo: plantRepository);
 
     final db = await dbHelper.database;
     await db.insert(
@@ -42,7 +44,7 @@ void main() {
       isIndoor: true,
       defaultWateringInterval: 5,
     );
-    plantId = addResult.plant.id;
+    plantId = addResult.dataOrNull!.plant.id;
   });
 
   tearDown(() async {
@@ -56,7 +58,8 @@ void main() {
       final db = await dbHelper.database;
 
       // 1. When cleaning and watering are NOT due today: returns only ['monitor_tinggi'] (Daily Log)
-      var tasks = await careRepository.getTodaysTaskTypes(plantId);
+      var tasksRes = await careRepository.getTodaysTaskTypes(plantId);
+      var tasks = tasksRes.dataOrNull ?? [];
       expect(tasks, ['monitor_tinggi']);
       expect(tasks.contains('cek_hama'), isFalse);
       expect(tasks.contains('siram'), isFalse);
@@ -70,7 +73,8 @@ void main() {
         whereArgs: [plantId],
       );
 
-      tasks = await careRepository.getTodaysTaskTypes(plantId);
+      tasksRes = await careRepository.getTodaysTaskTypes(plantId);
+      tasks = tasksRes.dataOrNull ?? [];
       expect(tasks, containsAll(['monitor_tinggi', 'siram', 'bersih_bersih']));
       expect(tasks.contains('cek_hama'), isFalse);
     });
@@ -81,13 +85,14 @@ void main() {
       final db = await dbHelper.database;
 
       // Initial plant check
-      var plant = await plantRepository.getPlantById(plantId);
-      expect(plant?.xp, 0);
-      expect(plant?.level, 1);
+      var plantRes = await plantRepository.getPlantById(plantId);
+      var plant = plantRes.dataOrNull!;
+      expect(plant.xp, 0);
+      expect(plant.level, 1);
 
       // Complete height task
       await careRepository.completeHeightTask(
-        userPlantId: plantId,
+        plant: plant,
         heightCm: 16.5,
         note: 'Tunas baru bertambah panjang',
       );
@@ -114,17 +119,19 @@ void main() {
           careLogs.first['xp_awarded'], XpConfig.xpPerTask['monitor_tinggi']);
 
       // 3. Verify plant XP and level updated
-      plant = await plantRepository.getPlantById(plantId);
-      expect(plant?.xp, 15);
-      expect(plant?.level, 1);
+      plantRes = await plantRepository.getPlantById(plantId);
+      plant = plantRes.dataOrNull!;
+      expect(plant.xp, 15);
+      expect(plant.level, 1);
 
       // 4. Repeated call on the same day is idempotent (does not add duplicate log or XP)
       await careRepository.completeHeightTask(
-        userPlantId: plantId,
+        plant: plant,
         heightCm: 20.0,
       );
-      plant = await plantRepository.getPlantById(plantId);
-      expect(plant?.xp, 15);
+      plantRes = await plantRepository.getPlantById(plantId);
+      plant = plantRes.dataOrNull!;
+      expect(plant.xp, 15);
 
       final secondCheckLogs = await db.query(
         DatabaseHelper.tableGrowthLogs,
@@ -137,15 +144,19 @@ void main() {
       expect(XpConfig.levelForXp(105), 2);
     });
 
-    test('completeSimpleTask awards 10 XP and logs action', () async {
-      await careRepository.completeSimpleTask(
-        userPlantId: plantId,
+    test('completeRoutineTask for bersih_bersih awards 10 XP and logs action', () async {
+      final plantRes = await plantRepository.getPlantById(plantId);
+      final plant = plantRes.dataOrNull!;
+
+      await careRepository.completeRoutineTask(
+        plant: plant,
         taskType: 'bersih_bersih',
         notes: 'Daun sudah dilap bersih',
       );
 
-      final plant = await plantRepository.getPlantById(plantId);
-      expect(plant?.xp, 10);
+      final updatedPlantRes = await plantRepository.getPlantById(plantId);
+      final updatedPlant = updatedPlantRes.dataOrNull;
+      expect(updatedPlant?.xp, 10);
 
       final db = await dbHelper.database;
       final logs = await db.query(
@@ -157,12 +168,19 @@ void main() {
       expect(logs.first['xp_awarded'], 10);
     });
 
-    test('completeWateringTask awards 10 XP and updates next_due_date',
+    test('completeRoutineTask for siram awards 10 XP and updates next_due_date',
         () async {
-      await careRepository.completeWateringTask(userPlantId: plantId);
+      final plantRes = await plantRepository.getPlantById(plantId);
+      final plant = plantRes.dataOrNull!;
 
-      final plant = await plantRepository.getPlantById(plantId);
-      expect(plant?.xp, 10);
+      await careRepository.completeRoutineTask(
+        plant: plant,
+        taskType: 'siram',
+      );
+
+      final updatedPlantRes = await plantRepository.getPlantById(plantId);
+      final updatedPlant = updatedPlantRes.dataOrNull;
+      expect(updatedPlant?.xp, 10);
 
       final db = await dbHelper.database;
       final schedules = await db.query(
@@ -177,26 +195,33 @@ void main() {
     test(
       'isAllTasksCompleteTodayForUser returns true when all tasks done',
       () async {
-        final todayTasks = await careRepository.getTodaysTaskTypes(plantId);
+        final plantRes = await plantRepository.getPlantById(plantId);
+        final plant = plantRes.dataOrNull!;
+
+        final todayTasksRes = await careRepository.getTodaysTaskTypes(plantId);
+        final todayTasks = todayTasksRes.dataOrNull ?? [];
         if (todayTasks.contains('bersih_bersih')) {
-          await careRepository.completeSimpleTask(
-            userPlantId: plantId,
+          await careRepository.completeRoutineTask(
+            plant: plant,
             taskType: 'bersih_bersih',
           );
         }
         if (todayTasks.contains('monitor_tinggi')) {
           await careRepository.completeHeightTask(
-            userPlantId: plantId,
+            plant: plant,
             heightCm: 16.0,
           );
         }
         if (todayTasks.contains('siram')) {
-          await careRepository.completeWateringTask(userPlantId: plantId);
+          await careRepository.completeRoutineTask(
+            plant: plant,
+            taskType: 'siram',
+          );
         }
 
-        final isDone =
+        final isDoneRes =
             await careRepository.isAllTasksCompleteTodayForUser('1');
-        expect(isDone, true);
+        expect(isDoneRes.dataOrNull, true);
       },
     );
   });

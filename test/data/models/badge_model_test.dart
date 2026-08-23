@@ -1,42 +1,29 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/features/garden/domain/models/badge_model.dart';
+import 'package:plenty/core/domain/models/badge_item.dart';
 
 void main() {
-  group('BadgeModel Serialization', () {
-    test('fromMap and toMap serialize and deserialize correctly', () {
-      final map = {
-        'id': 'FIRST_PLANT',
-        'title': 'Tunas Pertama 🌱',
-        'description': 'Menambahkan tanaman pertamamu',
-        'icon_asset_path': 'assets/images/badges/badge_first_plant.png',
-      };
+  group('BadgeItem Model Tests', () {
+    test('BadgeItem initializes and supports copyWith correctly', () {
+      const item = BadgeItem(
+        id: 'first_plant',
+        title: 'Adopsi Pertama',
+        desc: 'Menanam tanaman pertama',
+        iconName: 'eco',
+        isUnlocked: true,
+        level: 1,
+        progress: 1,
+        total: 1,
+        bgColorHex: '#EBF7F1',
+        accentColorHex: '#2D6A4F',
+      );
 
-      final model = BadgeModel.fromMap(map);
+      expect(item.id, 'first_plant');
+      expect(item.title, 'Adopsi Pertama');
+      expect(item.isUnlocked, isTrue);
 
-      expect(model.id, 'FIRST_PLANT');
-      expect(model.title, 'Tunas Pertama 🌱');
-      expect(model.description, 'Menambahkan tanaman pertamamu');
-      expect(model.iconAssetPath, 'assets/images/badges/badge_first_plant.png');
-      expect(model.toMap(), equals(map));
-    });
-  });
-
-  group('UserBadgeModel Serialization', () {
-    test('fromMap and toMap handle date parsing correctly', () {
-      final map = {
-        'id': 'ub_12345',
-        'user_id': 1,
-        'badge_id': 'FIRST_PLANT',
-        'unlocked_at': '2026-08-19T08:00:00.000Z',
-      };
-
-      final model = UserBadgeModel.fromMap(map);
-
-      expect(model.id, 'ub_12345');
-      expect(model.userId, '1');
-      expect(model.badgeId, 'FIRST_PLANT');
-      expect(model.unlockedAt, DateTime.parse('2026-08-19T08:00:00.000Z'));
-      expect(model.toMap(), equals(map));
+      final modified = item.copyWith(isUnlocked: false, progress: 0);
+      expect(modified.isUnlocked, isFalse);
+      expect(modified.progress, 0);
     });
   });
 }

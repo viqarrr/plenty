@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/core/di/injector.dart';
+import 'package:plenty/core/error/result.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/presentation/controllers/add_custom_plant_state.dart';
 
 /// Controller managing state, validation, step transitions, and submission for the Add Custom Plant flow.
 class AddCustomPlantController extends ChangeNotifier {
-  final PlantRepository _plantRepo;
+  final IPlantRepository _plantRepo;
   final String userId;
 
   AddCustomPlantState _state = AddCustomPlantState.initial();
@@ -13,9 +15,9 @@ class AddCustomPlantController extends ChangeNotifier {
   bool _isDisposed = false;
 
   AddCustomPlantController({
-    PlantRepository? plantRepo,
+    IPlantRepository? plantRepo,
     this.userId = 'usr_default',
-  })  : _plantRepo = plantRepo ?? PlantRepository();
+  })  : _plantRepo = plantRepo ?? Injector.plantRepository;
 
   @override
   void dispose() {
@@ -55,6 +57,7 @@ class AddCustomPlantController extends ChangeNotifier {
     _updateState(
       _state.copyWith(
         growthStage: stage,
+        plantedDate: stage == 'seed' ? DateTime.now() : _state.plantedDate,
         initialHeightCm: stage == 'seed' && _state.initialHeightCm == 25.0
             ? 2.0
             : (stage == 'mature' && _state.initialHeightCm == 2.0 ? 25.0 : _state.initialHeightCm),
@@ -107,33 +110,35 @@ class AddCustomPlantController extends ChangeNotifier {
 
     _updateState(_state.copyWith(isSubmitting: true, errorMessage: null));
 
-    try {
-      await _plantRepo.addPlant(
-        userId: userId,
-        nickname: _state.plantName.trim(),
-        isIndoor: _state.isIndoor,
-        sunlightCondition: _state.selectedLight,
-        potSize: _state.potSize,
-        site: _state.selectedRoom,
-        windowDistance: _state.selectedRoom,
-        initialHeightCm: _state.initialHeightCm,
-        growthStage: _state.growthStage,
-        coverPhotoPath: _state.imagePath,
-        customPhotoPath: _state.imagePath,
-        timeCapsule: _state.timeCapsuleDraft,
-        defaultWateringInterval: 4,
-      );
+    final result = await _plantRepo.addPlant(
+      userId: userId,
+      nickname: _state.plantName.trim(),
+      isIndoor: _state.isIndoor,
+      sunlightCondition: _state.selectedLight,
+      potSize: _state.potSize,
+      site: _state.selectedRoom,
+      windowDistance: _state.selectedRoom,
+      initialHeightCm: _state.initialHeightCm,
+      growthStage: _state.growthStage,
+      adoptedAt: _state.plantedDate,
+      coverPhotoPath: _state.imagePath,
+      customPhotoPath: _state.imagePath,
+      timeCapsule: _state.timeCapsuleDraft,
+      defaultWateringInterval: 4,
+    );
 
-      _updateState(_state.copyWith(isSubmitting: false, isSuccess: true));
-      return true;
-    } catch (e) {
-      _updateState(
-        _state.copyWith(
-          isSubmitting: false,
-          errorMessage: 'Gagal menambahkan tanaman kustom: $e',
-        ),
-      );
-      return false;
+    switch (result) {
+      case Success():
+        _updateState(_state.copyWith(isSubmitting: false, isSuccess: true));
+        return true;
+      case Error(:final failure):
+        _updateState(
+          _state.copyWith(
+            isSubmitting: false,
+            errorMessage: 'Gagal menambahkan tanaman kustom: ${failure.message}',
+          ),
+        );
+        return false;
     }
   }
 }

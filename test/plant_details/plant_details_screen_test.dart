@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
+import 'package:plenty/core/domain/models/growth_log_model.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/garden/data/repositories/growth_repository_impl.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
-import 'package:plenty/features/garden/data/repositories/growth_repository.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/domain/repositories/growth_repository.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/garden/presentation/screens/plant_details_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late GrowthRepository growthRepo;
-  late PlantRepository plantRepo;
+  late IGrowthRepository growthRepo;
+  late IPlantRepository plantRepo;
 
   setUpAll(() {
     sqfliteFfiInit();
@@ -22,6 +26,9 @@ void main() {
   });
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await PreferenceHandler.init();
+
     final uniqueName = 'pdetails_${DateTime.now().microsecondsSinceEpoch}.db';
     dbHelper = DatabaseHelper.forTesting(uniqueName);
     await dbHelper.deleteDb();
@@ -39,8 +46,8 @@ void main() {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    growthRepo = GrowthRepository(dbHelper: dbHelper);
-    plantRepo = PlantRepository(dbHelper: dbHelper);
+    growthRepo = GrowthRepositoryImpl(dbHelper: dbHelper);
+    plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
   });
 
   tearDown(() async {
@@ -95,12 +102,14 @@ void main() {
             ),
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
       });
 
       await tester.pump();
 
       expect(find.text('Super Pothos'), findsOneWidget);
+      expect(find.text('Usia Tanaman'), findsOneWidget);
+      expect(find.text('1 Hari'), findsOneWidget);
       expect(find.text('Level 2'), findsWidgets);
       expect(find.text('30 / 100 XP'), findsOneWidget);
       expect(find.text('Grafik Pertumbuhan Tinggi'), findsOneWidget);
@@ -148,7 +157,7 @@ void main() {
               ),
             ),
           );
-          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await Future<void>.delayed(const Duration(milliseconds: 300));
         });
 
         await tester.pump();
@@ -185,7 +194,7 @@ void main() {
             ),
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
       });
 
       await tester.pump();
@@ -228,7 +237,7 @@ void main() {
             ),
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
       });
 
       await tester.pump();
@@ -239,7 +248,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Delete confirmation sheet is shown
-      expect(find.text('Hapus Monstera To Delete?'), findsOneWidget);
+      expect(find.text('Hapus Tanaman?'), findsOneWidget);
       expect(find.text('Ya, Hapus Tanaman'), findsOneWidget);
       expect(find.text('Batal'), findsOneWidget);
     });

@@ -1,20 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/features/daily_care/presentation/daily_care_controller.dart';
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/features/daily_care/data/care_repository.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
-import 'package:plenty/features/garden/data/repositories/streak_repository.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-
+import 'package:plenty/features/daily_care/data/repositories/daily_care_repository_impl.dart';
+import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
+import 'package:plenty/features/daily_care/presentation/controllers/daily_care_controller.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late PlantRepository plantRepo;
-  late CareRepository careRepo;
-  late StreakRepository streakRepo;
+  late IPlantRepository plantRepo;
+  late IDailyCareRepository careRepo;
   late DailyCareController controller;
 
   setUpAll(() {
@@ -41,18 +40,18 @@ void main() {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    plantRepo = PlantRepository(dbHelper: dbHelper);
-    careRepo = CareRepository(dbHelper: dbHelper);
-    streakRepo = StreakRepository(dbHelper: dbHelper, careRepo: careRepo);
+    plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
+    careRepo = DailyCareRepositoryImpl(dbHelper: dbHelper, plantRepo: plantRepo);
 
     // Seed test plant
-    final addResult = await plantRepo.addPlant(
+    final addResultRes = await plantRepo.addPlant(
       userId: '1',
       nickname: 'Monstera Test',
       isIndoor: true,
       initialHeightCm: 42.0,
       defaultWateringInterval: 1,
     );
+    final addResult = addResultRes.dataOrNull!;
 
     // Make watering schedule due today for testing
     await db.update(
@@ -66,13 +65,12 @@ void main() {
     );
 
     controller = DailyCareController(
-      plantRepo: plantRepo,
-      careRepo: careRepo,
-      streakRepo: streakRepo,
+      repository: careRepo,
     );
   });
 
   tearDown(() async {
+    controller.dispose();
     await dbHelper.close();
   });
 
@@ -107,7 +105,8 @@ void main() {
       expect(updatedState.heightLogs.first.loggedHeightToday, 43.5);
 
       // Verify care history recorded
-      final history = await careRepo.getCareHistory(userId: '1');
+      final historyRes = await careRepo.getCareHistory(userId: '1');
+      final history = historyRes.dataOrNull ?? [];
       expect(history.any((h) => h.taskType == 'monitor_tinggi'), isTrue);
       expect(history.first.activityDetail, 'Tinggi dicatat: 43.5 cm');
       expect(history.first.xpAwarded, 15);
@@ -131,7 +130,8 @@ void main() {
       expect(updatedState.heightLogs.first.isCompletedToday, isTrue);
       expect(updatedState.heightLogs.first.loggedPhotoPathToday, 'assets/images/sample.jpg');
 
-      final history = await careRepo.getCareHistory(userId: '1');
+      final historyRes = await careRepo.getCareHistory(userId: '1');
+      final history = historyRes.dataOrNull ?? [];
       expect(history.first.photoPath, 'assets/images/sample.jpg');
     });
 
@@ -161,10 +161,10 @@ void main() {
       expect(updatedState.heightLogs.first.loggedPhotoPathToday, 'assets/images/revised.jpg');
 
       // Verify latest height and photo in care repo
-      final latestHeight = await careRepo.getLatestRecordedHeight(plant.id);
-      expect(latestHeight, 45.5);
-      final latestPhoto = await careRepo.getLoggedPhotoToday(plant.id);
-      expect(latestPhoto, 'assets/images/revised.jpg');
+      final latestHeightRes = await careRepo.getLatestRecordedHeight(plant.id);
+      expect(latestHeightRes.dataOrNull, 45.5);
+      final latestPhotoRes = await careRepo.getLoggedPhotoToday(plant.id);
+      expect(latestPhotoRes.dataOrNull, 'assets/images/revised.jpg');
     });
   });
 }

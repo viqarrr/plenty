@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/presentation/controllers/add_plant_flow_controller.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -9,7 +10,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
-  late PlantRepository plantRepo;
+  late IPlantRepository plantRepo;
   late AddPlantFlowController controller;
 
   setUpAll(() {
@@ -36,7 +37,7 @@ void main() {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    plantRepo = PlantRepository(dbHelper: dbHelper);
+    plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
     await plantRepo.getCatalogPlants(); // seeds catalog
 
     controller = AddPlantFlowController(
@@ -121,7 +122,8 @@ void main() {
         expect(controller.state.timeCapsuleDraft, isNotNull);
 
         // Final Action: confirmAndSave
-        final result = await controller.confirmAndSave();
+        final resultRes = await controller.confirmAndSave();
+        final result = resultRes.dataOrNull!;
         expect(result.plant.nickname, 'Monty The Monster');
         expect(result.plant.catalogId, 'cat_monstera');
         expect(result.plant.growthStage, 'seed');
@@ -130,7 +132,8 @@ void main() {
         expect(result.isFirstPlant, true);
 
         // Verify SQLite user_plants
-        final userPlants = await plantRepo.getUserPlants('1');
+        final userPlantsRes = await plantRepo.getUserPlants('1');
+        final userPlants = userPlantsRes.dataOrNull ?? [];
         expect(userPlants.length, 1);
         expect(userPlants.first.nickname, 'Monty The Monster');
         expect(userPlants.first.catalogId, 'cat_monstera');

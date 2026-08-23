@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:plenty/core/di/injector.dart';
+import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/utils/debouncer.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
 
 /// Immutable state for botanical species search & selection screen.
@@ -42,7 +44,7 @@ class ChooseSpeciesState {
 
 /// ChangeNotifier managing debounce search, catalog loading, and care level filtering.
 class ChooseSpeciesController extends ChangeNotifier {
-  final PlantRepository _plantRepository;
+  final IPlantRepository _plantRepository;
   final Debouncer _debouncer;
 
   ChooseSpeciesState _state = const ChooseSpeciesState();
@@ -51,10 +53,10 @@ class ChooseSpeciesController extends ChangeNotifier {
   bool _isDisposed = false;
 
   ChooseSpeciesController({
-    PlantRepository? plantRepository,
+    IPlantRepository? plantRepository,
     Debouncer? debouncer,
     bool autoLoad = true,
-  })  : _plantRepository = plantRepository ?? PlantRepository(),
+  })  : _plantRepository = plantRepository ?? Injector.plantRepository,
         _debouncer =
             debouncer ?? Debouncer(delay: const Duration(milliseconds: 400)) {
     if (autoLoad) {
@@ -78,22 +80,23 @@ class ChooseSpeciesController extends ChangeNotifier {
   /// Loads the default catalog list.
   Future<void> loadInitialCatalog() async {
     _updateState(_state.copyWith(isLoading: true, errorMessage: null));
-    try {
-      final list = await _plantRepository.getCatalogPlants();
-      _updateState(
-        _state.copyWith(
-          speciesList: list,
-          filteredList: _applyFilter(list, _state.query, _state.careFilter),
-          isLoading: false,
-        ),
-      );
-    } catch (e) {
-      _updateState(
-        _state.copyWith(
-          isLoading: false,
-          errorMessage: 'Gagal memuat katalog: $e',
-        ),
-      );
+    final result = await _plantRepository.getCatalogPlants();
+    switch (result) {
+      case Success(:final data):
+        _updateState(
+          _state.copyWith(
+            speciesList: data,
+            filteredList: _applyFilter(data, _state.query, _state.careFilter),
+            isLoading: false,
+          ),
+        );
+      case Error(:final failure):
+        _updateState(
+          _state.copyWith(
+            isLoading: false,
+            errorMessage: failure.message,
+          ),
+        );
     }
   }
 
@@ -102,22 +105,23 @@ class ChooseSpeciesController extends ChangeNotifier {
     _updateState(_state.copyWith(query: query, isLoading: true));
 
     _debouncer.run(() async {
-      try {
-        final results = await _plantRepository.getCatalogPlants(query: query);
-        _updateState(
-          _state.copyWith(
-            speciesList: results,
-            filteredList: _applyFilter(results, query, _state.careFilter),
-            isLoading: false,
-          ),
-        );
-      } catch (e) {
-        _updateState(
-          _state.copyWith(
-            isLoading: false,
-            errorMessage: 'Gagal mencari tanaman: $e',
-          ),
-        );
+      final result = await _plantRepository.getCatalogPlants(query: query);
+      switch (result) {
+        case Success(:final data):
+          _updateState(
+            _state.copyWith(
+              speciesList: data,
+              filteredList: _applyFilter(data, query, _state.careFilter),
+              isLoading: false,
+            ),
+          );
+        case Error(:final failure):
+          _updateState(
+            _state.copyWith(
+              isLoading: false,
+              errorMessage: failure.message,
+            ),
+          );
       }
     });
   }

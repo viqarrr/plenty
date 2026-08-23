@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/utils/image_picker_helper.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/core/widgets/custom_text_field.dart';
@@ -405,7 +406,7 @@ class _MonitorTinggiInputSheetState extends State<MonitorTinggiInputSheet> {
                       : null,
                   _selectedPhotoPath,
                 );
-                Navigator.of(context).pop();
+                context.pop();
               },
             ),
           ],

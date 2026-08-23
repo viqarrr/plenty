@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/error/failure.dart';
-import 'package:plenty/core/utils/result.dart';
+import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/features/plant_catalog/data/datasources/plant_remote_data_source.dart';
 import 'package:plenty/features/plant_catalog/domain/models/perenual_care_guide_model.dart';
@@ -8,6 +8,8 @@ import 'package:plenty/features/plant_catalog/domain/models/perenual_detail_mode
 import 'package:plenty/features/plant_catalog/domain/models/perenual_species_model.dart';
 import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/models/plant_model.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockPlantRemoteDataSource implements PlantRemoteDataSource {
@@ -78,37 +80,9 @@ void main() {
     await dbHelper.close();
   });
 
-  group('PlantRepositoryImpl Cache-First Tests', () {
+  group('PlantRepositoryImpl Zero-Persistent-Cache Tests', () {
     test(
-        'Returns local cached items immediately without network call when cache exists',
-        () async {
-      // 1. Pre-insert a plant into SQLite
-      final db = await dbHelper.database;
-      final cachedPlant = PlantCatalogModel(
-        id: 'cat_local_1',
-        commonName: 'Cached Monstera',
-        scientificName: 'Monstera deliciosa',
-        family: 'Araceae',
-        defaultWateringInterval: 7,
-        sunlightLevel: 'Bright indirect',
-        careLevel: 'EASY CARE',
-        cachedAt: DateTime.now(),
-      );
-      await db.insert(DatabaseHelper.tablePlantCatalog, cachedPlant.toMap());
-
-      // 2. Fetch catalog plants
-      final result = await repository.getCatalogPlants();
-
-      // 3. Verify: Served from local cache, 0 remote API calls made! (Quota preserved)
-      expect(result.isSuccess, isTrue);
-      final plants = (result as Success<List<PlantCatalogModel>>).data;
-      expect(plants.length, 1);
-      expect(plants.first.commonName, 'Cached Monstera');
-      expect(mockRemoteDataSource.fetchListCalls, 0);
-    });
-
-    test(
-        'Fetches from remote API, saves to SQLite, and returns result when local cache is empty',
+        'Fetches from remote API and caches in-memory session (2nd call hits session cache with 0 API calls)',
         () async {
       mockRemoteDataSource.mockSpeciesList = [
         const PerenualSpeciesModel(
@@ -122,10 +96,8 @@ void main() {
         ),
       ];
 
-      // 1. Fetch from empty SQLite
+      // 1. First fetch -> calls remote API
       final result = await repository.getCatalogPlants(query: 'Rubber');
-
-      // 2. Verify: 1 API call made, result returned
       expect(result.isSuccess, isTrue);
       final plants = (result as Success<List<PlantCatalogModel>>).data;
       expect(plants.length, 1);
@@ -133,33 +105,15 @@ void main() {
       expect(plants.first.commonName, 'Ficus Elastica (Rubber Plant)');
       expect(mockRemoteDataSource.fetchListCalls, 1);
 
-      // 3. Verify: Data has been persisted to SQLite
-      final db = await dbHelper.database;
-      final savedRows = await db.query(DatabaseHelper.tablePlantCatalog);
-      expect(savedRows.length, 1);
-      expect(savedRows.first['id'], 'perenual_101');
-      expect(savedRows.first['common_name'], 'Ficus Elastica (Rubber Plant)');
-
-      // 4. Fetch again -> Should now hit cache with 0 additional API calls!
+      // 2. Second fetch with same query -> Served from in-memory session cache!
       final secondResult = await repository.getCatalogPlants(query: 'Rubber');
       expect(secondResult.isSuccess, isTrue);
-      expect(mockRemoteDataSource.fetchListCalls, 1); // still 1!
+      expect(mockRemoteDataSource.fetchListCalls, 1); // Still 1 call!
     });
 
     test(
-        'Force refresh calls remote API even if local data exists and updates SQLite',
+        'Force refresh bypasses in-memory session cache and calls remote API',
         () async {
-      // 1. Pre-populate local cache
-      final db = await dbHelper.database;
-      final oldPlant = PlantCatalogModel(
-        id: 'perenual_202',
-        commonName: 'Old Name',
-        defaultWateringInterval: 5,
-        cachedAt: DateTime.now().subtract(const Duration(days: 10)),
-      );
-      await db.insert(DatabaseHelper.tablePlantCatalog, oldPlant.toMap());
-
-      // 2. Set up remote mock with updated name
       mockRemoteDataSource.mockSpeciesList = [
         const PerenualSpeciesModel(
           id: 202,
@@ -168,27 +122,25 @@ void main() {
         ),
       ];
 
-      // 3. Request with forceRefresh: true
-      final result = await repository.getCatalogPlants(forceRefresh: true);
-
-      expect(result.isSuccess, isTrue);
+      // 1. First call
+      await repository.getCatalogPlants(query: 'test');
       expect(mockRemoteDataSource.fetchListCalls, 1);
-      final plants = (result as Success<List<PlantCatalogModel>>).data;
-      expect(plants.first.commonName, 'Updated New Name');
 
-      // 4. Verify SQLite updated
-      final updatedRows = await db.query(DatabaseHelper.tablePlantCatalog);
-      expect(updatedRows.first['common_name'], 'Updated New Name');
+      // 2. Call with forceRefresh: true -> should call remote again
+      final refreshed =
+          await repository.getCatalogPlants(query: 'test', forceRefresh: true);
+      expect(refreshed.isSuccess, isTrue);
+      expect(mockRemoteDataSource.fetchListCalls, 2);
     });
 
     test(
-        'Falls back to pre-seeded catalog when offline / remote API fails and cache is empty',
+        'Falls back to in-memory pre-seeded catalog when offline / remote API fails',
         () async {
       mockRemoteDataSource.shouldThrow = true;
 
       final result = await repository.getCatalogPlants();
 
-      // Should gracefully fall back to pre-seeded offline species
+      // Should gracefully fall back to in-memory pre-seeded species
       expect(result.isSuccess, isTrue);
       final plants = (result as Success<List<PlantCatalogModel>>).data;
       expect(plants, isNotEmpty);
@@ -196,7 +148,7 @@ void main() {
     });
 
     test(
-        'getPlantCatalogDetails retrieves from cache or fetches and saves from remote',
+        'getPlantCatalogDetails retrieves from remote and caches in session memory',
         () async {
       mockRemoteDataSource.mockDetail = const PerenualDetailModel(
         id: 777,
@@ -219,7 +171,7 @@ void main() {
       expect(detail.careLevel, 'EASY CARE');
       expect(mockRemoteDataSource.fetchDetailsCalls, 1);
 
-      // 2. Fetch details again for 777 -> served from SQLite cache
+      // 2. Fetch details again for 777 -> served from in-memory session cache
       final cachedResult = await repository.getPlantCatalogDetails(777);
       expect(cachedResult.isSuccess, isTrue);
       expect(mockRemoteDataSource.fetchDetailsCalls, 1); // 0 extra calls
@@ -249,6 +201,45 @@ void main() {
       expect(guides.first.wateringAdvice,
           'Allow soil to dry out completely between waterings.');
       expect(mockRemoteDataSource.fetchCareGuidesCalls, 1);
+    });
+
+    test(
+        'addPlant persists self-contained snapshot directly into user_plants with zero catalog table interaction',
+        () async {
+      final species = PlantCatalogModel(
+        id: 'perenual_101',
+        commonName: 'Rubber Plant',
+        scientificName: 'Ficus elastica',
+        family: 'Moraceae',
+        defaultWateringInterval: 7,
+        sunlightLevel: 'Sinar Tidak Langsung Terang',
+        careLevel: 'EASY CARE',
+        cachedAt: DateTime.now(),
+      );
+
+      final addResult = await repository.addPlant(
+        userId: '1',
+        species: species,
+        nickname: 'My Rubber',
+        isIndoor: true,
+        site: 'Living Room',
+        initialHeightCm: 45.0,
+      );
+
+      expect(addResult.isSuccess, isTrue);
+      final added = (addResult as Success<AddPlantResult>).data;
+      expect(added.plant.nickname, 'My Rubber');
+      expect(added.plant.commonName, 'Rubber Plant');
+      expect(added.isFirstPlant, isTrue);
+
+      // Verify user_plants table has self-contained snapshot
+      final userPlants = await repository.getUserPlants('1');
+      expect(userPlants.isSuccess, isTrue);
+      final plants = (userPlants as Success<List<PlantModel>>).data;
+      expect(plants.length, 1);
+      expect(plants.first.nickname, 'My Rubber');
+      expect(plants.first.commonName, 'Rubber Plant');
+      expect(plants.first.defaultWateringInterval, 7);
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
 import 'package:plenty/features/garden/presentation/widgets/plant_stat_card.dart';
@@ -318,7 +319,7 @@ class SpeciesDetailPreviewScreen extends StatelessWidget {
             size: 18,
             color: AppColors.ink,
           ),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.pop(),
         ),
       ),
       bottom: PreferredSize(
