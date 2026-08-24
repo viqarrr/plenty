@@ -46,12 +46,14 @@ class SiteOption {
 class WizardAreaStep extends StatefulWidget {
   final String selectedRoom;
   final ValueChanged<String> onRoomSelected;
+  final bool isIndoor;
   final ISiteRepository? siteRepo;
 
   const WizardAreaStep({
     super.key,
     required this.selectedRoom,
     required this.onRoomSelected,
+    this.isIndoor = true,
     this.siteRepo,
   });
 
@@ -599,9 +601,11 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
                   });
 
                   if (widget.selectedRoom == site.name) {
-                    final fallback = _indoorSites.isNotEmpty
-                        ? _indoorSites.first.name
-                        : 'Ruang Tamu';
+                    final relevantSites =
+                        widget.isIndoor ? _indoorSites : _outdoorSites;
+                    final fallback = relevantSites.isNotEmpty
+                        ? relevantSites.first.name
+                        : (widget.isIndoor ? 'Ruang Tamu' : 'Balkon');
                     widget.onRoomSelected(fallback);
                   }
 
@@ -627,14 +631,33 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
   }
 
   @override
+  void didUpdateWidget(covariant WizardAreaStep oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isIndoor != widget.isIndoor) {
+      final relevantSites = widget.isIndoor ? _indoorSites : _outdoorSites;
+      if (relevantSites.isNotEmpty &&
+          !relevantSites.any((s) => s.name == widget.selectedRoom)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            widget.onRoomSelected(relevantSites.first.name);
+          }
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isIndoor = widget.isIndoor;
+    final relevantSites = isIndoor ? _indoorSites : _outdoorSites;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Lokasi Ruangan',
+            isIndoor ? 'Lokasi Ruangan' : 'Lokasi Area Outdoor',
             style: AppTypography.displayLarge.copyWith(
               fontSize: 32,
               color: AppColors.inkSoft,
@@ -642,27 +665,20 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Pilih ruangan atau zona tempat tanaman ini akan diletakkan.',
+            isIndoor
+                ? 'Pilih ruangan atau zona indoor tempat tanaman ini akan diletakkan.'
+                : 'Pilih area outdoor tempat tanaman ini akan diletakkan.',
             style: AppTypography.bodyRegular.copyWith(color: AppColors.muted),
           ),
           const SizedBox(height: 24),
 
-          // 1. Indoor Section
+          // Environment-specific Section
           _buildSectionHeader(
-            title: 'Lokasi Indoor',
-            onAddCustom: () => _openAddCustomSiteSheet(isIndoor: true),
+            title: isIndoor ? 'Lokasi Indoor' : 'Lokasi Outdoor',
+            onAddCustom: () => _openAddCustomSiteSheet(isIndoor: isIndoor),
           ),
           const SizedBox(height: 12),
-          _buildSitesGrid(_indoorSites),
-          const SizedBox(height: 28),
-
-          // 2. Outdoor Section
-          _buildSectionHeader(
-            title: 'Lokasi Outdoor',
-            onAddCustom: () => _openAddCustomSiteSheet(isIndoor: false),
-          ),
-          const SizedBox(height: 12),
-          _buildSitesGrid(_outdoorSites),
+          _buildSitesGrid(relevantSites),
           const SizedBox(height: 32),
         ],
       ),

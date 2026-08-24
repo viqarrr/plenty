@@ -335,8 +335,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         return CommunityPostCard(
                           post: post,
                           onLikeTap: () => _controller.toggleLike(post.id),
-                          onEditTap: () => _handleEditPost(post),
-                          onDeleteTap: () => _handleDeletePost(post),
+                          onEditTap: post.isAuthor
+                              ? () => _handleEditPost(post)
+                              : null,
+                          onDeleteTap: post.isAuthor
+                              ? () => _handleDeletePost(post)
+                              : null,
                           onCommentTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(

@@ -62,10 +62,20 @@ void main() {
 
       // Verify returned result
       expect(result.isFirstPlant, isTrue);
+      expect(result.isFirstTimeCapsule, isTrue);
       expect(result.plant.nickname, 'Monsty Deliciosa');
       expect(result.plant.initialHeightCm, 28.5);
       expect(result.plant.level, 1);
       expect(result.plant.xp, 0);
+
+      // Verify time capsule badge unlocked in SQLite user_badges
+      final userBadges = await db.query(
+        DatabaseHelper.tableUserBadges,
+        where: 'user_id = ? AND badge_id = ?',
+        whereArgs: [1, 'time_capsule'],
+      );
+      expect(userBadges.isNotEmpty, isTrue);
+      expect(userBadges.first['is_unlocked'], 1);
 
       // Verify saved in SQLite
       final userPlantsRes = await plantRepository.getUserPlants('1');
@@ -144,6 +154,20 @@ void main() {
         whereArgs: [result.plant.id],
       );
       expect(deletedCapsules.isEmpty, isTrue);
+
+      // 5. Test adding another plant after deleting all plants does NOT re-trigger isFirstPlant
+      await plantRepository.deletePlant(secondResult.plant.id);
+      final emptyPlantsRes = await plantRepository.getUserPlants('1');
+      expect(emptyPlantsRes.dataOrNull?.isEmpty, isTrue);
+
+      final thirdResultRes = await plantRepository.addPlant(
+        userId: '1',
+        nickname: 'Kaktus Ketiga',
+        isIndoor: true,
+        defaultWateringInterval: 14,
+      );
+      final thirdResult = thirdResultRes.dataOrNull!;
+      expect(thirdResult.isFirstPlant, isFalse);
     });
   });
 }

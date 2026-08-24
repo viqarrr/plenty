@@ -185,7 +185,7 @@ void main() {
       expect(found.content, 'Konten berhasil diperbarui dan diedit!');
     });
 
-    test('deletePost removes post from database', () async {
+    test('deletePost removes post from database for author', () async {
       final newPost = CommunityPost(
         id: 'delete_test_post',
         authorName: 'rian_plant',
@@ -203,6 +203,55 @@ void main() {
       final postsRes = await repository.getPosts();
       final posts = postsRes.dataOrNull ?? [];
       expect(posts.any((p) => p.id == 'delete_test_post'), isFalse);
+    });
+
+    test('deletePost rejects deletion when performed by a non-author', () async {
+      final newPost = CommunityPost(
+        id: 'user1_post',
+        authorName: 'rian_plant',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Postingan milik user 1',
+        createdAt: DateTime.now(),
+      );
+
+      await repository.createPost(newPost, userId: 1);
+
+      // Attempt deletion as user 2
+      final deleteRes = await repository.deletePost('user1_post', userId: 2);
+      expect(deleteRes.isError, isTrue);
+
+      // Post should still exist
+      final postsRes = await repository.getPosts();
+      final posts = postsRes.dataOrNull ?? [];
+      expect(posts.any((p) => p.id == 'user1_post'), isTrue);
+    });
+
+    test('updatePost rejects editing when performed by a non-author', () async {
+      final newPost = CommunityPost(
+        id: 'user1_post_for_edit',
+        authorName: 'rian_plant',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Konten asli',
+        createdAt: DateTime.now(),
+      );
+
+      await repository.createPost(newPost, userId: 1);
+
+      final unauthorizedDraft = newPost.copyWith(
+        content: 'Konten diubah oleh hacker/user lain!',
+      );
+
+      // Attempt edit as user 2
+      final updateRes = await repository.updatePost(unauthorizedDraft, userId: 2);
+      expect(updateRes.isError, isTrue);
+
+      // Content remains original
+      final postsRes = await repository.getPosts();
+      final posts = postsRes.dataOrNull ?? [];
+      final post = posts.firstWhere((p) => p.id == 'user1_post_for_edit');
+      expect(post.content, 'Konten asli');
     });
   });
 }

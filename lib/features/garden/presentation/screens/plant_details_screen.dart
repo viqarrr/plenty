@@ -19,6 +19,7 @@ import 'package:plenty/features/garden/presentation/widgets/plant_stat_card.dart
 import 'package:plenty/features/garden/presentation/widgets/plant_toxicity_banner.dart';
 import 'package:plenty/features/garden/presentation/widgets/delete_plant_sheet.dart';
 import 'package:plenty/features/garden/presentation/widgets/edit_plant_sheet.dart';
+import 'package:plenty/features/garden/presentation/widgets/first_reward_popup.dart';
 import 'package:plenty/features/garden/presentation/widgets/growth_height_chart.dart';
 import 'package:plenty/features/garden/presentation/widgets/level_xp_bar.dart';
 import 'package:plenty/features/garden/presentation/widgets/photo_timeline_stepper.dart';
@@ -68,11 +69,15 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   }
 
   Future<void> _loadData() async {
+    final plantRes = await _plantRepo.getPlantById(_plant.id);
     final logsRes = await _growthRepo.getHeightSeries(_plant.id);
     final photosRes = await _growthRepo.getPhotoGallery(_plant.id);
     final capsuleRes = await _growthRepo.getTimeCapsule(_plant.id);
     if (!mounted) return;
     setState(() {
+      if (plantRes.dataOrNull != null) {
+        _plant = plantRes.dataOrNull!;
+      }
       _growthLogs = logsRes.dataOrNull ?? [];
       _photoLogs = photosRes.dataOrNull ?? [];
       _timeCapsule = capsuleRes.dataOrNull;
@@ -86,7 +91,8 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     );
     if (draft != null && draft.message.isNotEmpty) {
       final now = DateTime.now();
-      final unlockAt = DateTime(now.year, now.month + draft.durationMonths, now.day);
+      final unlockAt =
+          DateTime(now.year, now.month + draft.durationMonths, now.day);
       final capsule = TimeCapsuleModel(
         id: 'tc_${now.millisecondsSinceEpoch}',
         userPlantId: _plant.id,
@@ -96,13 +102,24 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
         isUnlocked: false,
         createdAt: now,
       );
-      await _growthRepo.saveTimeCapsule(capsule);
-      _loadData();
+      final result = await _growthRepo.saveTimeCapsule(capsule);
+      if (mounted) {
+        await _loadData();
+        if (result.isSuccess && (result.dataOrNull ?? false)) {
+          await context.showAppDialog(
+            FirstRewardPopup.timeCapsule(
+              plantNickname: _plant.nickname,
+              onDismiss: () => context.pop(),
+            ),
+            barrierDismissible: false,
+          );
+        }
+      }
     }
   }
 
-  void _showGrowthTimelineModal() {
-    context.showAppBottomSheet(
+  Future<void> _showGrowthTimelineModal() async {
+    final selectedLog = await context.showAppBottomSheet<GrowthLogModel>(
       Container(
         height: MediaQuery.of(context).size.height * 0.8,
         decoration: const BoxDecoration(
@@ -159,7 +176,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                 padding: const EdgeInsets.all(20.0),
                 child: PhotoTimelineStepper(
                   logs: _photoLogs,
-                  onEditLog: _showEditGrowthLogSheet,
+                  onEditLog: (log) => Navigator.of(context).pop(log),
                 ),
               ),
             ),
@@ -167,6 +184,10 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
         ),
       ),
     );
+
+    if (selectedLog != null && mounted) {
+      _showEditGrowthLogSheet(selectedLog);
+    }
   }
 
   void _showEditGrowthLogSheet(GrowthLogModel log) {

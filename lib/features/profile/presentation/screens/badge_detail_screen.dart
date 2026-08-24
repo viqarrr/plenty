@@ -8,7 +8,7 @@ import 'package:plenty/core/utils/extensions/badge_ui_extension.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
-import 'package:plenty/features/community/presentation/screens/community_screen.dart';
+import 'package:plenty/features/garden/presentation/screens/home_screen.dart';
 
 /// Full-screen detail screen for a [BadgeItem].
 /// Displays an illuminated vibrant experience for unlocked badges,
@@ -16,11 +16,15 @@ import 'package:plenty/features/community/presentation/screens/community_screen.
 class BadgeDetailScreen extends StatelessWidget {
   final BadgeItem badge;
   final ICommunityRepository? communityRepository;
+  final bool? isAlreadyShared;
+  final void Function(BuildContext context)? onNavigateToHomeScreen;
 
   const BadgeDetailScreen({
     super.key,
     required this.badge,
     this.communityRepository,
+    this.isAlreadyShared,
+    this.onNavigateToHomeScreen,
   });
 
   /// Static helper to navigate to [BadgeDetailScreen].
@@ -28,11 +32,15 @@ class BadgeDetailScreen extends StatelessWidget {
     BuildContext context,
     BadgeItem badge, {
     ICommunityRepository? communityRepository,
+    bool? isAlreadyShared,
+    void Function(BuildContext context)? onNavigateToHomeScreen,
   }) {
     return context.push(
       BadgeDetailScreen(
         badge: badge,
         communityRepository: communityRepository,
+        isAlreadyShared: isAlreadyShared,
+        onNavigateToHomeScreen: onNavigateToHomeScreen,
       ),
     );
   }
@@ -43,23 +51,181 @@ class BadgeDetailScreen extends StatelessWidget {
       return _UnlockedBadgeScreen(
         badge: badge,
         communityRepository: communityRepository,
+        isAlreadyShared: isAlreadyShared,
+        onNavigateToHomeScreen: onNavigateToHomeScreen,
       );
     }
     return _LockedBadgeScreen(badge: badge);
   }
 }
 
-/// Unlocked State: Full-screen illuminated botanical presentation
-class _UnlockedBadgeScreen extends StatelessWidget {
+/// Unlocked State: Full-screen illuminated presentation matching badge's unique theme
+class _UnlockedBadgeScreen extends StatefulWidget {
   final BadgeItem badge;
   final ICommunityRepository? communityRepository;
+  final bool? isAlreadyShared;
+  final void Function(BuildContext context)? onNavigateToHomeScreen;
 
-  const _UnlockedBadgeScreen({required this.badge, this.communityRepository});
+  const _UnlockedBadgeScreen({
+    required this.badge,
+    this.communityRepository,
+    this.isAlreadyShared,
+    this.onNavigateToHomeScreen,
+  });
+
+  @override
+  State<_UnlockedBadgeScreen> createState() => _UnlockedBadgeScreenState();
+}
+
+class _UnlockedBadgeScreenState extends State<_UnlockedBadgeScreen> {
+  late final ICommunityRepository _communityRepo;
+  bool _isAlreadyShared = false;
+  bool _isSharing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _communityRepo =
+        widget.communityRepository ?? Injector.communityRepository;
+    if (widget.isAlreadyShared != null) {
+      _isAlreadyShared = widget.isAlreadyShared!;
+    } else {
+      _checkIfAlreadyShared();
+    }
+  }
+
+  Future<void> _checkIfAlreadyShared() async {
+    final result = await _communityRepo.hasUserSharedBadge(widget.badge.id);
+    if (mounted && result.isSuccess) {
+      setState(() {
+        _isAlreadyShared = result.dataOrNull ?? false;
+      });
+    }
+  }
+
+  List<Color> _buildBackgroundGradient(Color accent) {
+    final hsl = HSLColor.fromColor(accent);
+    final top = hsl
+        .withLightness(0.16)
+        .withSaturation((hsl.saturation * 0.9).clamp(0.25, 0.55))
+        .toColor();
+    final middle = hsl
+        .withLightness(0.10)
+        .withSaturation((hsl.saturation * 0.8).clamp(0.20, 0.45))
+        .toColor();
+    final bottom = hsl
+        .withLightness(0.06)
+        .withSaturation((hsl.saturation * 0.7).clamp(0.15, 0.35))
+        .toColor();
+    return [top, middle, bottom];
+  }
+
+  Color _buildButtonBg(Color accent) {
+    final hsl = HSLColor.fromColor(accent);
+    return hsl
+        .withLightness(0.68)
+        .withSaturation((hsl.saturation * 0.9).clamp(0.40, 0.75))
+        .toColor();
+  }
+
+  Color _buildButtonText(Color accent) {
+    final hsl = HSLColor.fromColor(accent);
+    return hsl
+        .withLightness(0.12)
+        .withSaturation((hsl.saturation * 0.9).clamp(0.35, 0.60))
+        .toColor();
+  }
+
+  Color _buildDateChipText(Color accent) {
+    final hsl = HSLColor.fromColor(accent);
+    return hsl
+        .withLightness(0.80)
+        .withSaturation((hsl.saturation * 0.85).clamp(0.35, 0.70))
+        .toColor();
+  }
+
+  Future<void> _handleShareBadge() async {
+    if (_isAlreadyShared || _isSharing) return;
+    setState(() => _isSharing = true);
+
+    String author = 'Penggemar Tanaman';
+    String? avatar;
+    try {
+      final currentUser = await PreferenceHandler.getUser();
+      if (currentUser != null) {
+        if (currentUser.username.isNotEmpty) {
+          author = currentUser.username;
+        } else if (currentUser.displayName.isNotEmpty) {
+          author = currentUser.displayName;
+        }
+        avatar = currentUser.avatarUrl;
+      }
+    } catch (_) {}
+
+    final newPost = CommunityPost(
+      id: 'cp_${DateTime.now().millisecondsSinceEpoch}',
+      authorName: author,
+      authorAvatar: avatar,
+      timeAgo: 'Baru saja',
+      category: 'pencapaian',
+      content:
+          'Hore! Saya baru saja membuka lencana "${widget.badge.title}" (Lv.${widget.badge.level}) di Plenty! 🌱✨',
+      attachedBadge: widget.badge,
+      likesCount: 0,
+      isLiked: false,
+      commentsCount: 0,
+      createdAt: DateTime.now(),
+    );
+
+    final result = await _communityRepo.createPost(newPost);
+
+    if (mounted) {
+      setState(() {
+        _isSharing = false;
+        if (result.isSuccess) {
+          _isAlreadyShared = true;
+        }
+      });
+
+      if (result.isSuccess) {
+        if (widget.onNavigateToHomeScreen != null) {
+          widget.onNavigateToHomeScreen!(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Lencana berhasil dibagikan ke Komunitas! 🏆',
+              ),
+              backgroundColor: AppColors.darkGreen,
+            ),
+          );
+          // Navigate to HomeScreen on Community Tab (index 2) so BottomNav remains intact
+          context.pushAndRemoveAll(
+            const HomeScreen(initialTab: 2),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.failureOrNull?.message ?? 'Gagal membagikan lencana',
+            ),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final gradientColors = _buildBackgroundGradient(widget.badge.accentColor);
+    final buttonBgColor = _buildButtonBg(widget.badge.accentColor);
+    final buttonTextColor = _buildButtonText(widget.badge.accentColor);
+    final dateChipTextColor = _buildDateChipText(widget.badge.accentColor);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF132A1F),
+      backgroundColor: gradientColors[1],
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -77,11 +243,11 @@ class _UnlockedBadgeScreen extends StatelessWidget {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1B3D2D), Color(0xFF132A1F), Color(0xFF0D1E16)],
+            colors: gradientColors,
           ),
         ),
         child: SafeArea(
@@ -104,11 +270,10 @@ class _UnlockedBadgeScreen extends StatelessWidget {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(
-                                0xFF52B788,
-                              ).withValues(alpha: 0.35),
-                              blurRadius: 40,
-                              spreadRadius: 10,
+                              color: widget.badge.accentColor
+                                  .withValues(alpha: 0.40),
+                              blurRadius: 44,
+                              spreadRadius: 12,
                             ),
                           ],
                         ),
@@ -119,7 +284,7 @@ class _UnlockedBadgeScreen extends StatelessWidget {
                         height: 130,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: badge.bgColor,
+                          color: widget.badge.bgColor,
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.4),
                             width: 3,
@@ -134,9 +299,9 @@ class _UnlockedBadgeScreen extends StatelessWidget {
                         ),
                         child: Center(
                           child: Icon(
-                            badge.icon,
+                            widget.badge.icon,
                             size: 64,
-                            color: badge.accentColor,
+                            color: widget.badge.accentColor,
                           ),
                         ),
                       ),
@@ -149,7 +314,7 @@ class _UnlockedBadgeScreen extends StatelessWidget {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2D6A4F),
+                            color: widget.badge.accentColor,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: Colors.white, width: 1.5),
                             boxShadow: [
@@ -161,7 +326,7 @@ class _UnlockedBadgeScreen extends StatelessWidget {
                             ],
                           ),
                           child: Text(
-                            badge.level.toString(),
+                            widget.badge.level.toString(),
                             style: AppTypography.caption1Bold.copyWith(
                               color: Colors.white,
                               fontSize: 12,
@@ -175,7 +340,7 @@ class _UnlockedBadgeScreen extends StatelessWidget {
                 const SizedBox(height: 32),
                 // Badge Title
                 Text(
-                  badge.title,
+                  widget.badge.title,
                   style: AppTypography.title2Bold.copyWith(
                     color: Colors.white,
                     fontSize: 24,
@@ -185,8 +350,8 @@ class _UnlockedBadgeScreen extends StatelessWidget {
                 const SizedBox(height: 10),
 
                 // Date unlocked chip if available
-                if (badge.unlockedDate != null &&
-                    badge.unlockedDate!.isNotEmpty) ...[
+                if (widget.badge.unlockedDate != null &&
+                    widget.badge.unlockedDate!.isNotEmpty) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -195,11 +360,16 @@ class _UnlockedBadgeScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: widget.badge.accentColor
+                            .withValues(alpha: 0.25),
+                        width: 1,
+                      ),
                     ),
                     child: Text(
-                      badge.unlockedDate!,
+                      widget.badge.unlockedDate!,
                       style: AppTypography.caption2Bold.copyWith(
-                        color: const Color(0xFFB7E4C7),
+                        color: dateChipTextColor,
                       ),
                     ),
                   ),
@@ -214,7 +384,7 @@ class _UnlockedBadgeScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Text(
-                    badge.desc,
+                    widget.badge.desc,
                     style: AppTypography.bodyRegular.copyWith(
                       color: Colors.white.withValues(alpha: 0.9),
                       height: 1.5,
@@ -225,79 +395,69 @@ class _UnlockedBadgeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 36),
 
-                // "Bagikan ke Komunitas" CTA
+                // "Bagikan ke Komunitas" CTA / "Sudah Dibagikan"
                 SizedBox(
                   width: double.infinity,
                   height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      String author = 'Penggemar Tanaman';
-                      String? avatar;
-                      try {
-                        final currentUser = await PreferenceHandler.getUser();
-                        if (currentUser != null) {
-                          if (currentUser.username.isNotEmpty) {
-                            author = currentUser.username;
-                          } else if (currentUser.displayName.isNotEmpty) {
-                            author = currentUser.displayName;
-                          }
-                          avatar = currentUser.avatarUrl;
-                        }
-                      } catch (_) {}
-
-                      final newPost = CommunityPost(
-                        id: 'cp_${DateTime.now().millisecondsSinceEpoch}',
-                        authorName: author,
-                        authorAvatar: avatar,
-                        timeAgo: 'Baru saja',
-                        category: 'pencapaian',
-                        content:
-                            'Hore! Saya baru saja membuka lencana "${badge.title}" (Lv.${badge.level}) di Plenty! 🌱✨',
-                        attachedBadge: badge,
-                        likesCount: 0,
-                        isLiked: false,
-                        commentsCount: 0,
-                        createdAt: DateTime.now(),
-                      );
-                      final repo = communityRepository ?? Injector.communityRepository;
-                      await repo.createPost(newPost);
-
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Lencana berhasil dibagikan ke Komunitas! 🏆',
+                  child: _isAlreadyShared
+                      ? Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: widget.badge.accentColor
+                                  .withValues(alpha: 0.35),
+                              width: 1.2,
                             ),
-                            backgroundColor: AppColors.darkGreen,
                           ),
-                        );
-                        context.pushReplacement(
-                          const CommunityScreen(
-                            initialCategory: 'pencapaian',
+                          child: Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 20,
+                                  color: dateChipTextColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Sudah Dibagikan ke Komunitas',
+                                  style:
+                                      AppTypography.headlineSemiBold.copyWith(
+                                    color: dateChipTextColor,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        );
-                      }
-                    },
-                    icon: const Icon(
-                      Icons.share_rounded,
-                      size: 20,
-                      color: Color(0xFF132A1F),
-                    ),
-                    label: Text(
-                      'Bagikan ke Komunitas',
-                      style: AppTypography.headlineSemiBold.copyWith(
-                        color: const Color(0xFF132A1F),
-                        fontSize: 16,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF74C69D),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: _isSharing ? null : _handleShareBadge,
+                          icon: Icon(
+                            _isSharing
+                                ? Icons.hourglass_top_rounded
+                                : Icons.share_rounded,
+                            size: 20,
+                            color: buttonTextColor,
+                          ),
+                          label: Text(
+                            _isSharing
+                                ? 'Membagikan...'
+                                : 'Bagikan ke Komunitas',
+                            style: AppTypography.headlineSemiBold.copyWith(
+                              color: buttonTextColor,
+                              fontSize: 16,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: buttonBgColor,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -458,7 +618,9 @@ class _LockedBadgeScreen extends StatelessWidget {
                       Text(
                         '${badge.progress} / ${badge.total} ($progressPct%)',
                         style: AppTypography.caption1Bold.copyWith(
-                          color: const Color(0xFF52B788),
+                          color: HSLColor.fromColor(badge.accentColor)
+                              .withLightness(0.68)
+                              .toColor(),
                         ),
                       ),
                     ],
@@ -470,8 +632,8 @@ class _LockedBadgeScreen extends StatelessWidget {
                       value: progressFraction,
                       minHeight: 10,
                       backgroundColor: const Color(0xFF2C3238),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFF52B788),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        badge.accentColor,
                       ),
                     ),
                   ),

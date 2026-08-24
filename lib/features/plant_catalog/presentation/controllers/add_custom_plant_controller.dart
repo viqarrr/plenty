@@ -78,7 +78,27 @@ class AddCustomPlantController extends ChangeNotifier {
   }
 
   void setEnvironment(String environment) {
-    _updateState(_state.copyWith(isIndoor: environment == 'Indoor'));
+    final isIndoor = environment == 'Indoor';
+    String newRoom = _state.selectedRoom;
+    if (isIndoor) {
+      if (const ['Balkon', 'Taman', 'Patio', 'Teras'].contains(newRoom) ||
+          newRoom.isEmpty) {
+        newRoom = 'Ruang Tamu';
+      }
+    } else {
+      if (const ['Ruang Tamu', 'Kamar Tidur', 'Dapur', 'Ruang Kerja']
+              .contains(newRoom) ||
+          newRoom.isEmpty) {
+        newRoom = 'Balkon';
+      }
+    }
+
+    _updateState(
+      _state.copyWith(
+        isIndoor: isIndoor,
+        selectedRoom: newRoom,
+      ),
+    );
   }
 
   void setDrainage(String drainage) {
@@ -128,8 +148,14 @@ class AddCustomPlantController extends ChangeNotifier {
     );
 
     switch (result) {
-      case Success():
-        _updateState(_state.copyWith(isSubmitting: false, isSuccess: true));
+      case Success(:final data):
+        _updateState(
+          _state.copyWith(
+            isSubmitting: false,
+            isSuccess: true,
+            addResult: data,
+          ),
+        );
         return true;
       case Error(:final failure):
         _updateState(

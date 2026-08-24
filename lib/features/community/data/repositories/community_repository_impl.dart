@@ -1,8 +1,8 @@
 import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
 import 'package:sqflite/sqflite.dart';
@@ -10,6 +10,7 @@ import 'package:sqflite/sqflite.dart';
 /// Implementation of ICommunityRepository with SQLite persistence.
 class CommunityRepositoryImpl implements ICommunityRepository {
   final DatabaseHelper _dbHelper;
+  bool _isInitialized = false;
 
   CommunityRepositoryImpl({DatabaseHelper? dbHelper})
       : _dbHelper = dbHelper ?? DatabaseHelper.instance;
@@ -17,46 +18,56 @@ class CommunityRepositoryImpl implements ICommunityRepository {
   static const List<Map<String, dynamic>> _seedPosts = [
     {
       'id': 'cp_seed_1',
-      'user_id': 1,
+      'user_id': 999,
       'category': 'pertanyaan',
       'caption':
           'Ujung daun Monstera menguning dan agak layu setelah dipindah ke balkon. Apakah ini tanda kelebihan sinar matahari atau overwatering? Mohon masukannya para plant parents!',
       'image_url': null,
       'badge_id': null,
-      'kudos_count': 6,
-      'comment_count': 3,
+      'kudos_count': 0,
+      'comment_count': 0,
       'created_at': '2026-08-23T14:30:00.000Z',
     },
     {
       'id': 'cp_seed_2',
-      'user_id': 1,
+      'user_id': 999,
       'category': 'pencapaian',
       'caption':
           'Hore! Berhasil menjaga konsistensi menyiram dan merawat tanaman selama 7 hari tanpa terputus! 🌿💧',
       'image_url': null,
       'badge_id': 'water_streak',
-      'kudos_count': 18,
-      'comment_count': 5,
+      'kudos_count': 0,
+      'comment_count': 0,
       'created_at': '2026-08-22T10:15:00.000Z',
     },
     {
       'id': 'cp_seed_3',
-      'user_id': 1,
+      'user_id': 999,
       'category': 'tips',
       'caption':
           'Tips perbanyakan Sirih Gading (Golden Pothos): Potong batang 1 cm di bawah ruas akar (node), rendam di air bersih dan ganti 3 hari sekali. Akar akan tumbuh lebat dalam 2 minggu!',
       'image_url': null,
       'badge_id': null,
-      'kudos_count': 32,
-      'comment_count': 8,
+      'kudos_count': 0,
+      'comment_count': 0,
       'created_at': '2026-08-21T08:00:00.000Z',
     },
   ];
 
   @override
   Future<Result<void>> seedInitialPosts() async {
+    if (_isInitialized) return const Success(null);
     try {
       final db = await _dbHelper.database;
+
+      await db.insert(DatabaseHelper.tableUsers, {
+        'id': 999,
+        'email': 'community@plenty.app',
+        'username': 'komunitas_plenty',
+        'password': '',
+        'display_name': 'Komunitas Plenty',
+        'created_at': DateTime.now().toIso8601String(),
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
       final tableInfo = await db.rawQuery(
         'PRAGMA table_info(${DatabaseHelper.tableCommunityPosts})',
@@ -97,6 +108,7 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         }
         await batch.commit(noResult: true);
       }
+      _isInitialized = true;
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -116,13 +128,16 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       if (currentUserId == null) {
         try {
           final activeUser = await PreferenceHandler.getUser();
-          if (activeUser != null && activeUser.id != null && activeUser.id != 0) {
+          if (activeUser != null &&
+              activeUser.id != null &&
+              activeUser.id != 0) {
             effectiveUserId = activeUser.id!;
           }
         } catch (_) {}
       }
 
-      String query = '''
+      String query =
+          '''
         SELECT 
           p.id,
           p.user_id,
@@ -168,8 +183,9 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       query += ' ORDER BY p.created_at DESC;';
 
       final rows = await db.rawQuery(query, args);
-      final posts =
-          rows.map((row) => _mapRowToCommunityPost(row, effectiveUserId)).toList();
+      final posts = rows
+          .map((row) => _mapRowToCommunityPost(row, effectiveUserId))
+          .toList();
       return Success(posts);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -186,7 +202,9 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       if (userId == null) {
         try {
           final activeUser = await PreferenceHandler.getUser();
-          if (activeUser != null && activeUser.id != null && activeUser.id != 0) {
+          if (activeUser != null &&
+              activeUser.id != null &&
+              activeUser.id != 0) {
             effectiveUserId = activeUser.id!;
           }
         } catch (_) {}
@@ -254,7 +272,10 @@ class CommunityRepositoryImpl implements ICommunityRepository {
   }
 
   @override
-  Future<Result<CommunityPost>> createPost(CommunityPost post, {int? userId}) async {
+  Future<Result<CommunityPost>> createPost(
+    CommunityPost post, {
+    int? userId,
+  }) async {
     try {
       final db = await _dbHelper.database;
       await seedInitialPosts();
@@ -283,6 +304,21 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       } catch (_) {}
 
       final normalizedCat = _normalizeCategory(post.category) ?? 'pertanyaan';
+
+      if (post.attachedBadge != null) {
+        final existingBadgePosts = await db.query(
+          DatabaseHelper.tableCommunityPosts,
+          where: 'user_id = ? AND badge_id = ?',
+          whereArgs: [effectiveUserId, post.attachedBadge!.id],
+        );
+        if (existingBadgePosts.isNotEmpty) {
+          return const Error(
+            ValidationFailure(
+              'Lencana ini sudah pernah Anda bagikan ke Komunitas.',
+            ),
+          );
+        }
+      }
 
       await db.insert(
         DatabaseHelper.tableCommunityPosts,
@@ -316,7 +352,10 @@ class CommunityRepositoryImpl implements ICommunityRepository {
   }
 
   @override
-  Future<Result<CommunityPost>> updatePost(CommunityPost post, {int? userId}) async {
+  Future<Result<CommunityPost>> updatePost(
+    CommunityPost post, {
+    int? userId,
+  }) async {
     try {
       final db = await _dbHelper.database;
       await seedInitialPosts();
@@ -324,10 +363,32 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       int effectiveUserId = userId ?? 1;
       try {
         final activeUser = await PreferenceHandler.getUser();
-        if (activeUser != null && userId == null && activeUser.id != null && activeUser.id != 0) {
+        if (activeUser != null &&
+            userId == null &&
+            activeUser.id != null &&
+            activeUser.id != 0) {
           effectiveUserId = activeUser.id!;
         }
       } catch (_) {}
+
+      final existing = await db.query(
+        DatabaseHelper.tableCommunityPosts,
+        where: 'id = ?',
+        whereArgs: [post.id],
+      );
+
+      if (existing.isEmpty) {
+        return const Error(NotFoundFailure('Postingan tidak ditemukan'));
+      }
+
+      final postUserId = existing.first['user_id'] as int?;
+      if (postUserId != null && postUserId != effectiveUserId) {
+        return const Error(
+          ValidationFailure(
+            'Anda tidak dapat mengedit postingan milik pengguna lain',
+          ),
+        );
+      }
 
       final normalizedCat = _normalizeCategory(post.category) ?? 'pertanyaan';
 
@@ -350,10 +411,7 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       final posts = postsRes.dataOrNull ?? [];
       final updatedPost = posts.firstWhere(
         (p) => p.id == post.id,
-        orElse: () => post.copyWith(
-          category: normalizedCat,
-          isAuthor: true,
-        ),
+        orElse: () => post.copyWith(category: normalizedCat, isAuthor: true),
       );
 
       return Success(updatedPost);
@@ -368,6 +426,39 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       final db = await _dbHelper.database;
       await seedInitialPosts();
 
+      int? effectiveUserId = userId;
+      if (effectiveUserId == null) {
+        try {
+          final activeUser = await PreferenceHandler.getUser();
+          if (activeUser != null &&
+              activeUser.id != null &&
+              activeUser.id != 0) {
+            effectiveUserId = activeUser.id;
+          }
+        } catch (_) {}
+      }
+
+      final existing = await db.query(
+        DatabaseHelper.tableCommunityPosts,
+        where: 'id = ?',
+        whereArgs: [postId],
+      );
+
+      if (existing.isEmpty) {
+        return const Error(NotFoundFailure('Postingan tidak ditemukan'));
+      }
+
+      final postUserId = existing.first['user_id'] as int?;
+      if (effectiveUserId != null &&
+          postUserId != null &&
+          postUserId != effectiveUserId) {
+        return const Error(
+          ValidationFailure(
+            'Anda tidak dapat menghapus postingan milik pengguna lain',
+          ),
+        );
+      }
+
       await db.delete(
         DatabaseHelper.tableCommunityPosts,
         where: 'id = ?',
@@ -379,7 +470,43 @@ class CommunityRepositoryImpl implements ICommunityRepository {
     }
   }
 
-  CommunityPost _mapRowToCommunityPost(Map<String, dynamic> row, [int? currentUserId]) {
+  @override
+  Future<Result<bool>> hasUserSharedBadge(
+    String badgeId, {
+    int? userId,
+  }) async {
+    try {
+      final db = await _dbHelper.database;
+      await seedInitialPosts();
+
+      int effectiveUserId = userId ?? 1;
+      try {
+        final activeUser = await PreferenceHandler.getUser();
+        if (activeUser != null &&
+            userId == null &&
+            activeUser.id != null &&
+            activeUser.id != 0) {
+          effectiveUserId = activeUser.id!;
+        }
+      } catch (_) {}
+
+      final existing = await db.query(
+        DatabaseHelper.tableCommunityPosts,
+        where: 'user_id = ? AND badge_id = ?',
+        whereArgs: [effectiveUserId, badgeId],
+        limit: 1,
+      );
+
+      return Success(existing.isNotEmpty);
+    } catch (e) {
+      return Error(DatabaseFailure(e.toString()));
+    }
+  }
+
+  CommunityPost _mapRowToCommunityPost(
+    Map<String, dynamic> row, [
+    int? currentUserId,
+  ]) {
     final createdAtStr =
         row['created_at'] as String? ?? DateTime.now().toIso8601String();
     final createdAt = DateTime.tryParse(createdAtStr) ?? DateTime.now();
@@ -411,8 +538,8 @@ class CommunityRepositoryImpl implements ICommunityRepository {
     final authorName = (username != null && username.isNotEmpty)
         ? username
         : (displayName != null && displayName.isNotEmpty
-            ? displayName
-            : 'Penggemar Tanaman');
+              ? displayName
+              : 'Penggemar Tanaman');
 
     final postUserId = row['user_id'] as int? ?? 1;
     final isAuthor = currentUserId != null && postUserId == currentUserId;

@@ -25,6 +25,7 @@ class ProfileEditScreen extends StatefulWidget {
   final String initialDisplayName;
   final String initialUsername;
   final String initialBio;
+  final String initialEmail;
   final String? initialAvatarPath;
 
   const ProfileEditScreen({
@@ -33,7 +34,8 @@ class ProfileEditScreen extends StatefulWidget {
     this.userRepo,
     this.initialDisplayName = 'Alex Gardner',
     this.initialUsername = 'alex_plants',
-    this.initialBio = 'Urban gardener berlokasi di Jakarta...',
+    this.initialEmail = 'alex@gardner.com',
+    this.initialBio = '',
     this.initialAvatarPath,
   });
 
@@ -56,6 +58,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   late final IUserRepository _userRepo;
   late String _displayName;
   late String _username;
+  late String _email;
   late String _bio;
   String? _avatarPath;
   String _themeMode = 'Mode Terang';
@@ -67,6 +70,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     _displayName = widget.initialDisplayName;
     _username = widget.initialUsername;
     _bio = widget.initialBio;
+    _email = widget.initialEmail;
     _avatarPath = widget.initialAvatarPath;
   }
 
@@ -158,19 +162,23 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   void _showEmailReadOnly() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Alamat email terverifikasi dan tidak dapat diubah.'),
+        content: Text('Alamat email tidak dapat diubah.'),
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   Future<void> _editPassword() async {
-    final changed = await ChangePasswordSheet.show(context);
+    final changed = await ChangePasswordSheet.show(
+      context,
+      userRepository: _userRepo,
+    );
     if (changed == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Kata sandi berhasil diperbarui.'),
+          content: Text('Kata sandi berhasil diperbarui ✨'),
           behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.darkGreen,
         ),
       );
     }
@@ -190,7 +198,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     context.showAppDialog<void>(
       Builder(
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Text('Keluar dari Akun?'),
           content: const Text(
             'Anda harus masuk kembali untuk mengakses data Anda.',
@@ -290,7 +300,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 SettingsItemTile(
                   icon: Icons.email_outlined,
                   label: 'Alamat email',
-                  value: 'alex@gardner.com',
+                  value: _email,
                   trailing: ProfileEditScreen._lock,
                   onTap: _showEmailReadOnly,
                 ),
@@ -306,23 +316,23 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             const SizedBox(height: 20),
 
             // ── Pengaturan sistem ──
-            SettingsSection(
-              title: 'Pengaturan sistem',
-              children: [
-                SettingsItemTile(
-                  icon: Icons.contrast,
-                  label: 'Tema aplikasi',
-                  onTap: _selectTheme,
-                  trailing: Text(
-                    _themeMode,
-                    style: AppTypography.subheadlineRegular.copyWith(
-                      color: AppColors.muted,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+            // SettingsSection(
+            //   title: 'Pengaturan sistem',
+            //   children: [
+            //     SettingsItemTile(
+            //       icon: Icons.contrast,
+            //       label: 'Tema aplikasi',
+            //       onTap: _selectTheme,
+            //       trailing: Text(
+            //         _themeMode,
+            //         style: AppTypography.subheadlineRegular.copyWith(
+            //           color: AppColors.muted,
+            //         ),
+            //       ),
+            //     ),
+            //   ],
+            // ),
+            // const SizedBox(height: 20),
 
             // ── Aksi Akun (Logout) ──
             SettingsSection(

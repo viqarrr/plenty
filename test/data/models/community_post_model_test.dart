@@ -11,7 +11,7 @@ void main() {
         timeAgo: 'Baru saja',
         category: 'tips',
         content: 'Cara mudah merawat monstera',
-        likesCount: 15,
+        likesCount: 0,
         commentsCount: 3,
         createdAt: DateTime.now(),
       );
@@ -19,7 +19,7 @@ void main() {
       expect(post.id, 'post_100');
       expect(post.authorName, 'Botanist User');
       expect(post.category, 'tips');
-      expect(post.likesCount, 15);
+      expect(post.likesCount, 0);
       expect(post.commentsCount, 3);
     });
   });

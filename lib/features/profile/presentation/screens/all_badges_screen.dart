@@ -15,11 +15,7 @@ class AllBadgesScreen extends StatefulWidget {
   final List<BadgeItem>? badges;
   final IBadgeRepository? badgeRepository;
 
-  const AllBadgesScreen({
-    super.key,
-    this.badges,
-    this.badgeRepository,
-  });
+  const AllBadgesScreen({super.key, this.badges, this.badgeRepository});
 
   @override
   State<AllBadgesScreen> createState() => _AllBadgesScreenState();
@@ -36,6 +32,7 @@ class _AllBadgesScreenState extends State<AllBadgesScreen> {
     _repository = widget.badgeRepository ?? Injector.badgeRepository;
     if (widget.badges != null && widget.badges!.isNotEmpty) {
       _badges = widget.badges!;
+      _isLoading = false;
     } else {
       _loadBadges();
     }
@@ -79,16 +76,12 @@ class _AllBadgesScreenState extends State<AllBadgesScreen> {
         ),
         title: Text(
           'Pencapaian',
-          style: AppTypography.headline.copyWith(
-            color: AppColors.inkDark,
-          ),
+          style: AppTypography.headline.copyWith(color: AppColors.inkDark),
         ),
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.forest,
-              ),
+              child: CircularProgressIndicator(color: AppColors.forest),
             )
           : SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -100,7 +93,7 @@ class _AllBadgesScreenState extends State<AllBadgesScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'SEMUA PENGHARGAAN',
+                        'SEMUA PENCAPAIAN',
                         style: AppTypography.caption2Bold.copyWith(
                           color: AppColors.muted,
                           letterSpacing: 1.2,
@@ -133,11 +126,11 @@ class _AllBadgesScreenState extends State<AllBadgesScreen> {
                     itemCount: _badges.length,
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 0.76,
-                    ),
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 0.76,
+                        ),
                     itemBuilder: (context, index) {
                       final badge = _badges[index];
                       return _BadgeGridTile(badge: badge);
@@ -162,22 +155,6 @@ class _BadgeGridTile extends StatelessWidget {
       onTap: () => BadgeDetailScreen.open(context, badge),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: badge.isUnlocked
-                ? badge.accentColor.withValues(alpha: 0.2)
-                : AppColors.border.withValues(alpha: 0.6),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

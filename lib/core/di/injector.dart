@@ -84,4 +84,34 @@ class Injector {
   static IGrowthRepository? _growthRepository;
   static IGrowthRepository get growthRepository =>
       _growthRepository ??= GrowthRepositoryImpl(dbHelper: databaseHelper);
+
+  // Setters for testing and mock injection
+  static set databaseHelper(DatabaseHelper? helper) => _databaseHelper = helper;
+  static set plantRemoteDataSource(PlantRemoteDataSource? ds) => _plantRemoteDataSource = ds;
+  static set authLocalDataSource(AuthLocalDataSource? ds) => _authLocalDataSource = ds;
+  static set authRepository(IAuthRepository? repo) => _authRepository = repo;
+  static set badgeRepository(IBadgeRepository? repo) => _badgeRepository = repo;
+  static set userRepository(IUserRepository? repo) => _userRepository = repo;
+  static set siteRepository(ISiteRepository? repo) => _siteRepository = repo;
+  static set plantRepository(IPlantRepository? repo) => _plantRepository = repo;
+  static set streakRepository(IStreakRepository? repo) => _streakRepository = repo;
+  static set dailyCareRepository(IDailyCareRepository? repo) => _dailyCareRepository = repo;
+  static set communityRepository(ICommunityRepository? repo) => _communityRepository = repo;
+  static set growthRepository(IGrowthRepository? repo) => _growthRepository = repo;
+
+  /// Resets all singleton instances for isolated unit/widget tests.
+  static void reset() {
+    _databaseHelper = null;
+    _plantRemoteDataSource = null;
+    _authLocalDataSource = null;
+    _authRepository = null;
+    _badgeRepository = null;
+    _userRepository = null;
+    _siteRepository = null;
+    _plantRepository = null;
+    _streakRepository = null;
+    _dailyCareRepository = null;
+    _communityRepository = null;
+    _growthRepository = null;
+  }
 }

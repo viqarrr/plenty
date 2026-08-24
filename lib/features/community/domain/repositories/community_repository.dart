@@ -23,4 +23,7 @@ abstract interface class ICommunityRepository {
 
   /// Deletes a community post by [postId].
   Future<Result<void>> deletePost(String postId, {int? userId});
+
+  /// Checks if a user has already shared a specific [badgeId] to the community.
+  Future<Result<bool>> hasUserSharedBadge(String badgeId, {int? userId});
 }

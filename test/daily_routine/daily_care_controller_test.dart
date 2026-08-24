@@ -165,6 +165,10 @@ void main() {
       expect(latestHeightRes.dataOrNull, 45.5);
       final latestPhotoRes = await careRepo.getLoggedPhotoToday(plant.id);
       expect(latestPhotoRes.dataOrNull, 'assets/images/revised.jpg');
+
+      // Verify user_plants table has updated plant height
+      final plantRes = await plantRepo.getPlantById(plant.id);
+      expect(plantRes.dataOrNull?.currentHeightCm, 45.5);
     });
   });
 }

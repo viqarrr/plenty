@@ -177,6 +177,9 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           final updateValues = <String, dynamic>{
             'xp': newXp,
             'level': newLevel,
+            'initial_height_cm': heightCm,
+            'current_height': heightCm,
+            'initial_height': heightCm,
           };
           if (photoPath != null && photoPath.isNotEmpty) {
             updateValues['cover_photo_path'] = photoPath;
@@ -279,14 +282,20 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           whereArgs: [plant.id, 'monitor_tinggi', logDate],
         );
 
+        final plantUpdate = <String, dynamic>{
+          'initial_height_cm': heightCm,
+          'current_height': heightCm,
+          'initial_height': heightCm,
+        };
         if (photoPath != null && photoPath.isNotEmpty) {
-          await txn.update(
-            DatabaseHelper.tableUserPlants,
-            {'cover_photo_path': photoPath},
-            where: 'id = ?',
-            whereArgs: [plant.id],
-          );
+          plantUpdate['cover_photo_path'] = photoPath;
         }
+        await txn.update(
+          DatabaseHelper.tableUserPlants,
+          plantUpdate,
+          where: 'id = ?',
+          whereArgs: [plant.id],
+        );
       });
       return const Success(null);
     } catch (e) {
@@ -753,14 +762,20 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         );
 
         if (latest.isNotEmpty && latest.first['id'] == logId) {
+          final plantUpdate = <String, dynamic>{
+            'initial_height_cm': heightCm,
+            'current_height': heightCm,
+            'initial_height': heightCm,
+          };
           if (photoPath != null && photoPath.isNotEmpty) {
-            await txn.update(
-              DatabaseHelper.tableUserPlants,
-              {'cover_photo_path': photoPath},
-              where: 'id = ?',
-              whereArgs: [userPlantId],
-            );
+            plantUpdate['cover_photo_path'] = photoPath;
           }
+          await txn.update(
+            DatabaseHelper.tableUserPlants,
+            plantUpdate,
+            where: 'id = ?',
+            whereArgs: [userPlantId],
+          );
         }
       });
       return const Success(null);

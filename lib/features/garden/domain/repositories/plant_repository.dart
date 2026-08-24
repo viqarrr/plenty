@@ -8,8 +8,13 @@ import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.
 class AddPlantResult {
   final PlantModel plant;
   final bool isFirstPlant;
+  final bool isFirstTimeCapsule;
 
-  const AddPlantResult({required this.plant, required this.isFirstPlant});
+  const AddPlantResult({
+    required this.plant,
+    required this.isFirstPlant,
+    this.isFirstTimeCapsule = false,
+  });
 }
 
 /// Abstract contract for botanical catalog and user plant repository.

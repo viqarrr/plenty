@@ -304,12 +304,12 @@ class DatabaseHelper {
     // Default User Initial Progress Seed (User ID 1 starts with 0 unlocked badges)
     batch.execute('''
       INSERT OR IGNORE INTO user_badges (id, user_id, badge_id, is_unlocked, current_progress, unlocked_at) VALUES
-      ('ub_1', 1, 'first_plant', 0, 0, NULL),
-      ('ub_2', 1, 'water_streak', 0, 0, NULL),
-      ('ub_3', 1, 'time_capsule', 0, 0, NULL),
-      ('ub_4', 1, 'plant_collector', 0, 0, NULL),
-      ('ub_5', 1, 'doctor_green', 0, 0, NULL),
-      ('ub_6', 1, 'sun_master', 0, 0, NULL);
+      ('ub_1_first_plant', 1, 'first_plant', 0, 0, NULL),
+      ('ub_1_water_streak', 1, 'water_streak', 0, 0, NULL),
+      ('ub_1_time_capsule', 1, 'time_capsule', 0, 0, NULL),
+      ('ub_1_plant_collector', 1, 'plant_collector', 0, 0, NULL),
+      ('ub_1_doctor_green', 1, 'doctor_green', 0, 0, NULL),
+      ('ub_1_sun_master', 1, 'sun_master', 0, 0, NULL);
     ''');
 
     await batch.commit(noResult: true);

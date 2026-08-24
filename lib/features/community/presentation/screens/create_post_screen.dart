@@ -104,7 +104,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             backgroundColor: AppColors.darkGreen,
           ),
         );
-        context.pop(true);
+        if (Navigator.of(context).canPop()) {
+          context.pop(true);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -132,7 +134,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             backgroundColor: AppColors.darkGreen,
           ),
         );
-        context.pop(true);
+        if (Navigator.of(context).canPop()) {
+          context.pop(true);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

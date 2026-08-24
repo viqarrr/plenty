@@ -39,7 +39,7 @@ void main() {
     const BadgeItem(
       id: 'water_streak',
       title: 'Penyiram Setia',
-      desc: 'Menyiram tanaman tepat waktu selama 7 hari berturut-turut.',
+      desc: 'Menyiram tanaman tepat waktu selama 7 kali berturut-turut.',
       iconName: 'water_drop',
       isUnlocked: true,
       unlockedDate: '20 Ags 2026',
@@ -67,9 +67,7 @@ void main() {
     testWidgets('Renders PENCAPAIAN header and max 4 badges', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: BadgeHighlightSection(badges: sampleBadges),
-          ),
+          home: Scaffold(body: BadgeHighlightSection(badges: sampleBadges)),
         ),
       );
 
@@ -80,12 +78,12 @@ void main() {
       expect(find.text('Kolektor Rimbun'), findsOneWidget);
     });
 
-    testWidgets('Tapping Lihat Semua navigates to AllBadgesScreen', (tester) async {
+    testWidgets('Tapping Lihat Semua navigates to AllBadgesScreen', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: BadgeHighlightSection(badges: sampleBadges),
-          ),
+          home: Scaffold(body: BadgeHighlightSection(badges: sampleBadges)),
         ),
       );
 
@@ -94,21 +92,21 @@ void main() {
 
       expect(find.byType(AllBadgesScreen), findsOneWidget);
       expect(find.text('Pencapaian'), findsOneWidget);
-      expect(find.text('SEMUA PENGHARGAAN'), findsOneWidget);
+      expect(find.text('SEMUA PENCAPAIAN'), findsOneWidget);
       expect(find.text('2/3 Terbuka'), findsOneWidget);
     });
   });
 
   group('AllBadgesScreen Widget Tests', () {
-    testWidgets('Renders 3-column grid and shows full screen detail on tap', (tester) async {
+    testWidgets('Renders 3-column grid and shows full screen detail on tap', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: AllBadgesScreen(badges: sampleBadges),
-        ),
+        MaterialApp(home: AllBadgesScreen(badges: sampleBadges)),
       );
 
       expect(find.text('Pencapaian'), findsOneWidget);
-      expect(find.text('SEMUA PENGHARGAAN'), findsOneWidget);
+      expect(find.text('SEMUA PENCAPAIAN'), findsOneWidget);
       expect(find.text('2/3 Terbuka'), findsOneWidget);
 
       // Tap on the unlocked badge
@@ -143,23 +141,58 @@ void main() {
   });
 
   group('BadgeDetailScreen Widget Tests', () {
-    testWidgets('Unlocked state displays illuminated elements and share button', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: BadgeDetailScreen(badge: sampleBadges[0]),
-        ),
+    testWidgets(
+      'Unlocked state displays illuminated elements and share button',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(home: BadgeDetailScreen(badge: sampleBadges[0])),
+        );
+
+        expect(find.text('Adopsi Pertama'), findsOneWidget);
+        expect(find.text('23 Ags 2026'), findsOneWidget);
+        expect(find.text('Bagikan ke Komunitas'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Time Capsule badge displays blue theme gradient and accents', (
+      tester,
+    ) async {
+      const timeCapsuleBadge = BadgeItem(
+        id: 'time_capsule',
+        title: 'Kapsul Waktu',
+        desc: 'Membuat pesan kapsul waktu pertama saat menanam.',
+        iconName: 'hourglass',
+        isUnlocked: true,
+        unlockedDate: '24 Ags 2026',
+        level: 1,
+        progress: 1,
+        total: 1,
+        bgColorHex: '#E3F0FF',
+        accentColorHex: '#1F6C9F',
       );
 
-      expect(find.text('Adopsi Pertama'), findsOneWidget);
-      expect(find.text('23 Ags 2026'), findsOneWidget);
+      await tester.pumpWidget(
+        const MaterialApp(home: BadgeDetailScreen(badge: timeCapsuleBadge)),
+      );
+
+      expect(find.text('Kapsul Waktu'), findsOneWidget);
+      expect(find.text('24 Ags 2026'), findsOneWidget);
       expect(find.text('Bagikan ke Komunitas'), findsOneWidget);
+
+      // Verify the background Container has a gradient derived from blue accentColor
+      final containerFinder = find.byType(Container).first;
+      final container = tester.widget<Container>(containerFinder);
+      final decoration = container.decoration as BoxDecoration?;
+      expect(decoration?.gradient, isA<LinearGradient>());
+      final gradient = decoration!.gradient as LinearGradient;
+      expect(gradient.colors.length, 3);
     });
 
-    testWidgets('Locked state displays criteria narrative and progress bar', (tester) async {
+    testWidgets('Locked state displays criteria narrative and progress bar', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: BadgeDetailScreen(badge: sampleBadges[2]),
-        ),
+        MaterialApp(home: BadgeDetailScreen(badge: sampleBadges[2])),
       );
 
       expect(find.text('Kolektor Rimbun'), findsOneWidget);
@@ -170,42 +203,46 @@ void main() {
   });
 
   group('ProfileTab Integration Tests', () {
-    testWidgets('Renders CurrentProgressCard, BadgeHighlightSection, and ActivitySummaryGrid in sequence', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: ProfileTab(
-              profileName: 'Sarah Gardener',
-              username: 'sarah_green',
-              streakCount: 5,
-              totalPlants: 3,
-              totalXp: 450,
-              userLevel: 2,
-              badgeCount: 2,
-              badges: sampleBadges,
-              onLogout: () {},
+    testWidgets(
+      'Renders CurrentProgressCard, BadgeHighlightSection, and ActivitySummaryGrid in sequence',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ProfileTab(
+                profileName: 'Sarah Gardener',
+                username: 'sarah_green',
+                email: '@sarahgreen.gmail.com',
+                streakCount: 5,
+                totalPlants: 3,
+                totalXp: 450,
+                userLevel: 2,
+                badgeCount: 2,
+                badges: sampleBadges,
+                onLogout: () {},
+              ),
             ),
           ),
-        ),
-      );
+        );
 
-      // Verify Header
-      expect(find.text('Sarah Gardener'), findsOneWidget);
-      expect(find.text('@sarah_green'), findsOneWidget);
+        // Verify Header
+        expect(find.text('Sarah Gardener'), findsOneWidget);
+        expect(find.text('@sarah_green'), findsOneWidget);
 
-      // Verify CurrentProgressCard
-      expect(find.text('Level 2'), findsOneWidget);
+        // Verify CurrentProgressCard
+        expect(find.text('Level 2'), findsOneWidget);
 
-      // Verify BadgeHighlightSection
-      expect(find.text('PENCAPAIAN'), findsOneWidget);
-      expect(find.text('Lihat Semua'), findsOneWidget);
-      expect(find.text('Adopsi Pertama'), findsOneWidget);
+        // Verify BadgeHighlightSection
+        expect(find.text('PENCAPAIAN'), findsOneWidget);
+        expect(find.text('Lihat Semua'), findsOneWidget);
+        expect(find.text('Adopsi Pertama'), findsOneWidget);
 
-      // Verify ActivitySummaryGrid
-      expect(find.text('RINGKASAN AKTIVITAS'), findsOneWidget);
-      expect(find.text('Total Poin XP'), findsOneWidget);
-      expect(find.text('450'), findsOneWidget);
-      expect(find.text('3 Tanaman'), findsOneWidget);
-    });
+        // Verify ActivitySummaryGrid
+        expect(find.text('RINGKASAN AKTIVITAS'), findsOneWidget);
+        expect(find.text('Total Poin XP'), findsOneWidget);
+        expect(find.text('450'), findsOneWidget);
+        expect(find.text('3 Tanaman'), findsOneWidget);
+      },
+    );
   });
 }

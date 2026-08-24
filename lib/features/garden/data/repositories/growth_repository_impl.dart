@@ -84,15 +84,102 @@ class GrowthRepositoryImpl implements IGrowthRepository {
   }
 
   @override
-  Future<Result<void>> saveTimeCapsule(TimeCapsuleModel capsule) async {
+  Future<Result<bool>> saveTimeCapsule(TimeCapsuleModel capsule, {int userId = 1}) async {
     try {
       final db = await _dbHelper.database;
-      await db.insert(
-        DatabaseHelper.tableTimeCapsules,
-        capsule.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-      return const Success(null);
+      bool isFirstTimeCapsule = false;
+
+      await db.transaction((txn) async {
+        await txn.insert(
+          DatabaseHelper.tableTimeCapsules,
+          capsule.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+
+        int effectiveUserId = userId;
+        final plantRows = await txn.query(
+          DatabaseHelper.tableUserPlants,
+          columns: ['user_id'],
+          where: 'id = ?',
+          whereArgs: [capsule.userPlantId],
+          limit: 1,
+        );
+        if (plantRows.isNotEmpty) {
+          effectiveUserId =
+              int.tryParse(plantRows.first['user_id']?.toString() ?? '') ??
+                  userId;
+        }
+
+        final userBadgeRows = await txn.query(
+          DatabaseHelper.tableUserBadges,
+          where: 'user_id = ? AND badge_id = ?',
+          whereArgs: [effectiveUserId, 'time_capsule'],
+        );
+
+        final bool badgeAlreadyUnlocked = userBadgeRows.isNotEmpty &&
+            ((userBadgeRows.first['is_unlocked'] as int?) == 1 ||
+                userBadgeRows.first['unlocked_at'] != null);
+
+        if (!badgeAlreadyUnlocked) {
+          isFirstTimeCapsule = true;
+          final now = DateTime.now();
+          const months = [
+            'Januari',
+            'Februari',
+            'Maret',
+            'April',
+            'Mei',
+            'Juni',
+            'Juli',
+            'Agustus',
+            'September',
+            'Oktober',
+            'November',
+            'Desember'
+          ];
+          final formattedDate =
+              '${now.day} ${months[now.month - 1]} ${now.year}';
+          if (userBadgeRows.isNotEmpty) {
+            await txn.update(
+              DatabaseHelper.tableUserBadges,
+              {
+                'is_unlocked': 1,
+                'current_progress': 1,
+                'unlocked_at': formattedDate,
+              },
+              where: 'user_id = ? AND badge_id = ?',
+              whereArgs: [effectiveUserId, 'time_capsule'],
+            );
+          } else {
+            await txn.insert(
+              DatabaseHelper.tableUserBadges,
+              {
+                'id': 'ub_${effectiveUserId}_time_capsule',
+                'user_id': effectiveUserId,
+                'badge_id': 'time_capsule',
+                'is_unlocked': 1,
+                'current_progress': 1,
+                'unlocked_at': formattedDate,
+              },
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+
+          final countResult = await txn.rawQuery('''
+            SELECT COUNT(DISTINCT badge_id) as count FROM ${DatabaseHelper.tableUserBadges}
+            WHERE user_id = ? AND is_unlocked = 1
+          ''', [effectiveUserId]);
+          final count = (countResult.first['count'] as int?) ?? 1;
+          await txn.update(
+            DatabaseHelper.tableUsers,
+            {'unlocked_badges_count': count},
+            where: 'id = ?',
+            whereArgs: [effectiveUserId],
+          );
+        }
+      });
+
+      return Success(isFirstTimeCapsule);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
     }

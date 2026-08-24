@@ -231,10 +231,14 @@ class UserRepositoryImpl implements IUserRepository {
       }
       final storedHash = rows.first['password'] as String? ?? '';
       bool isValid = false;
-      try {
-        isValid = BCrypt.checkpw(currentPassword, storedHash);
-      } catch (_) {
-        isValid = (storedHash == currentPassword);
+      if (storedHash.isEmpty) {
+        isValid = true;
+      } else {
+        try {
+          isValid = BCrypt.checkpw(currentPassword, storedHash);
+        } catch (_) {
+          isValid = (storedHash == currentPassword);
+        }
       }
       if (!isValid) {
         return const Error(ValidationFailure('Kata sandi saat ini tidak cocok'));

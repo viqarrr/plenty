@@ -20,7 +20,8 @@ abstract interface class IGrowthRepository {
   Future<Result<TimeCapsuleModel?>> getTimeCapsule(String userPlantId);
 
   /// Saves or creates a new time capsule record for a plant.
-  Future<Result<void>> saveTimeCapsule(TimeCapsuleModel capsule);
+  /// Returns `true` if this is the user's first time capsule unlocking the time_capsule achievement badge.
+  Future<Result<bool>> saveTimeCapsule(TimeCapsuleModel capsule, {int userId = 1});
 
   /// Marks a time capsule as unlocked.
   Future<Result<void>> unlockTimeCapsule(String capsuleId);

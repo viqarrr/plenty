@@ -7,11 +7,15 @@ import 'package:plenty/features/profile/presentation/screens/badge_detail_screen
 class BadgeDetailModal extends StatelessWidget {
   final BadgeItem badge;
   final ICommunityRepository? communityRepository;
+  final bool? isAlreadyShared;
+  final void Function(BuildContext context)? onNavigateToHomeScreen;
 
   const BadgeDetailModal({
     super.key,
     required this.badge,
     this.communityRepository,
+    this.isAlreadyShared,
+    this.onNavigateToHomeScreen,
   });
 
   /// Static helper to display the full screen badge detail screen.
@@ -19,11 +23,15 @@ class BadgeDetailModal extends StatelessWidget {
     BuildContext context,
     BadgeItem badge, {
     ICommunityRepository? communityRepository,
+    bool? isAlreadyShared,
+    void Function(BuildContext context)? onNavigateToHomeScreen,
   }) {
     return BadgeDetailScreen.open(
       context,
       badge,
       communityRepository: communityRepository,
+      isAlreadyShared: isAlreadyShared,
+      onNavigateToHomeScreen: onNavigateToHomeScreen,
     );
   }
 
@@ -32,6 +40,8 @@ class BadgeDetailModal extends StatelessWidget {
     return BadgeDetailScreen(
       badge: badge,
       communityRepository: communityRepository,
+      isAlreadyShared: isAlreadyShared,
+      onNavigateToHomeScreen: onNavigateToHomeScreen,
     );
   }
 }

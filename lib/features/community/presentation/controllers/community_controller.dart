@@ -177,7 +177,11 @@ class CommunityController extends ChangeNotifier {
         imagePath: imagePath,
       );
 
-      final result = await _repository.updatePost(updatedDraft);
+      final user = await PreferenceHandler.getUser();
+      final result = await _repository.updatePost(
+        updatedDraft,
+        userId: user?.id,
+      );
       switch (result) {
         case Success(:final data):
           await loadPosts();
@@ -197,7 +201,8 @@ class CommunityController extends ChangeNotifier {
   /// Deletes a community post by [postId].
   Future<bool> deletePost(String postId) async {
     try {
-      final result = await _repository.deletePost(postId);
+      final user = await PreferenceHandler.getUser();
+      final result = await _repository.deletePost(postId, userId: user?.id);
       switch (result) {
         case Success():
           _posts = _posts.where((p) => p.id != postId).toList();

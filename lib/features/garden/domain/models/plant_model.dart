@@ -169,9 +169,10 @@ class PlantModel {
     final isIndoorVal = map['placement_type'] != null
         ? (map['placement_type'] == 'Indoor')
         : ((map['is_indoor'] as int? ?? 1) == 1);
-    final rawHeight = (map['current_height'] ?? map['initial_height'] ?? map['initial_height_cm']) as num?;
-    final initialH = (map['initial_height'] as num?)?.toDouble() ??
-        (map['initial_height_cm'] as num?)?.toDouble() ??
+    final rawHeight = (map['initial_height_cm'] ?? map['current_height'] ?? map['initial_height']) as num?;
+    final initialH = (map['initial_height_cm'] as num?)?.toDouble() ??
+        (map['current_height'] as num?)?.toDouble() ??
+        (map['initial_height'] as num?)?.toDouble() ??
         (rawHeight?.toDouble() ?? 30.0);
     final photo = (map['image_path'] ?? map['cover_photo_path']) as String?;
     final interval = (map['watering_interval_days'] ?? map['default_watering_interval']) as int? ?? 7;

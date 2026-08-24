@@ -5,17 +5,18 @@ import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
+import 'package:plenty/features/profile/presentation/screens/profile_edit_screen.dart';
 import 'package:plenty/features/profile/presentation/widgets/activity_summary_grid.dart';
 import 'package:plenty/features/profile/presentation/widgets/badge_highlight_section.dart';
 import 'package:plenty/features/profile/presentation/widgets/current_progress_card.dart';
 import 'package:plenty/features/profile/presentation/widgets/profile_header.dart';
-import 'package:plenty/features/profile/presentation/screens/profile_edit_screen.dart';
 
 /// Modern, borderless profile & gamification tab with a full-width
 /// curved header, progress cards, badge highlights, and activity summaries.
 class ProfileTab extends StatefulWidget {
   final String profileName;
   final String username;
+  final String email;
   final String? avatarPath;
   final String? bio;
   final int streakCount;
@@ -43,6 +44,7 @@ class ProfileTab extends StatefulWidget {
     this.badgeRepository,
     this.onProfileUpdated,
     required this.onLogout,
+    required this.email,
   });
 
   @override
@@ -69,7 +71,7 @@ class _ProfileTabState extends State<ProfileTab> {
     super.didUpdateWidget(oldWidget);
     if (widget.badges != null) {
       _badges = widget.badges!;
-    } else if (oldWidget.badges != null && widget.badges == null) {
+    } else {
       _loadBadges();
     }
   }
@@ -104,6 +106,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   onLogout: widget.onLogout,
                   initialDisplayName: widget.profileName,
                   initialUsername: widget.username,
+                  initialEmail: widget.email,
                   initialBio:
                       widget.bio ?? 'Urban gardener berlokasi di Jakarta...',
                   initialAvatarPath: widget.avatarPath,

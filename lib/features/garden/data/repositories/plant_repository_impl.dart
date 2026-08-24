@@ -207,13 +207,24 @@ class PlantRepositoryImpl implements IPlantRepository {
           );
         }
 
-        // Check if this is the user's first plant
+        // Check if this is truly the user's first plant adoption ever
         final existingPlants = await txn.query(
           DatabaseHelper.tableUserPlants,
           where: 'user_id = ? AND is_archived = 0',
           whereArgs: [parsedUserId],
         );
-        final isFirstPlant = existingPlants.isEmpty;
+
+        final userBadgeRows = await txn.query(
+          DatabaseHelper.tableUserBadges,
+          where: 'user_id = ? AND badge_id = ?',
+          whereArgs: [parsedUserId, 'first_plant'],
+        );
+
+        final bool badgeAlreadyUnlocked = userBadgeRows.isNotEmpty &&
+            ((userBadgeRows.first['is_unlocked'] as int?) == 1 ||
+                userBadgeRows.first['unlocked_at'] != null);
+
+        final isFirstPlant = existingPlants.isEmpty && !badgeAlreadyUnlocked;
 
         final effectiveAdoptedAt = adoptedAt ?? DateTime.now();
         final plantId =
@@ -332,40 +343,47 @@ class PlantRepositoryImpl implements IPlantRepository {
         if (isFirstPlant) {
           final formattedDate =
               '${now.day} ${_monthName(now.month)} ${now.year}';
-          await txn.insert(
-            DatabaseHelper.tableUserBadges,
-            {
-              'id': 'ub_${parsedUserId}_first_plant',
-              'user_id': parsedUserId,
-              'badge_id': 'first_plant',
-              'is_unlocked': 1,
-              'current_progress': 1,
-              'unlocked_at': formattedDate,
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          if (userBadgeRows.isNotEmpty) {
+            await txn.update(
+              DatabaseHelper.tableUserBadges,
+              {
+                'is_unlocked': 1,
+                'current_progress': 1,
+                'unlocked_at': formattedDate,
+              },
+              where: 'user_id = ? AND badge_id = ?',
+              whereArgs: [parsedUserId, 'first_plant'],
+            );
+          } else {
+            await txn.insert(
+              DatabaseHelper.tableUserBadges,
+              {
+                'id': 'ub_${parsedUserId}_first_plant',
+                'user_id': parsedUserId,
+                'badge_id': 'first_plant',
+                'is_unlocked': 1,
+                'current_progress': 1,
+                'unlocked_at': formattedDate,
+              },
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
 
-          final userQuery = await txn.query(
+          final countResult = await txn.rawQuery('''
+            SELECT COUNT(DISTINCT badge_id) as count FROM ${DatabaseHelper.tableUserBadges}
+            WHERE user_id = ? AND is_unlocked = 1
+          ''', [parsedUserId]);
+          final count = (countResult.first['count'] as int?) ?? 1;
+          await txn.update(
             DatabaseHelper.tableUsers,
+            {'unlocked_badges_count': count},
             where: 'id = ?',
             whereArgs: [parsedUserId],
-            limit: 1,
           );
-          if (userQuery.isNotEmpty) {
-            final currentBadges =
-                (userQuery.first['unlocked_badges_count'] as int?) ?? 0;
-            if (currentBadges < 1) {
-              await txn.update(
-                DatabaseHelper.tableUsers,
-                {'unlocked_badges_count': 1},
-                where: 'id = ?',
-                whereArgs: [parsedUserId],
-              );
-            }
-          }
         }
 
         // 6. Insert time capsule if provided
+        bool isFirstTimeCapsule = false;
         if (timeCapsule != null &&
             timeCapsule.note != null &&
             timeCapsule.note!.isNotEmpty) {
@@ -383,26 +401,66 @@ class PlantRepositoryImpl implements IPlantRepository {
             capsuleModel.toMap(),
           );
 
-          final userQuery = await txn.query(
+          // Check if time_capsule badge is already unlocked
+          final tcBadgeRows = await txn.query(
+            DatabaseHelper.tableUserBadges,
+            where: 'user_id = ? AND badge_id = ?',
+            whereArgs: [parsedUserId, 'time_capsule'],
+          );
+
+          final bool tcBadgeAlreadyUnlocked = tcBadgeRows.isNotEmpty &&
+              ((tcBadgeRows.first['is_unlocked'] as int?) == 1 ||
+                  tcBadgeRows.first['unlocked_at'] != null);
+
+          if (!tcBadgeAlreadyUnlocked) {
+            isFirstTimeCapsule = true;
+            final formattedDate =
+                '${now.day} ${_monthName(now.month)} ${now.year}';
+            if (tcBadgeRows.isNotEmpty) {
+              await txn.update(
+                DatabaseHelper.tableUserBadges,
+                {
+                  'is_unlocked': 1,
+                  'current_progress': 1,
+                  'unlocked_at': formattedDate,
+                },
+                where: 'user_id = ? AND badge_id = ?',
+                whereArgs: [parsedUserId, 'time_capsule'],
+              );
+            } else {
+              await txn.insert(
+                DatabaseHelper.tableUserBadges,
+                {
+                  'id': 'ub_${parsedUserId}_time_capsule',
+                  'user_id': parsedUserId,
+                  'badge_id': 'time_capsule',
+                  'is_unlocked': 1,
+                  'current_progress': 1,
+                  'unlocked_at': formattedDate,
+                },
+                conflictAlgorithm: ConflictAlgorithm.replace,
+              );
+            }
+          }
+
+          final countResult = await txn.rawQuery('''
+            SELECT COUNT(DISTINCT badge_id) as count FROM ${DatabaseHelper.tableUserBadges}
+            WHERE user_id = ? AND is_unlocked = 1
+          ''', [parsedUserId]);
+          final count = (countResult.first['count'] as int?) ?? 1;
+          await txn.update(
             DatabaseHelper.tableUsers,
+            {'unlocked_badges_count': count},
             where: 'id = ?',
             whereArgs: [parsedUserId],
-            limit: 1,
           );
-          if (userQuery.isNotEmpty) {
-            final currentBadges =
-                (userQuery.first['unlocked_badges_count'] as int?) ?? 0;
-            final targetBadges = currentBadges >= 5 ? currentBadges : 5;
-            await txn.update(
-              DatabaseHelper.tableUsers,
-              {'unlocked_badges_count': targetBadges},
-              where: 'id = ?',
-              whereArgs: [parsedUserId],
-            );
-          }
         }
 
-        return AddPlantResult(plant: plant, isFirstPlant: isFirstPlant);
+        return AddPlantResult(
+          plant: plant,
+          isFirstPlant: isFirstPlant,
+          isFirstTimeCapsule: isFirstTimeCapsule,
+        );
       });
 
       return Success(result);

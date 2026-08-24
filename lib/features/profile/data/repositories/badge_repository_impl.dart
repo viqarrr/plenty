@@ -40,12 +40,13 @@ class BadgeRepositoryImpl implements IBadgeRepository {
           b.target_total,
           b.bg_color_hex,
           b.accent_color_hex,
-          ub.is_unlocked,
-          ub.current_progress,
-          ub.unlocked_at
+          MAX(COALESCE(ub.is_unlocked, 0)) as is_unlocked,
+          MAX(COALESCE(ub.current_progress, 0)) as current_progress,
+          MAX(ub.unlocked_at) as unlocked_at
         FROM ${DatabaseHelper.tableBadges} b
         LEFT JOIN ${DatabaseHelper.tableUserBadges} ub 
           ON b.id = ub.badge_id AND ub.user_id = ?
+        GROUP BY b.id, b.title, b.description, b.icon_name, b.tier_name, b.level, b.target_total, b.bg_color_hex, b.accent_color_hex
         ORDER BY b.rowid ASC
       ''', [effectiveUserId]);
 
@@ -73,7 +74,7 @@ class BadgeRepositoryImpl implements IBadgeRepository {
       final effectiveUserId = await _resolveUserId(userId);
       final db = await _dbHelper.database;
       final result = await db.rawQuery('''
-        SELECT COUNT(*) as count 
+        SELECT COUNT(DISTINCT badge_id) as count 
         FROM ${DatabaseHelper.tableUserBadges}
         WHERE user_id = ? AND is_unlocked = 1
       ''', [effectiveUserId]);
@@ -107,13 +108,14 @@ class BadgeRepositoryImpl implements IBadgeRepository {
           b.target_total,
           b.bg_color_hex,
           b.accent_color_hex,
-          ub.is_unlocked,
-          ub.current_progress,
-          ub.unlocked_at
+          MAX(COALESCE(ub.is_unlocked, 0)) as is_unlocked,
+          MAX(COALESCE(ub.current_progress, 0)) as current_progress,
+          MAX(ub.unlocked_at) as unlocked_at
         FROM ${DatabaseHelper.tableBadges} b
         LEFT JOIN ${DatabaseHelper.tableUserBadges} ub 
           ON b.id = ub.badge_id AND ub.user_id = ?
         WHERE b.id = ?
+        GROUP BY b.id, b.title, b.description, b.icon_name, b.tier_name, b.level, b.target_total, b.bg_color_hex, b.accent_color_hex
         LIMIT 1
       ''', [effectiveUserId, badgeId]);
 
@@ -145,25 +147,41 @@ class BadgeRepositoryImpl implements IBadgeRepository {
         whereArgs: [effectiveUserId, badgeId],
       );
 
-      if (existing.isNotEmpty && (existing.first['is_unlocked'] as int? ?? 0) == 1) {
+      final bool alreadyUnlocked = existing.isNotEmpty &&
+          existing.any((row) => (row['is_unlocked'] as int? ?? 0) == 1);
+
+      if (alreadyUnlocked) {
         return const Success(false);
       }
 
-      await db.insert(
-        DatabaseHelper.tableUserBadges,
-        {
-          'id': 'ub_${effectiveUserId}_$badgeId',
-          'user_id': effectiveUserId,
-          'badge_id': badgeId,
-          'is_unlocked': 1,
-          'current_progress': 1,
-          'unlocked_at': formattedDate,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      if (existing.isNotEmpty) {
+        await db.update(
+          DatabaseHelper.tableUserBadges,
+          {
+            'is_unlocked': 1,
+            'current_progress': 1,
+            'unlocked_at': formattedDate,
+          },
+          where: 'user_id = ? AND badge_id = ?',
+          whereArgs: [effectiveUserId, badgeId],
+        );
+      } else {
+        await db.insert(
+          DatabaseHelper.tableUserBadges,
+          {
+            'id': 'ub_${effectiveUserId}_$badgeId',
+            'user_id': effectiveUserId,
+            'badge_id': badgeId,
+            'is_unlocked': 1,
+            'current_progress': 1,
+            'unlocked_at': formattedDate,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
 
       final countResult = await db.rawQuery('''
-        SELECT COUNT(*) as count FROM ${DatabaseHelper.tableUserBadges}
+        SELECT COUNT(DISTINCT badge_id) as count FROM ${DatabaseHelper.tableUserBadges}
         WHERE user_id = ? AND is_unlocked = 1
       ''', [effectiveUserId]);
       final count = (countResult.first['count'] as int?) ?? 1;

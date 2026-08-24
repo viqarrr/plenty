@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/di/injector.dart';
@@ -51,7 +52,10 @@ class CommunityPostCard extends StatelessWidget {
           // ── Author Header Row ──
           Row(
             children: [
-              _AuthorAvatar(avatarUrl: post.authorAvatar, name: post.authorName),
+              _AuthorAvatar(
+                avatarUrl: post.authorAvatar,
+                name: post.authorName,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -75,7 +79,8 @@ class CommunityPostCard extends StatelessWidget {
                 ),
               ),
               _CategoryPill(category: post.category),
-              if (onEditTap != null || onDeleteTap != null) ...[
+              if (post.isAuthor &&
+                  (onEditTap != null || onDeleteTap != null)) ...[
                 const SizedBox(width: 4),
                 PopupMenuButton<String>(
                   icon: const Icon(
@@ -288,10 +293,7 @@ class _CategoryPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: AppTypography.caption2Bold.copyWith(
-          color: text,
-          fontSize: 10.5,
-        ),
+        style: AppTypography.caption2Bold.copyWith(color: text, fontSize: 10.5),
       ),
     );
   }
@@ -311,7 +313,8 @@ class _AttachedBadgeCard extends StatelessWidget {
         final userBadgeResult = await badgeRepo.getBadgeById(badge.id);
         final userBadge = userBadgeResult.dataOrNull;
         if (context.mounted) {
-          final targetBadge = userBadge ??
+          final targetBadge =
+              userBadge ??
               badge.copyWith(
                 isUnlocked: false,
                 progress: 0,
@@ -505,10 +508,7 @@ class _AuthorAvatar extends StatelessWidget {
       } else {
         final file = File(avatarUrl!);
         if (file.existsSync()) {
-          return CircleAvatar(
-            radius: 18,
-            backgroundImage: FileImage(file),
-          );
+          return CircleAvatar(radius: 18, backgroundImage: FileImage(file));
         }
       }
     }

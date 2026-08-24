@@ -28,6 +28,7 @@ class HomeState {
   final int badgeCount;
   final String profileName;
   final String username;
+  final String email;
   final String? avatarUrl;
   final String? bio;
   final bool isLoading;
@@ -46,6 +47,7 @@ class HomeState {
     this.badgeCount = 0,
     this.profileName = 'User',
     this.username = 'alex_plants',
+    this.email = '',
     this.avatarUrl,
     this.bio,
     this.isLoading = false,
@@ -65,6 +67,7 @@ class HomeState {
     int? badgeCount,
     String? profileName,
     String? username,
+    String? email,
     String? avatarUrl,
     String? bio,
     bool? isLoading,
@@ -83,6 +86,7 @@ class HomeState {
       badgeCount: badgeCount ?? this.badgeCount,
       profileName: profileName ?? this.profileName,
       username: username ?? this.username,
+      email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       bio: bio ?? this.bio,
       isLoading: isLoading ?? this.isLoading,
@@ -113,9 +117,11 @@ class HomeState {
     for (final plant in userPlants) {
       final site = plant.siteName.trim();
       if (site.isNotEmpty &&
-          !filters.any((f) =>
-              f.toLowerCase() == site.toLowerCase() ||
-              site.toLowerCase().contains(f.toLowerCase()))) {
+          !filters.any(
+            (f) =>
+                f.toLowerCase() == site.toLowerCase() ||
+                site.toLowerCase().contains(f.toLowerCase()),
+          )) {
         filters.add(site);
       }
     }
@@ -197,12 +203,12 @@ class HomeController extends ChangeNotifier {
     IUserRepository? userRepo,
     ISiteRepository? siteRepo,
     this.userId = 'usr_default',
-  })  : _plantRepo = plantRepo ?? Injector.plantRepository,
-        _careRepo = careRepo ?? Injector.dailyCareRepository,
-        _streakRepo = streakRepo ?? Injector.streakRepository,
-        _badgeRepo = badgeRepo ?? Injector.badgeRepository,
-        _userRepo = userRepo ?? Injector.userRepository,
-        _siteRepo = siteRepo ?? Injector.siteRepository {
+  }) : _plantRepo = plantRepo ?? Injector.plantRepository,
+       _careRepo = careRepo ?? Injector.dailyCareRepository,
+       _streakRepo = streakRepo ?? Injector.streakRepository,
+       _badgeRepo = badgeRepo ?? Injector.badgeRepository,
+       _userRepo = userRepo ?? Injector.userRepository,
+       _siteRepo = siteRepo ?? Injector.siteRepository {
     loadDashboard();
   }
 
@@ -223,7 +229,8 @@ class HomeController extends ChangeNotifier {
 
     try {
       final userProfileResult = await _userRepo.getUserProfile();
-      final user = userProfileResult.dataOrNull ?? await PreferenceHandler.getUser();
+      final user =
+          userProfileResult.dataOrNull ?? await PreferenceHandler.getUser();
       final userIdVal = user?.id;
       final effectiveUserId = (userIdVal != null && userIdVal > 0)
           ? userIdVal.toString()
@@ -238,7 +245,9 @@ class HomeController extends ChangeNotifier {
       final xpResult = await _careRepo.getTotalUserXp(effectiveUserId);
       final totalXp = xpResult.dataOrNull ?? 0;
 
-      final badgeCountResult = await _badgeRepo.getUserBadgeCount(effectiveUserId);
+      final badgeCountResult = await _badgeRepo.getUserBadgeCount(
+        effectiveUserId,
+      );
       final badgeCount = badgeCountResult.dataOrNull ?? 0;
 
       final sitesResult = await _siteRepo.getCustomSites(effectiveUserId);
@@ -248,14 +257,19 @@ class HomeController extends ChangeNotifier {
       final name = (user?.displayName.trim().isNotEmpty ?? false)
           ? user!.displayName
           : (_state.profileName.isNotEmpty &&
-                  _state.profileName != 'Teman Plenty'
-              ? _state.profileName
-              : 'Alice');
+                    _state.profileName != 'Teman Plenty'
+                ? _state.profileName
+                : 'Alice');
       final usernameVal = (user?.username.trim().isNotEmpty ?? false)
           ? user!.username
           : (user?.email.contains('@') ?? false
-              ? user!.email.split('@').first
-              : 'alex_plants');
+                ? user!.email.split('@').first
+                : 'alex_plants');
+      final emailVal = (user?.email.trim().isNotEmpty ?? false)
+          ? user!.email
+          : (user?.email.contains('@') ?? false
+                ? user!.email.split('@').first
+                : 'alex_plants');
       final avatarUrlVal = user?.avatarUrl;
       final bioVal = user?.bio;
 
@@ -273,6 +287,7 @@ class HomeController extends ChangeNotifier {
             badgeCount: badgeCount,
             profileName: name,
             username: usernameVal,
+            email: emailVal,
             avatarUrl: avatarUrlVal,
             bio: bioVal,
             isLoading: false,

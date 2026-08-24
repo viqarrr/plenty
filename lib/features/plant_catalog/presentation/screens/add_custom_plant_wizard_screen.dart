@@ -3,6 +3,7 @@ import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/utils/image_picker_helper.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
+import 'package:plenty/features/garden/presentation/widgets/first_reward_popup.dart';
 import 'package:plenty/features/plant_catalog/presentation/controllers/add_custom_plant_controller.dart';
 import 'package:plenty/features/plant_catalog/presentation/widgets/steps/wizard_area_step.dart';
 import 'package:plenty/features/plant_catalog/presentation/widgets/steps/wizard_environment_step.dart';
@@ -119,6 +120,7 @@ class _AddCustomPlantWizardScreenState
                       WizardAreaStep(
                         selectedRoom: state.selectedRoom,
                         onRoomSelected: _controller.setRoom,
+                        isIndoor: state.isIndoor,
                       ),
                       WizardLightStep(
                         selectedLight: state.selectedLight,
@@ -201,15 +203,42 @@ class _AddCustomPlantWizardScreenState
                                 final success =
                                     await _controller.submitCustomPlant();
                                 if (success && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Tanaman berhasil ditambahkan ke koleksi!',
+                                  final addResult = _controller.state.addResult;
+                                  if (addResult != null) {
+                                    if (addResult.isFirstPlant) {
+                                      await context.showAppDialog(
+                                        FirstRewardPopup.firstPlant(
+                                          plantNickname:
+                                              addResult.plant.nickname,
+                                          onDismiss: () => context.pop(),
+                                        ),
+                                        barrierDismissible: false,
+                                      );
+                                    }
+                                    if (addResult.isFirstTimeCapsule &&
+                                        context.mounted) {
+                                      await context.showAppDialog(
+                                        FirstRewardPopup.timeCapsule(
+                                          plantNickname:
+                                              addResult.plant.nickname,
+                                          onDismiss: () => context.pop(),
+                                        ),
+                                        barrierDismissible: false,
+                                      );
+                                    }
+                                  }
+
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Tanaman berhasil ditambahkan ke koleksi!',
+                                        ),
+                                        backgroundColor: AppColors.forest,
                                       ),
-                                      backgroundColor: AppColors.forest,
-                                    ),
-                                  );
-                                  context.pop();
+                                    );
+                                    context.pop();
+                                  }
                                 }
                               } else {
                                 _controller.nextStep();

@@ -158,6 +158,7 @@ class _AddPlantFlowScreenState extends State<AddPlantFlowScreen> {
       WizardAreaStep(
         selectedRoom: state.selectedRoom,
         onRoomSelected: controller.setRoom,
+        isIndoor: state.isIndoor,
       ),
       WizardLightStep(
         selectedLight: state.selectedLight,
@@ -249,14 +250,25 @@ class _AddPlantFlowScreenState extends State<AddPlantFlowScreen> {
 
                       if (context.mounted && result.isSuccess) {
                         final addResult = result.dataOrNull;
-                        if (addResult != null && addResult.isFirstPlant) {
-                          await context.showAppDialog(
-                            FirstRewardPopup(
-                              plantNickname: addResult.plant.nickname,
-                              onDismiss: () => context.pop(),
-                            ),
-                            barrierDismissible: false,
-                          );
+                        if (addResult != null) {
+                          if (addResult.isFirstPlant) {
+                            await context.showAppDialog(
+                              FirstRewardPopup.firstPlant(
+                                plantNickname: addResult.plant.nickname,
+                                onDismiss: () => context.pop(),
+                              ),
+                              barrierDismissible: false,
+                            );
+                          }
+                          if (addResult.isFirstTimeCapsule && context.mounted) {
+                            await context.showAppDialog(
+                              FirstRewardPopup.timeCapsule(
+                                plantNickname: addResult.plant.nickname,
+                                onDismiss: () => context.pop(),
+                              ),
+                              barrierDismissible: false,
+                            );
+                          }
                         }
 
                         if (context.mounted) {

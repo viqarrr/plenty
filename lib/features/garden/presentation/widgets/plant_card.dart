@@ -18,7 +18,7 @@ class PlantCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: AppColors.border,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(

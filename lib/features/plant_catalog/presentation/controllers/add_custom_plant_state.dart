@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
+import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 
 /// Form state aggregating all steps of the Add Custom Plant Wizard flow.
 @immutable
@@ -19,6 +20,7 @@ class AddCustomPlantState {
   final bool isSubmitting;
   final String? errorMessage;
   final bool isSuccess;
+  final AddPlantResult? addResult;
 
   const AddCustomPlantState({
     this.currentStep = 0,
@@ -36,6 +38,7 @@ class AddCustomPlantState {
     this.isSubmitting = false,
     this.errorMessage,
     this.isSuccess = false,
+    this.addResult,
   });
 
   /// Factory for initial state with today's date
@@ -96,6 +99,7 @@ class AddCustomPlantState {
     bool? isSubmitting,
     String? errorMessage,
     bool? isSuccess,
+    AddPlantResult? addResult,
     bool clearImagePath = false,
   }) {
     return AddCustomPlantState(
@@ -114,6 +118,7 @@ class AddCustomPlantState {
       isSubmitting: isSubmitting ?? this.isSubmitting,
       errorMessage: errorMessage,
       isSuccess: isSuccess ?? this.isSuccess,
+      addResult: addResult ?? this.addResult,
     );
   }
 }
