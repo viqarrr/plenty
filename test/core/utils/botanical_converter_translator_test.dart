@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/utils/botanical_translator.dart';
 import 'package:plenty/core/utils/botanical_unit_converter.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
+import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_model.dart';
 
 void main() {
   group('BotanicalUnitConverter Unit Tests', () {
@@ -41,7 +41,10 @@ void main() {
 
   group('BotanicalTranslator Unit Tests', () {
     test('Translates cycle correctly', () {
-      expect(BotanicalTranslator.translateCycle('Perennial'), 'Perenial (Abadi)');
+      expect(
+        BotanicalTranslator.translateCycle('Perennial'),
+        'Perenial (Abadi)',
+      );
       expect(BotanicalTranslator.translateCycle('Annual'), 'Semusim (Annual)');
       expect(BotanicalTranslator.translateCycle(null), 'Perenial (Abadi)');
     });
@@ -59,11 +62,17 @@ void main() {
         'Musim Semi, Musim Panas',
       );
       expect(
-        BotanicalTranslator.translateFloweringSeason(null, commonName: 'Monstera'),
+        BotanicalTranslator.translateFloweringSeason(
+          null,
+          commonName: 'Monstera',
+        ),
         'Jarang di Dalam Ruangan',
       );
       expect(
-        BotanicalTranslator.translateFloweringSeason(null, commonName: 'Peace Lily'),
+        BotanicalTranslator.translateFloweringSeason(
+          null,
+          commonName: 'Peace Lily',
+        ),
         'Musim Semi & Panas',
       );
     });

@@ -17,13 +17,13 @@ import 'package:plenty/features/garden/presentation/controllers/home_controller.
 import 'package:plenty/features/garden/presentation/widgets/add_plant/time_capsule_modal.dart';
 import 'package:plenty/features/garden/presentation/widgets/delete_plant_sheet.dart';
 import 'package:plenty/features/garden/presentation/widgets/edit_plant_sheet.dart';
-import 'package:plenty/features/garden/presentation/widgets/first_reward_popup.dart';
 import 'package:plenty/features/garden/presentation/widgets/growth_height_chart.dart';
 import 'package:plenty/features/garden/presentation/widgets/level_xp_bar.dart';
 import 'package:plenty/features/garden/presentation/widgets/photo_timeline_stepper.dart';
 import 'package:plenty/features/garden/presentation/widgets/plant_growth_specs.dart';
 import 'package:plenty/features/garden/presentation/widgets/plant_stat_card.dart';
 import 'package:plenty/features/garden/presentation/widgets/plant_toxicity_banner.dart';
+import 'package:plenty/features/garden/presentation/widgets/reward_popup.dart';
 import 'package:plenty/features/garden/presentation/widgets/time_capsule_status_widget.dart';
 
 /// Screen displaying in-depth botanical specifications, growth tracking,

@@ -6,11 +6,11 @@ import 'package:plenty/features/daily_care/domain/repositories/daily_care_reposi
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
 import 'package:plenty/features/garden/data/repositories/site_repository_impl.dart';
 import 'package:plenty/features/garden/data/repositories/streak_repository_impl.dart';
+import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/site_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/streak_repository.dart';
 import 'package:plenty/features/garden/presentation/controllers/home_controller.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
 import 'package:plenty/features/profile/data/repositories/badge_repository_impl.dart';
 import 'package:plenty/features/profile/data/repositories/user_repository_impl.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
@@ -48,19 +48,15 @@ void main() {
 
     // Seed default user and streak
     final db = await dbHelper.database;
-    await db.insert(
-      DatabaseHelper.tableUsers,
-      {
-        'id': 1,
-        'email': 'user@plenty.app',
-        'display_name': 'Alice',
-        'streak_count': 3,
-        'longest_streak': 3,
-        'last_streak_date': '2026-08-19',
-        'created_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(DatabaseHelper.tableUsers, {
+      'id': 1,
+      'email': 'user@plenty.app',
+      'display_name': 'Alice',
+      'streak_count': 3,
+      'longest_streak': 3,
+      'last_streak_date': '2026-08-19',
+      'created_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
     careRepo = DailyCareRepositoryImpl(dbHelper: dbHelper);
@@ -152,7 +148,10 @@ void main() {
       controller.setRoomFilter('Ruang Tamu');
       expect(controller.state.selectedRoomFilter, 'Ruang Tamu');
       expect(controller.state.filteredPlants.length, 1);
-      expect(controller.state.filteredPlants.first.nickname, 'Living Room Plant');
+      expect(
+        controller.state.filteredPlants.first.nickname,
+        'Living Room Plant',
+      );
 
       controller.setRoomFilter('Kamar');
       expect(controller.state.selectedRoomFilter, 'Kamar');

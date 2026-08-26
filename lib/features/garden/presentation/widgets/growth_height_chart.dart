@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
-import 'package:plenty/core/domain/models/growth_log_model.dart';
+import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
 
 /// FlChart-based growth height curve widget for PlantDetailsScreen.
 class GrowthHeightChart extends StatelessWidget {
@@ -108,10 +108,12 @@ class GrowthHeightChart extends StatelessWidget {
             ),
           ),
           titlesData: FlTitlesData(
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -195,11 +197,11 @@ class GrowthHeightChart extends StatelessWidget {
                 show: true,
                 getDotPainter: (spot, percent, barData, index) =>
                     FlDotCirclePainter(
-                  radius: 4,
-                  color: AppColors.forest,
-                  strokeWidth: 2,
-                  strokeColor: Colors.white,
-                ),
+                      radius: 4,
+                      color: AppColors.forest,
+                      strokeWidth: 2,
+                      strokeColor: Colors.white,
+                    ),
               ),
               belowBarData: BarAreaData(
                 show: true,

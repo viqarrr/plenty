@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
-import 'package:plenty/features/plant_catalog/presentation/controllers/add_custom_plant_controller.dart';
+import 'package:plenty/features/garden/presentation/controllers/add_custom_plant_controller.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -23,19 +23,18 @@ void main() {
 
     // Seed test user
     final db = await dbHelper.database;
-    await db.insert(
-      DatabaseHelper.tableUsers,
-      {
-        'id': 1,
-        'email': 'user@plenty.app',
-        'display_name': 'Plant Lover',
-        'created_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(DatabaseHelper.tableUsers, {
+      'id': 1,
+      'email': 'user@plenty.app',
+      'display_name': 'Plant Lover',
+      'created_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     plantRepository = PlantRepositoryImpl(dbHelper: dbHelper);
-    controller = AddCustomPlantController(plantRepo: plantRepository, userId: '1');
+    controller = AddCustomPlantController(
+      plantRepo: plantRepository,
+      userId: '1',
+    );
   });
 
   tearDown(() async {

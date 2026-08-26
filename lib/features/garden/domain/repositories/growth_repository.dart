@@ -1,5 +1,5 @@
-import 'package:plenty/core/domain/models/growth_log_model.dart';
 import 'package:plenty/core/error/result.dart';
+import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 
 /// State of a plant's time capsule.
@@ -21,7 +21,10 @@ abstract interface class IGrowthRepository {
 
   /// Saves or creates a new time capsule record for a plant.
   /// Returns `true` if this is the user's first time capsule unlocking the time_capsule achievement badge.
-  Future<Result<bool>> saveTimeCapsule(TimeCapsuleModel capsule, {int userId = 1});
+  Future<Result<bool>> saveTimeCapsule(
+    TimeCapsuleModel capsule, {
+    int userId = 1,
+  });
 
   /// Marks a time capsule as unlocked.
   Future<Result<void>> unlockTimeCapsule(String capsuleId);

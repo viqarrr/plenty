@@ -14,7 +14,7 @@ import 'package:plenty/features/garden/presentation/widgets/add_plant/steps/wiza
 import 'package:plenty/features/garden/presentation/widgets/add_plant/steps/wizard_name_photo_step.dart';
 import 'package:plenty/features/garden/presentation/widgets/add_plant/steps/wizard_time_capsule_step.dart';
 import 'package:plenty/features/garden/presentation/widgets/add_plant/wizard_step_progress.dart';
-import 'package:plenty/features/garden/presentation/widgets/first_reward_popup.dart';
+import 'package:plenty/features/garden/presentation/widgets/reward_popup.dart';
 
 /// Screen orchestrating species selection -> botanical preview -> 6-step custom wizard adoption flow.
 class AddPlantFlowScreen extends StatefulWidget {

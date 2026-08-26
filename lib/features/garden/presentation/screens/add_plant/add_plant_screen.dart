@@ -2,16 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
-import 'package:plenty/core/theme/app_typography.dart';
-import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/error/result.dart';
+import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
+import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
-import 'package:plenty/features/plant_catalog/presentation/screens/add_plant_flow_screen.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/catalog_plant_card.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/catalog_search_bar.dart';
-import 'package:plenty/features/plant_catalog/presentation/screens/species_detail_preview_screen.dart';
+import 'package:plenty/features/garden/presentation/screens/add_plant/add_plant_flow_screen.dart';
+import 'package:plenty/features/garden/presentation/screens/add_plant/species_detail_preview_screen.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/catalog_plant_card.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/catalog_search_bar.dart';
 
 class AddPlantScreen extends StatefulWidget {
   final IPlantRepository? plantRepository;

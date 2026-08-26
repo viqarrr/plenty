@@ -1,7 +1,7 @@
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/core/domain/models/growth_log_model.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
+import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/growth_repository.dart';
 import 'package:sqflite/sqflite.dart';
@@ -11,10 +11,12 @@ class GrowthRepositoryImpl implements IGrowthRepository {
   final DatabaseHelper _dbHelper;
 
   GrowthRepositoryImpl({DatabaseHelper? dbHelper})
-      : _dbHelper = dbHelper ?? DatabaseHelper.instance;
+    : _dbHelper = dbHelper ?? DatabaseHelper.instance;
 
   @override
-  Future<Result<List<GrowthLogModel>>> getHeightSeries(String userPlantId) async {
+  Future<Result<List<GrowthLogModel>>> getHeightSeries(
+    String userPlantId,
+  ) async {
     try {
       final db = await _dbHelper.database;
       final maps = await db.query(
@@ -32,7 +34,9 @@ class GrowthRepositoryImpl implements IGrowthRepository {
   }
 
   @override
-  Future<Result<List<GrowthLogModel>>> getPhotoGallery(String userPlantId) async {
+  Future<Result<List<GrowthLogModel>>> getPhotoGallery(
+    String userPlantId,
+  ) async {
     try {
       final db = await _dbHelper.database;
       final maps = await db.query(
@@ -50,7 +54,9 @@ class GrowthRepositoryImpl implements IGrowthRepository {
   }
 
   @override
-  Future<Result<TimeCapsuleState>> getTimeCapsuleState(String userPlantId) async {
+  Future<Result<TimeCapsuleState>> getTimeCapsuleState(
+    String userPlantId,
+  ) async {
     try {
       final capsuleResult = await getTimeCapsule(userPlantId);
       final capsule = capsuleResult.dataOrNull;
@@ -84,7 +90,10 @@ class GrowthRepositoryImpl implements IGrowthRepository {
   }
 
   @override
-  Future<Result<bool>> saveTimeCapsule(TimeCapsuleModel capsule, {int userId = 1}) async {
+  Future<Result<bool>> saveTimeCapsule(
+    TimeCapsuleModel capsule, {
+    int userId = 1,
+  }) async {
     try {
       final db = await _dbHelper.database;
       bool isFirstTimeCapsule = false;
@@ -107,7 +116,7 @@ class GrowthRepositoryImpl implements IGrowthRepository {
         if (plantRows.isNotEmpty) {
           effectiveUserId =
               int.tryParse(plantRows.first['user_id']?.toString() ?? '') ??
-                  userId;
+              userId;
         }
 
         final userBadgeRows = await txn.query(
@@ -116,7 +125,8 @@ class GrowthRepositoryImpl implements IGrowthRepository {
           whereArgs: [effectiveUserId, 'time_capsule'],
         );
 
-        final bool badgeAlreadyUnlocked = userBadgeRows.isNotEmpty &&
+        final bool badgeAlreadyUnlocked =
+            userBadgeRows.isNotEmpty &&
             ((userBadgeRows.first['is_unlocked'] as int?) == 1 ||
                 userBadgeRows.first['unlocked_at'] != null);
 
@@ -135,7 +145,7 @@ class GrowthRepositoryImpl implements IGrowthRepository {
             'September',
             'Oktober',
             'November',
-            'Desember'
+            'Desember',
           ];
           final formattedDate =
               '${now.day} ${months[now.month - 1]} ${now.year}';
@@ -165,10 +175,13 @@ class GrowthRepositoryImpl implements IGrowthRepository {
             );
           }
 
-          final countResult = await txn.rawQuery('''
+          final countResult = await txn.rawQuery(
+            '''
             SELECT COUNT(DISTINCT badge_id) as count FROM ${DatabaseHelper.tableUserBadges}
             WHERE user_id = ? AND is_unlocked = 1
-          ''', [effectiveUserId]);
+          ''',
+            [effectiveUserId],
+          );
           final count = (countResult.first['count'] as int?) ?? 1;
           await txn.update(
             DatabaseHelper.tableUsers,
@@ -191,10 +204,7 @@ class GrowthRepositoryImpl implements IGrowthRepository {
       final db = await _dbHelper.database;
       await db.update(
         DatabaseHelper.tableTimeCapsules,
-        {
-          'is_unlocked': 1,
-          'unlocked_at': DateTime.now().toIso8601String(),
-        },
+        {'is_unlocked': 1, 'unlocked_at': DateTime.now().toIso8601String()},
         where: 'id = ?',
         whereArgs: [capsuleId],
       );

@@ -1,8 +1,8 @@
 import 'package:plenty/core/error/result.dart';
+import 'package:plenty/features/garden/domain/models/perenual/perenual_care_guide_model.dart';
+import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_model.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
-import 'package:plenty/features/plant_catalog/domain/models/perenual_care_guide_model.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
 
 /// Result returned after confirming plant adoption flow.
 class AddPlantResult {
@@ -33,7 +33,9 @@ abstract class IPlantRepository {
   });
 
   /// Retrieves structured care guides for a species ID.
-  Future<Result<List<PerenualCareGuideModel>>> getPlantCareGuides(int speciesId);
+  Future<Result<List<PerenualCareGuideModel>>> getPlantCareGuides(
+    int speciesId,
+  );
 
   /// Seeds catalog from pre-bundled `assets/data/seed_plants.json`.
   Future<Result<List<PlantCatalogModel>>> seedCatalogFromAsset({String? query});
@@ -59,7 +61,9 @@ abstract class IPlantRepository {
   });
 
   /// Retrieves active user adopted plants.
-  Future<Result<List<PlantModel>>> getUserPlants([String userId = 'usr_default']);
+  Future<Result<List<PlantModel>>> getUserPlants([
+    String userId = 'usr_default',
+  ]);
 
   /// Retrieves a specific adopted plant by ID.
   Future<Result<PlantModel?>> getPlantById(String plantId);

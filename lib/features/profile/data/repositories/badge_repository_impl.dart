@@ -1,8 +1,8 @@
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -11,7 +11,7 @@ class BadgeRepositoryImpl implements IBadgeRepository {
   final DatabaseHelper _dbHelper;
 
   BadgeRepositoryImpl({DatabaseHelper? dbHelper})
-      : _dbHelper = dbHelper ?? DatabaseHelper.instance;
+    : _dbHelper = dbHelper ?? DatabaseHelper.instance;
 
   Future<int> _resolveUserId(int? userId) async {
     if (userId != null && userId != 0) return userId;
@@ -29,7 +29,8 @@ class BadgeRepositoryImpl implements IBadgeRepository {
     try {
       final effectiveUserId = await _resolveUserId(userId);
       final db = await _dbHelper.database;
-      final List<Map<String, dynamic>> rows = await db.rawQuery('''
+      final List<Map<String, dynamic>> rows = await db.rawQuery(
+        '''
         SELECT 
           b.id,
           b.title,
@@ -48,7 +49,9 @@ class BadgeRepositoryImpl implements IBadgeRepository {
           ON b.id = ub.badge_id AND ub.user_id = ?
         GROUP BY b.id, b.title, b.description, b.icon_name, b.tier_name, b.level, b.target_total, b.bg_color_hex, b.accent_color_hex
         ORDER BY b.rowid ASC
-      ''', [effectiveUserId]);
+      ''',
+        [effectiveUserId],
+      );
 
       final badges = rows.map(_mapRowToBadgeItem).toList();
       return Success(badges);
@@ -73,11 +76,14 @@ class BadgeRepositoryImpl implements IBadgeRepository {
     try {
       final effectiveUserId = await _resolveUserId(userId);
       final db = await _dbHelper.database;
-      final result = await db.rawQuery('''
+      final result = await db.rawQuery(
+        '''
         SELECT COUNT(DISTINCT badge_id) as count 
         FROM ${DatabaseHelper.tableUserBadges}
         WHERE user_id = ? AND is_unlocked = 1
-      ''', [effectiveUserId]);
+      ''',
+        [effectiveUserId],
+      );
 
       if (result.isNotEmpty) {
         return Success((result.first['count'] as int?) ?? 0);
@@ -97,7 +103,8 @@ class BadgeRepositoryImpl implements IBadgeRepository {
     try {
       final effectiveUserId = await _resolveUserId(userId);
       final db = await _dbHelper.database;
-      final List<Map<String, dynamic>> rows = await db.rawQuery('''
+      final List<Map<String, dynamic>> rows = await db.rawQuery(
+        '''
         SELECT 
           b.id,
           b.title,
@@ -117,7 +124,9 @@ class BadgeRepositoryImpl implements IBadgeRepository {
         WHERE b.id = ?
         GROUP BY b.id, b.title, b.description, b.icon_name, b.tier_name, b.level, b.target_total, b.bg_color_hex, b.accent_color_hex
         LIMIT 1
-      ''', [effectiveUserId, badgeId]);
+      ''',
+        [effectiveUserId, badgeId],
+      );
 
       if (rows.isEmpty) return const Success(null);
       return Success(_mapRowToBadgeItem(rows.first));
@@ -132,12 +141,24 @@ class BadgeRepositoryImpl implements IBadgeRepository {
     required String badgeId,
   }) async {
     try {
-      final effectiveUserId = await _resolveUserId(int.tryParse(userId.toString()));
+      final effectiveUserId = await _resolveUserId(
+        int.tryParse(userId.toString()),
+      );
       final db = await _dbHelper.database;
       final now = DateTime.now();
       const months = [
-        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
       ];
       final formattedDate = '${now.day} ${months[now.month - 1]} ${now.year}';
 
@@ -147,7 +168,8 @@ class BadgeRepositoryImpl implements IBadgeRepository {
         whereArgs: [effectiveUserId, badgeId],
       );
 
-      final bool alreadyUnlocked = existing.isNotEmpty &&
+      final bool alreadyUnlocked =
+          existing.isNotEmpty &&
           existing.any((row) => (row['is_unlocked'] as int? ?? 0) == 1);
 
       if (alreadyUnlocked) {
@@ -180,10 +202,13 @@ class BadgeRepositoryImpl implements IBadgeRepository {
         );
       }
 
-      final countResult = await db.rawQuery('''
+      final countResult = await db.rawQuery(
+        '''
         SELECT COUNT(DISTINCT badge_id) as count FROM ${DatabaseHelper.tableUserBadges}
         WHERE user_id = ? AND is_unlocked = 1
-      ''', [effectiveUserId]);
+      ''',
+        [effectiveUserId],
+      );
       final count = (countResult.first['count'] as int?) ?? 1;
       await db.update(
         DatabaseHelper.tableUsers,

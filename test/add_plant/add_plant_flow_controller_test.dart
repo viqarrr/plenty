@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
-import 'package:plenty/features/plant_catalog/presentation/controllers/add_plant_flow_controller.dart';
+import 'package:plenty/features/garden/presentation/controllers/add_plant_flow_controller.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -26,16 +26,12 @@ void main() {
 
     // Seed default user (or rely on _onCreate user 1)
     final db = await dbHelper.database;
-    await db.insert(
-      DatabaseHelper.tableUsers,
-      {
-        'id': 1,
-        'email': 'user@plenty.app',
-        'display_name': 'Test User',
-        'created_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(DatabaseHelper.tableUsers, {
+      'id': 1,
+      'email': 'user@plenty.app',
+      'display_name': 'Test User',
+      'created_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
     await plantRepo.getCatalogPlants(); // seeds catalog
@@ -81,40 +77,61 @@ void main() {
         // Step 1 -> Step 2: User clicks "Tambahkan ke Koleksi" CTA
         controller.proceedFromPreviewToWizard();
         expect(controller.state.currentStep, 2);
-        expect(controller.state.wizardStepIndex, 0); // Wizard Step 1: Name & Photo
+        expect(
+          controller.state.wizardStepIndex,
+          0,
+        ); // Wizard Step 1: Name & Photo
 
         // Step 2: Custom Name & Photo
         controller.setPlantName('Monty The Monster');
         controller.nextStep();
         expect(controller.state.currentStep, 3);
-        expect(controller.state.wizardStepIndex, 1); // Wizard Step 2: Growth Stage (Asal Pertumbuhan)
+        expect(
+          controller.state.wizardStepIndex,
+          1,
+        ); // Wizard Step 2: Growth Stage (Asal Pertumbuhan)
 
         // Step 3: Growth Stage (Dari Bibit vs Sudah Tumbuh)
         controller.setGrowthStage('seed');
         expect(controller.state.growthStage, 'seed');
-        expect(controller.state.initialHeightCm, 2.0); // automatically set to seedling height
+        expect(
+          controller.state.initialHeightCm,
+          2.0,
+        ); // automatically set to seedling height
         controller.nextStep();
         expect(controller.state.currentStep, 4);
-        expect(controller.state.wizardStepIndex, 2); // Wizard Step 3: Environment & Drainage
+        expect(
+          controller.state.wizardStepIndex,
+          2,
+        ); // Wizard Step 3: Environment & Drainage
 
         // Step 4: Environment (Indoor vs Outdoor) & Drainage
         controller.setEnvironment('Indoor');
         controller.setDrainage('Ada Lubang Drainase');
         controller.nextStep();
         expect(controller.state.currentStep, 5);
-        expect(controller.state.wizardStepIndex, 3); // Wizard Step 4: Room / Area
+        expect(
+          controller.state.wizardStepIndex,
+          3,
+        ); // Wizard Step 4: Room / Area
 
         // Step 5: Area / Room
         controller.setRoom('Ruang Tamu');
         controller.nextStep();
         expect(controller.state.currentStep, 6);
-        expect(controller.state.wizardStepIndex, 4); // Wizard Step 5: Light Conditions
+        expect(
+          controller.state.wizardStepIndex,
+          4,
+        ); // Wizard Step 5: Light Conditions
 
         // Step 6: Light Conditions
         controller.setLight('Sinar Tidak Langsung Terang');
         controller.nextStep();
         expect(controller.state.currentStep, 7);
-        expect(controller.state.wizardStepIndex, 5); // Wizard Step 6: Time Capsule
+        expect(
+          controller.state.wizardStepIndex,
+          5,
+        ); // Wizard Step 6: Time Capsule
 
         // Step 7: Time Capsule & Date
         controller.toggleTimeCapsule(true);

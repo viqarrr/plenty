@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
-import 'package:plenty/features/plant_catalog/presentation/controllers/add_custom_plant_state.dart';
+import 'package:plenty/features/garden/presentation/controllers/add_custom_plant_state.dart';
 
 /// Controller managing state, validation, step transitions, and submission for the Add Custom Plant flow.
 class AddCustomPlantController extends ChangeNotifier {
@@ -17,7 +17,7 @@ class AddCustomPlantController extends ChangeNotifier {
   AddCustomPlantController({
     IPlantRepository? plantRepo,
     this.userId = 'usr_default',
-  })  : _plantRepo = plantRepo ?? Injector.plantRepository;
+  }) : _plantRepo = plantRepo ?? Injector.plantRepository;
 
   @override
   void dispose() {
@@ -60,7 +60,9 @@ class AddCustomPlantController extends ChangeNotifier {
         plantedDate: stage == 'seed' ? DateTime.now() : _state.plantedDate,
         initialHeightCm: stage == 'seed' && _state.initialHeightCm == 25.0
             ? 2.0
-            : (stage == 'mature' && _state.initialHeightCm == 2.0 ? 25.0 : _state.initialHeightCm),
+            : (stage == 'mature' && _state.initialHeightCm == 2.0
+                  ? 25.0
+                  : _state.initialHeightCm),
       ),
     );
   }
@@ -86,19 +88,18 @@ class AddCustomPlantController extends ChangeNotifier {
         newRoom = 'Ruang Tamu';
       }
     } else {
-      if (const ['Ruang Tamu', 'Kamar Tidur', 'Dapur', 'Ruang Kerja']
-              .contains(newRoom) ||
+      if (const [
+            'Ruang Tamu',
+            'Kamar Tidur',
+            'Dapur',
+            'Ruang Kerja',
+          ].contains(newRoom) ||
           newRoom.isEmpty) {
         newRoom = 'Balkon';
       }
     }
 
-    _updateState(
-      _state.copyWith(
-        isIndoor: isIndoor,
-        selectedRoom: newRoom,
-      ),
-    );
+    _updateState(_state.copyWith(isIndoor: isIndoor, selectedRoom: newRoom));
   }
 
   void setDrainage(String drainage) {
@@ -161,7 +162,8 @@ class AddCustomPlantController extends ChangeNotifier {
         _updateState(
           _state.copyWith(
             isSubmitting: false,
-            errorMessage: 'Gagal menambahkan tanaman kustom: ${failure.message}',
+            errorMessage:
+                'Gagal menambahkan tanaman kustom: ${failure.message}',
           ),
         );
         return false;

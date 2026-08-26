@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:plenty/core/di/injector.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 
 /// State Management Controller for Community Feed, Category Filtering, Likes, and Post Creation.
 class CommunityController extends ChangeNotifier {
@@ -16,7 +16,7 @@ class CommunityController extends ChangeNotifier {
   String? _errorMessage;
 
   CommunityController({ICommunityRepository? repository})
-      : _repository = repository ?? Injector.communityRepository;
+    : _repository = repository ?? Injector.communityRepository;
 
   String get selectedCategory => _selectedCategory;
   List<CommunityPost> get posts => _posts;

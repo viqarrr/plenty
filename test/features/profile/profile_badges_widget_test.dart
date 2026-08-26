@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:plenty/features/profile/presentation/screens/all_badges_screen.dart';
 import 'package:plenty/features/profile/presentation/screens/badge_detail_screen.dart';
 import 'package:plenty/features/profile/presentation/screens/profile_tab.dart';

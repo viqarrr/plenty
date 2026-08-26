@@ -1,10 +1,10 @@
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Implementation of ICommunityRepository with SQLite persistence.
@@ -13,7 +13,7 @@ class CommunityRepositoryImpl implements ICommunityRepository {
   bool _isInitialized = false;
 
   CommunityRepositoryImpl({DatabaseHelper? dbHelper})
-      : _dbHelper = dbHelper ?? DatabaseHelper.instance;
+    : _dbHelper = dbHelper ?? DatabaseHelper.instance;
 
   static const List<Map<String, dynamic>> _seedPosts = [
     {
@@ -471,10 +471,7 @@ class CommunityRepositoryImpl implements ICommunityRepository {
   }
 
   @override
-  Future<Result<bool>> hasUserSharedBadge(
-    String badgeId, {
-    int? userId,
-  }) async {
+  Future<Result<bool>> hasUserSharedBadge(String badgeId, {int? userId}) async {
     try {
       final db = await _dbHelper.database;
       await seedInitialPosts();

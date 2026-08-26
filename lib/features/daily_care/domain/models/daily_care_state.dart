@@ -47,7 +47,7 @@ class DailyHeightLogItem {
 @immutable
 class DueScheduleItem {
   final PlantModel plant;
-  final String taskType; // 'siram', 'bersih_bersih'
+  final String taskType; // 'siram', 'bersih'
   final String title;
   final String subtitle;
   final bool isCompletedToday;
@@ -102,8 +102,9 @@ class DailyCareState {
 
   int get completedTasksCount {
     final completedHeight = heightLogs.where((l) => l.isCompletedToday).length;
-    final completedSchedules =
-        dueSchedules.where((s) => s.isCompletedToday).length;
+    final completedSchedules = dueSchedules
+        .where((s) => s.isCompletedToday)
+        .length;
     return completedHeight + completedSchedules;
   }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/di/injector.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/badge_ui_extension.dart';
@@ -9,6 +8,7 @@ import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
 import 'package:plenty/features/garden/presentation/screens/home_screen.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 
 /// Full-screen detail screen for a [BadgeItem].
 /// Displays an illuminated vibrant experience for unlocked badges,
@@ -85,8 +85,7 @@ class _UnlockedBadgeScreenState extends State<_UnlockedBadgeScreen> {
   @override
   void initState() {
     super.initState();
-    _communityRepo =
-        widget.communityRepository ?? Injector.communityRepository;
+    _communityRepo = widget.communityRepository ?? Injector.communityRepository;
     if (widget.isAlreadyShared != null) {
       _isAlreadyShared = widget.isAlreadyShared!;
     } else {
@@ -193,16 +192,12 @@ class _UnlockedBadgeScreenState extends State<_UnlockedBadgeScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                'Lencana berhasil dibagikan ke Komunitas! 🏆',
-              ),
+              content: Text('Lencana berhasil dibagikan ke Komunitas! 🏆'),
               backgroundColor: AppColors.darkGreen,
             ),
           );
           // Navigate to HomeScreen on Community Tab (index 2) so BottomNav remains intact
-          context.pushAndRemoveAll(
-            const HomeScreen(initialTab: 2),
-          );
+          context.pushAndRemoveAll(const HomeScreen(initialTab: 2));
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -270,8 +265,9 @@ class _UnlockedBadgeScreenState extends State<_UnlockedBadgeScreen> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: widget.badge.accentColor
-                                  .withValues(alpha: 0.40),
+                              color: widget.badge.accentColor.withValues(
+                                alpha: 0.40,
+                              ),
                               blurRadius: 44,
                               spreadRadius: 12,
                             ),
@@ -361,8 +357,7 @@ class _UnlockedBadgeScreenState extends State<_UnlockedBadgeScreen> {
                       color: Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: widget.badge.accentColor
-                            .withValues(alpha: 0.25),
+                        color: widget.badge.accentColor.withValues(alpha: 0.25),
                         width: 1,
                       ),
                     ),
@@ -405,8 +400,9 @@ class _UnlockedBadgeScreenState extends State<_UnlockedBadgeScreen> {
                             color: Colors.white.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: widget.badge.accentColor
-                                  .withValues(alpha: 0.35),
+                              color: widget.badge.accentColor.withValues(
+                                alpha: 0.35,
+                              ),
                               width: 1.2,
                             ),
                           ),
@@ -422,11 +418,11 @@ class _UnlockedBadgeScreenState extends State<_UnlockedBadgeScreen> {
                                 const SizedBox(width: 8),
                                 Text(
                                   'Sudah Dibagikan ke Komunitas',
-                                  style:
-                                      AppTypography.headlineSemiBold.copyWith(
-                                    color: dateChipTextColor,
-                                    fontSize: 15,
-                                  ),
+                                  style: AppTypography.headlineSemiBold
+                                      .copyWith(
+                                        color: dateChipTextColor,
+                                        fontSize: 15,
+                                      ),
                                 ),
                               ],
                             ),
@@ -618,9 +614,9 @@ class _LockedBadgeScreen extends StatelessWidget {
                       Text(
                         '${badge.progress} / ${badge.total} ($progressPct%)',
                         style: AppTypography.caption1Bold.copyWith(
-                          color: HSLColor.fromColor(badge.accentColor)
-                              .withLightness(0.68)
-                              .toColor(),
+                          color: HSLColor.fromColor(
+                            badge.accentColor,
+                          ).withLightness(0.68).toColor(),
                         ),
                       ),
                     ],

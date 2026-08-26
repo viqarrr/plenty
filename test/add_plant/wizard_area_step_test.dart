@@ -4,7 +4,7 @@ import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/features/garden/data/repositories/site_repository_impl.dart';
 import 'package:plenty/features/garden/domain/repositories/site_repository.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/steps/wizard_area_step.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/steps/wizard_area_step.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -34,7 +34,9 @@ void main() {
   });
 
   group('WizardAreaStep Widget Tests', () {
-    testWidgets('renders Indoor locations when isIndoor is true', (tester) async {
+    testWidgets('renders Indoor locations when isIndoor is true', (
+      tester,
+    ) async {
       String selectedRoom = 'Ruang Tamu';
 
       await tester.pumpWidget(
@@ -78,7 +80,9 @@ void main() {
       expect(selectedRoom, 'Kamar Tidur');
     });
 
-    testWidgets('renders Outdoor locations when isIndoor is false', (tester) async {
+    testWidgets('renders Outdoor locations when isIndoor is false', (
+      tester,
+    ) async {
       String selectedRoom = 'Balkon';
 
       await tester.pumpWidget(
@@ -122,7 +126,9 @@ void main() {
       expect(selectedRoom, 'Taman');
     });
 
-    testWidgets('switches shown locations when isIndoor toggles', (tester) async {
+    testWidgets('switches shown locations when isIndoor toggles', (
+      tester,
+    ) async {
       bool isIndoor = true;
       String selectedRoom = 'Ruang Tamu';
 

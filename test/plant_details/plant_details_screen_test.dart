@@ -12,8 +12,8 @@ import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/growth_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/garden/presentation/screens/plant_details_screen.dart';
-import 'package:plenty/features/garden/presentation/widgets/first_reward_popup.dart';
 import 'package:plenty/features/garden/presentation/widgets/photo_timeline_stepper.dart';
+import 'package:plenty/features/garden/presentation/widgets/reward_popup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 

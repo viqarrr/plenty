@@ -1,19 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
-import 'package:plenty/core/domain/models/growth_log_model.dart';
+import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
 
 /// Vertical Stepper Timeline widget displaying chronological photo & height progress of a plant.
 class PhotoTimelineStepper extends StatelessWidget {
   final List<GrowthLogModel> logs;
   final void Function(GrowthLogModel log)? onEditLog;
 
-  const PhotoTimelineStepper({
-    super.key,
-    required this.logs,
-    this.onEditLog,
-  });
+  const PhotoTimelineStepper({super.key, required this.logs, this.onEditLog});
 
   String _formatDate(DateTime dt) {
     const months = [
@@ -95,10 +92,7 @@ class PhotoTimelineStepper extends StatelessWidget {
                           ? AppColors.forest
                           : AppColors.pastelGreenBg,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.forest,
-                        width: 2,
-                      ),
+                      border: Border.all(color: AppColors.forest, width: 2),
                     ),
                     child: Center(
                       child: Icon(
@@ -194,7 +188,8 @@ class PhotoTimelineStepper extends StatelessWidget {
                       Builder(
                         builder: (context) {
                           final photoWidget = _buildPhotoImage(log.photoPath);
-                          if (photoWidget == null) return const SizedBox.shrink();
+                          if (photoWidget == null)
+                            return const SizedBox.shrink();
                           return Padding(
                             padding: const EdgeInsets.only(top: 10.0),
                             child: ClipRRect(

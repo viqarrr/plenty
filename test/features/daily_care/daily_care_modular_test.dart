@@ -5,8 +5,8 @@ import 'package:plenty/features/daily_care/data/repositories/daily_care_reposito
 import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
 import 'package:plenty/features/daily_care/presentation/controllers/daily_care_controller.dart';
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -24,9 +24,7 @@ void main() {
   });
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues({
-      'streak_count': 2,
-    });
+    SharedPreferences.setMockInitialValues({'streak_count': 2});
     await PreferenceHandler.init();
 
     final dbName = 'modular_care_${DateTime.now().microsecondsSinceEpoch}.db';
@@ -34,17 +32,13 @@ void main() {
     await dbHelper.deleteDb();
 
     final db = await dbHelper.database;
-    await db.insert(
-      DatabaseHelper.tableUsers,
-      {
-        'id': 1,
-        'email': 'care_user@plenty.app',
-        'username': 'care_user',
-        'display_name': 'Care User',
-        'created_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(DatabaseHelper.tableUsers, {
+      'id': 1,
+      'email': 'care_user@plenty.app',
+      'username': 'care_user',
+      'display_name': 'Care User',
+      'created_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
     dailyCareRepo = DailyCareRepositoryImpl(
@@ -61,14 +55,17 @@ void main() {
   });
 
   group('Feature-First Daily Care Modular Tests', () {
-    test('Initial DailyCareState is loaded with empty plants correctly', () async {
-      await controller.loadTodayCare();
-      expect(controller.state.isLoading, false);
-      expect(controller.state.heightLogs, isEmpty);
-      expect(controller.state.totalTasksCount, 0);
-      expect(controller.state.hasNoTasksScheduled, true);
-      expect(controller.state.progressRatio, 0.0);
-    });
+    test(
+      'Initial DailyCareState is loaded with empty plants correctly',
+      () async {
+        await controller.loadTodayCare();
+        expect(controller.state.isLoading, false);
+        expect(controller.state.heightLogs, isEmpty);
+        expect(controller.state.totalTasksCount, 0);
+        expect(controller.state.hasNoTasksScheduled, true);
+        expect(controller.state.progressRatio, 0.0);
+      },
+    );
 
     test('DailyCareRepository loads plant height and schedule tasks', () async {
       // Add a plant
@@ -91,7 +88,10 @@ void main() {
 
       await controller.loadTodayCare();
       expect(controller.state.heightLogs.length, 1);
-      expect(controller.state.heightLogs.first.plant.nickname, 'Calathea Beautiful');
+      expect(
+        controller.state.heightLogs.first.plant.nickname,
+        'Calathea Beautiful',
+      );
       expect(controller.state.heightLogs.first.isCompletedToday, false);
       expect(controller.state.dueSchedules, isEmpty);
     });

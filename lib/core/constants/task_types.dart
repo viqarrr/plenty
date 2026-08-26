@@ -18,7 +18,7 @@ enum TaskType {
     Icons.cleaning_services,
     Colors.orange,
   ),
-  logHarian(
+  monitor(
     'monitor',
     'Log Harian Tanaman',
     'Catat',
@@ -49,7 +49,7 @@ enum TaskType {
     return switch (id) {
       'siram' => TaskType.siram,
       'bersih' => TaskType.bersih,
-      'monitor' => TaskType.logHarian,
+      'monitor' => TaskType.monitor,
       _ => TaskType.siram,
     };
   }

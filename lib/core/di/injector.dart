@@ -6,6 +6,7 @@ import 'package:plenty/features/community/data/repositories/community_repository
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
 import 'package:plenty/features/daily_care/data/repositories/daily_care_repository_impl.dart';
 import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
+import 'package:plenty/features/garden/data/data_sources/plant_remote_data_source.dart';
 import 'package:plenty/features/garden/data/repositories/growth_repository_impl.dart';
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
 import 'package:plenty/features/garden/data/repositories/site_repository_impl.dart';
@@ -14,7 +15,6 @@ import 'package:plenty/features/garden/domain/repositories/growth_repository.dar
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/site_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/streak_repository.dart';
-import 'package:plenty/features/plant_catalog/data/datasources/plant_remote_data_source.dart';
 import 'package:plenty/features/profile/data/repositories/badge_repository_impl.dart';
 import 'package:plenty/features/profile/data/repositories/user_repository_impl.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
@@ -79,7 +79,9 @@ class Injector {
 
   static ICommunityRepository? _communityRepository;
   static ICommunityRepository get communityRepository =>
-      _communityRepository ??= CommunityRepositoryImpl(dbHelper: databaseHelper);
+      _communityRepository ??= CommunityRepositoryImpl(
+        dbHelper: databaseHelper,
+      );
 
   static IGrowthRepository? _growthRepository;
   static IGrowthRepository get growthRepository =>
@@ -87,17 +89,23 @@ class Injector {
 
   // Setters for testing and mock injection
   static set databaseHelper(DatabaseHelper? helper) => _databaseHelper = helper;
-  static set plantRemoteDataSource(PlantRemoteDataSource? ds) => _plantRemoteDataSource = ds;
-  static set authLocalDataSource(AuthLocalDataSource? ds) => _authLocalDataSource = ds;
+  static set plantRemoteDataSource(PlantRemoteDataSource? ds) =>
+      _plantRemoteDataSource = ds;
+  static set authLocalDataSource(AuthLocalDataSource? ds) =>
+      _authLocalDataSource = ds;
   static set authRepository(IAuthRepository? repo) => _authRepository = repo;
   static set badgeRepository(IBadgeRepository? repo) => _badgeRepository = repo;
   static set userRepository(IUserRepository? repo) => _userRepository = repo;
   static set siteRepository(ISiteRepository? repo) => _siteRepository = repo;
   static set plantRepository(IPlantRepository? repo) => _plantRepository = repo;
-  static set streakRepository(IStreakRepository? repo) => _streakRepository = repo;
-  static set dailyCareRepository(IDailyCareRepository? repo) => _dailyCareRepository = repo;
-  static set communityRepository(ICommunityRepository? repo) => _communityRepository = repo;
-  static set growthRepository(IGrowthRepository? repo) => _growthRepository = repo;
+  static set streakRepository(IStreakRepository? repo) =>
+      _streakRepository = repo;
+  static set dailyCareRepository(IDailyCareRepository? repo) =>
+      _dailyCareRepository = repo;
+  static set communityRepository(ICommunityRepository? repo) =>
+      _communityRepository = repo;
+  static set growthRepository(IGrowthRepository? repo) =>
+      _growthRepository = repo;
 
   /// Resets all singleton instances for isolated unit/widget tests.
   static void reset() {

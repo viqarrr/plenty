@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/di/injector.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/community/data/repositories/community_repository_impl.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
@@ -11,9 +10,8 @@ import 'package:plenty/features/community/presentation/controllers/community_con
 import 'package:plenty/features/community/presentation/screens/community_screen.dart';
 import 'package:plenty/features/community/presentation/screens/create_post_screen.dart';
 import 'package:plenty/features/community/presentation/widgets/community_post_card.dart';
-import 'package:plenty/features/garden/presentation/screens/home_screen.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:plenty/features/profile/presentation/screens/badge_detail_screen.dart';
-import 'package:plenty/features/profile/presentation/widgets/badge_detail_modal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -261,10 +259,7 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           const MaterialApp(
-            home: BadgeDetailScreen(
-              badge: sampleBadge,
-              isAlreadyShared: false,
-            ),
+            home: BadgeDetailScreen(badge: sampleBadge, isAlreadyShared: false),
           ),
         );
         await tester.pump();
@@ -293,8 +288,10 @@ void main() {
         expect(firstShareRes.isSuccess, isTrue);
 
         // Verify repository marks badge as shared
-        final hasSharedRes =
-            await repository.hasUserSharedBadge(sampleBadge.id, userId: 1);
+        final hasSharedRes = await repository.hasUserSharedBadge(
+          sampleBadge.id,
+          userId: 1,
+        );
         expect(hasSharedRes.dataOrNull, isTrue);
 
         // Duplicate share of same badge is rejected
@@ -323,10 +320,7 @@ void main() {
       (tester) async {
         await tester.pumpWidget(
           const MaterialApp(
-            home: BadgeDetailScreen(
-              badge: sampleBadge,
-              isAlreadyShared: true,
-            ),
+            home: BadgeDetailScreen(badge: sampleBadge, isAlreadyShared: true),
           ),
         );
         await tester.pump();

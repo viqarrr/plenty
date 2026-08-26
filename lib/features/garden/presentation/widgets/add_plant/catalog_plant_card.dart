@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
+import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_model.dart';
 
 /// Reusable card widget for displaying a botanical plant species in the catalog selection list.
 class CatalogPlantCard extends StatelessWidget {

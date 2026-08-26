@@ -1,5 +1,5 @@
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/core/error/result.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 
 /// Contract interface for Badge Repository.
 abstract interface class IBadgeRepository {
