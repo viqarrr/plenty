@@ -308,8 +308,8 @@ class HomeController extends ChangeNotifier {
               type: type,
               description: switch (type) {
                 TaskType.siram => 'Siram tanah sampai lembap merata',
-                TaskType.bersihBersih => 'Bersihkan debu dari permukaan daun',
-                TaskType.monitorTinggi => 'Catat perkembangan tinggi tanaman',
+                TaskType.bersih => 'Bersihkan debu dari permukaan daun',
+                TaskType.logHarian => 'Catat perkembangan tinggi tanaman',
               },
             ),
           );

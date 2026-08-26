@@ -17,7 +17,7 @@ class ApiClient {
       _baseUrl = baseUrl ?? ApiConstants.baseUrl,
       _apiKey = apiKey ?? ApiConstants.apiKey;
 
-  /// Executes a GET request against the Perenual API, injecting API key and query parameters.
+  /// Executes a GET request
   Future<dynamic> get(
     String endpoint, {
     Map<String, dynamic>? queryParameters,

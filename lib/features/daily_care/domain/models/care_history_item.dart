@@ -32,20 +32,21 @@ class CareHistoryItem {
     final plantNickname = map['plant_nickname'] as String? ?? 'Plant';
     final notes = map['notes'] as String?;
     final loggedHeight = (map['logged_height'] as num?)?.toDouble();
-    final photoPath = map['photo_path'] as String? ?? map['logged_photo_path'] as String?;
+    final photoPath =
+        map['photo_path'] as String? ?? map['logged_photo_path'] as String?;
 
     String detail;
-    if (taskType == 'monitor_tinggi') {
+    if (taskType == 'monitor') {
       detail = loggedHeight != null
           ? 'Tinggi dicatat: ${loggedHeight.toStringAsFixed(1)} cm'
           : (notes != null && notes.isNotEmpty
-              ? 'Tinggi dicatat: $notes'
-              : 'Tinggi dicatat');
+                ? 'Tinggi dicatat: $notes'
+                : 'Tinggi dicatat');
     } else if (taskType == 'siram') {
       detail = notes != null && notes.isNotEmpty
           ? 'Disiram $notes'
           : 'Disiram 250ml';
-    } else if (taskType == 'bersih_bersih') {
+    } else if (taskType == 'bersih') {
       detail = notes != null && notes.isNotEmpty
           ? 'Daun dibersihkan: $notes'
           : 'Daun dibersihkan';
@@ -59,7 +60,8 @@ class CareHistoryItem {
       plantNickname: plantNickname,
       taskType: taskType,
       activityDetail: detail,
-      completedAt: DateTime.tryParse(map['completed_at'] as String? ?? '') ??
+      completedAt:
+          DateTime.tryParse(map['completed_at'] as String? ?? '') ??
           DateTime.now(),
       logDate: map['log_date'] as String? ?? '',
       xpAwarded: map['xp_awarded'] as int? ?? 10,

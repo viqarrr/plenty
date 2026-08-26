@@ -15,8 +15,8 @@ void main() {
 
     test('xpPerTask values verify task metrics', () {
       expect(XpConfig.xpPerTask['siram'], 10);
-      expect(XpConfig.xpPerTask['bersih_bersih'], 10);
-      expect(XpConfig.xpPerTask['monitor_tinggi'], 15);
+      expect(XpConfig.xpPerTask['bersih'], 10);
+      expect(XpConfig.xpPerTask['monitor'], 15);
       expect(XpConfig.xpPerTask.containsKey('cek_hama'), isFalse);
     });
   });

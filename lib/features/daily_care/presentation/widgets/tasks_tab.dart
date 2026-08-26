@@ -99,7 +99,7 @@ class TasksTab extends StatelessWidget {
                     return TaskCard(
                       task: task,
                       onAction: () {
-                        if (task.type == TaskType.monitorTinggi) {
+                        if (task.type == TaskType.logHarian) {
                           context.showAppBottomSheet(
                             MonitorTinggiInputSheet(
                               plant: task.plant,

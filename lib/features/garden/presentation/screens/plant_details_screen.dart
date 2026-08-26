@@ -1,28 +1,29 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
-import 'package:plenty/core/domain/models/growth_log_model.dart';
 import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
+import 'package:plenty/features/daily_care/presentation/widgets/monitor_tinggi_input_sheet.dart';
+import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/growth_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
-import 'package:plenty/features/daily_care/presentation/widgets/monitor_tinggi_input_sheet.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/time_capsule_modal.dart';
 import 'package:plenty/features/garden/presentation/controllers/home_controller.dart';
-import 'package:plenty/features/garden/presentation/widgets/plant_growth_specs.dart';
-import 'package:plenty/features/garden/presentation/widgets/plant_stat_card.dart';
-import 'package:plenty/features/garden/presentation/widgets/plant_toxicity_banner.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/time_capsule_modal.dart';
 import 'package:plenty/features/garden/presentation/widgets/delete_plant_sheet.dart';
 import 'package:plenty/features/garden/presentation/widgets/edit_plant_sheet.dart';
 import 'package:plenty/features/garden/presentation/widgets/first_reward_popup.dart';
 import 'package:plenty/features/garden/presentation/widgets/growth_height_chart.dart';
 import 'package:plenty/features/garden/presentation/widgets/level_xp_bar.dart';
 import 'package:plenty/features/garden/presentation/widgets/photo_timeline_stepper.dart';
+import 'package:plenty/features/garden/presentation/widgets/plant_growth_specs.dart';
+import 'package:plenty/features/garden/presentation/widgets/plant_stat_card.dart';
+import 'package:plenty/features/garden/presentation/widgets/plant_toxicity_banner.dart';
 import 'package:plenty/features/garden/presentation/widgets/time_capsule_status_widget.dart';
 
 /// Screen displaying in-depth botanical specifications, growth tracking,
@@ -91,8 +92,11 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     );
     if (draft != null && draft.message.isNotEmpty) {
       final now = DateTime.now();
-      final unlockAt =
-          DateTime(now.year, now.month + draft.durationMonths, now.day);
+      final unlockAt = DateTime(
+        now.year,
+        now.month + draft.durationMonths,
+        now.day,
+      );
       final capsule = TimeCapsuleModel(
         id: 'tc_${now.millisecondsSinceEpoch}',
         userPlantId: _plant.id,
@@ -107,7 +111,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
         await _loadData();
         if (result.isSuccess && (result.dataOrNull ?? false)) {
           await context.showAppDialog(
-            FirstRewardPopup.timeCapsule(
+            RewardPopup.timeCapsule(
               plantNickname: _plant.nickname,
               onDismiss: () => context.pop(),
             ),
@@ -280,10 +284,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
 
   void _showDeleteConfirmationBottomSheet() {
     context.showAppBottomSheet(
-      DeletePlantSheet(
-        plant: _plant,
-        onConfirmDelete: _handleDeletePlant,
-      ),
+      DeletePlantSheet(plant: _plant, onConfirmDelete: _handleDeletePlant),
     );
   }
 
@@ -392,12 +393,12 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.pastelGreenBg
-                                  .withValues(alpha: 0.6),
+                              color: AppColors.pastelGreenBg.withValues(
+                                alpha: 0.6,
+                              ),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color:
-                                    AppColors.forest.withValues(alpha: 0.2),
+                                color: AppColors.forest.withValues(alpha: 0.2),
                               ),
                             ),
                             child: Row(
@@ -413,10 +414,8 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                                     const SizedBox(width: 8),
                                     Text(
                                       'Linimasa & Foto Pertumbuhan',
-                                      style:
-                                          AppTypography.footnoteBold.copyWith(
-                                        color: AppColors.forest,
-                                      ),
+                                      style: AppTypography.footnoteBold
+                                          .copyWith(color: AppColors.forest),
                                     ),
                                   ],
                                 ),
@@ -425,9 +424,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                                     Text(
                                       '${_photoLogs.length} Catatan',
                                       style: AppTypography.caption1Regular
-                                          .copyWith(
-                                        color: AppColors.forest,
-                                      ),
+                                          .copyWith(color: AppColors.forest),
                                     ),
                                     const SizedBox(width: 4),
                                     const Icon(
@@ -472,8 +469,9 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
                             ),
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(
-                                color: AppColors.pastelRedText
-                                    .withValues(alpha: 0.4),
+                                color: AppColors.pastelRedText.withValues(
+                                  alpha: 0.4,
+                                ),
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30),
@@ -534,11 +532,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
         ),
       ),
       child: const Center(
-        child: Icon(
-          Icons.local_florist,
-          color: AppColors.forest,
-          size: 90,
-        ),
+        child: Icon(Icons.local_florist, color: AppColors.forest, size: 90),
       ),
     );
   }

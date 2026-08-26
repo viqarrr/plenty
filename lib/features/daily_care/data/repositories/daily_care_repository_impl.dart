@@ -3,16 +3,16 @@ import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
-import 'package:plenty/core/domain/models/growth_log_model.dart';
 import 'package:plenty/features/daily_care/domain/models/care_action_log_model.dart';
 import 'package:plenty/features/daily_care/domain/models/care_history_item.dart';
 import 'package:plenty/features/daily_care/domain/models/daily_care_state.dart';
 import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
+import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/data/repositories/streak_repository_impl.dart';
+import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/streak_repository.dart';
-import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
-import 'package:plenty/features/garden/data/repositories/streak_repository_impl.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Consolidated implementation of IDailyCareRepository.
@@ -25,15 +25,18 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
     DatabaseHelper? dbHelper,
     IPlantRepository? plantRepo,
     IStreakRepository? streakRepo,
-  })  : _dbHelper = dbHelper ?? DatabaseHelper.instance,
-        _plantRepo = plantRepo ?? PlantRepositoryImpl(dbHelper: dbHelper),
-        _streakRepo = streakRepo ?? StreakRepositoryImpl(dbHelper: dbHelper);
+  }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
+       _plantRepo = plantRepo ?? PlantRepositoryImpl(dbHelper: dbHelper),
+       _streakRepo = streakRepo ?? StreakRepositoryImpl(dbHelper: dbHelper);
 
   @override
-  Future<Result<DailyCareState>> loadDailyCareData({String? explicitUserId}) async {
+  Future<Result<DailyCareState>> loadDailyCareData({
+    String? explicitUserId,
+  }) async {
     try {
       final user = await PreferenceHandler.getUser();
-      final userId = explicitUserId ??
+      final userId =
+          explicitUserId ??
           ((user?.id != null && user!.id! > 0) ? user.id.toString() : '1');
 
       final plantResult = await _plantRepo.getUserPlants(userId);
@@ -87,11 +90,11 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           );
         }
 
-        if (dueTaskTypes.contains('bersih_bersih')) {
+        if (dueTaskTypes.contains('bersih')) {
           dueSchedules.add(
             DueScheduleItem(
               plant: plant,
-              taskType: 'bersih_bersih',
+              taskType: 'bersih',
               title: 'Bersihkan Daun',
               subtitle: 'Bersihkan debu daun',
               isCompletedToday: false,
@@ -125,12 +128,12 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
       final db = await _dbHelper.database;
       final now = DateTime.now();
       final logDate = now.toIso8601String().substring(0, 10);
-      final xpAwarded = XpConfig.xpPerTask['monitor_tinggi'] ?? 15;
+      final xpAwarded = XpConfig.xpPerTask['monitor'] ?? 15;
 
       final existing = await db.query(
         DatabaseHelper.tableCareActionLogs,
         where: 'user_plant_id = ? AND task_type = ? AND log_date = ?',
-        whereArgs: [plant.id, 'monitor_tinggi', logDate],
+        whereArgs: [plant.id, 'monitor', logDate],
         limit: 1,
       );
       if (existing.isNotEmpty) {
@@ -153,7 +156,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         final careLog = CareActionLogModel(
           id: 'care_log_${now.millisecondsSinceEpoch}_height',
           userPlantId: plant.id,
-          taskType: 'monitor_tinggi',
+          taskType: 'monitor',
           completedAt: now,
           logDate: logDate,
           xpAwarded: xpAwarded,
@@ -204,10 +207,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
             final newUserLevel = XpConfig.levelForXp(newUserXp);
             await txn.update(
               DatabaseHelper.tableUsers,
-              {
-                'total_xp': newUserXp,
-                'level': newUserLevel,
-              },
+              {'total_xp': newUserXp, 'level': newUserLevel},
               where: 'id = ?',
               whereArgs: [parsedUserId],
             );
@@ -218,11 +218,10 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           DatabaseHelper.tableCareSchedules,
           {
             'last_performed_at': now.toIso8601String(),
-            'next_due_date':
-                now.add(const Duration(days: 1)).toIso8601String(),
+            'next_due_date': now.add(const Duration(days: 1)).toIso8601String(),
           },
           where: 'user_plant_id = ? AND task_type = ?',
-          whereArgs: [plant.id, 'monitor_tinggi'],
+          whereArgs: [plant.id, 'monitor'],
         );
       });
 
@@ -274,12 +273,9 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
 
         await txn.update(
           DatabaseHelper.tableCareActionLogs,
-          {
-            'notes': note,
-            'completed_at': now.toIso8601String(),
-          },
+          {'notes': note, 'completed_at': now.toIso8601String()},
           where: 'user_plant_id = ? AND task_type = ? AND log_date = ?',
-          whereArgs: [plant.id, 'monitor_tinggi', logDate],
+          whereArgs: [plant.id, 'monitor', logDate],
         );
 
         final plantUpdate = <String, dynamic>{
@@ -352,10 +348,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
 
           await txn.update(
             DatabaseHelper.tableUserPlants,
-            {
-              'xp': newXp,
-              'level': newLevel,
-            },
+            {'xp': newXp, 'level': newLevel},
             where: 'id = ?',
             whereArgs: [plant.id],
           );
@@ -372,10 +365,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
             final newUserLevel = XpConfig.levelForXp(newUserXp);
             await txn.update(
               DatabaseHelper.tableUsers,
-              {
-                'total_xp': newUserXp,
-                'level': newUserLevel,
-              },
+              {'total_xp': newUserXp, 'level': newUserLevel},
               where: 'id = ?',
               whereArgs: [parsedUserId],
             );
@@ -390,15 +380,16 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
 
         final intervalDays = schedRows.isNotEmpty
             ? (schedRows.first['interval_days'] as int? ??
-                (taskType == 'bersih_bersih' ? 7 : (taskType == 'siram' ? 3 : 1)))
-            : (taskType == 'bersih_bersih' ? 7 : (taskType == 'siram' ? 3 : 1));
+                  (taskType == 'bersih' ? 7 : (taskType == 'siram' ? 3 : 1)))
+            : (taskType == 'bersih' ? 7 : (taskType == 'siram' ? 3 : 1));
 
         await txn.update(
           DatabaseHelper.tableCareSchedules,
           {
             'last_performed_at': now.toIso8601String(),
-            'next_due_date':
-                now.add(Duration(days: intervalDays)).toIso8601String(),
+            'next_due_date': now
+                .add(Duration(days: intervalDays))
+                .toIso8601String(),
           },
           where: 'user_plant_id = ? AND task_type = ?',
           whereArgs: [plant.id, taskType],
@@ -424,7 +415,8 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
   }) async {
     try {
       final db = await _dbHelper.database;
-      String query = '''
+      String query =
+          '''
         SELECT 
           c.id as log_id,
           c.user_plant_id,
@@ -482,16 +474,17 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         where: 'user_plant_id = ? AND log_date = ?',
         whereArgs: [userPlantId, today],
       );
-      final completedTypes =
-          completedRows.map((r) => r['task_type'] as String).toSet();
+      final completedTypes = completedRows
+          .map((r) => r['task_type'] as String)
+          .toSet();
 
       final tasks = <String>[];
 
-      if (!completedTypes.contains('monitor_tinggi')) {
-        tasks.add('monitor_tinggi');
+      if (!completedTypes.contains('monitor')) {
+        tasks.add('monitor');
       }
 
-      final cyclicTaskTypes = ['siram', 'bersih_bersih'];
+      final cyclicTaskTypes = ['siram', 'bersih'];
       for (final taskType in cyclicTaskTypes) {
         if (completedTypes.contains(taskType)) {
           continue;
@@ -510,7 +503,8 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           } else {
             final nextDue = DateTime.tryParse(nextDueStr);
             if (nextDue != null) {
-              final isDueOrPast = nextDue.isBefore(now) ||
+              final isDueOrPast =
+                  nextDue.isBefore(now) ||
                   (nextDue.year == now.year &&
                       nextDue.month == now.month &&
                       nextDue.day == now.day);
@@ -541,7 +535,8 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
       );
 
       if (growthRows.isNotEmpty) {
-        final height = (growthRows.first['height_cm'] as num?)?.toDouble() ?? 30.0;
+        final height =
+            (growthRows.first['height_cm'] as num?)?.toDouble() ?? 30.0;
         return Success(height);
       }
 
@@ -554,7 +549,8 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
       );
 
       if (plantRows.isNotEmpty) {
-        final height = (plantRows.first['initial_height_cm'] as num?)?.toDouble() ?? 30.0;
+        final height =
+            (plantRows.first['initial_height_cm'] as num?)?.toDouble() ?? 30.0;
         return Success(height);
       }
 
@@ -572,7 +568,8 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
 
       final growthRows = await db.query(
         DatabaseHelper.tableGrowthLogs,
-        where: 'user_plant_id = ? AND substr(logged_at, 1, 10) = ? AND source = ?',
+        where:
+            'user_plant_id = ? AND substr(logged_at, 1, 10) = ? AND source = ?',
         whereArgs: [userPlantId, today, 'daily_task'],
         orderBy: 'logged_at DESC',
         limit: 1,
@@ -596,7 +593,8 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
       final growthRows = await db.query(
         DatabaseHelper.tableGrowthLogs,
         columns: ['photo_path'],
-        where: 'user_plant_id = ? AND substr(logged_at, 1, 10) = ? AND source = ? AND photo_path IS NOT NULL AND photo_path != \'\'',
+        where:
+            'user_plant_id = ? AND substr(logged_at, 1, 10) = ? AND source = ? AND photo_path IS NOT NULL AND photo_path != \'\'',
         whereArgs: [userPlantId, today, 'daily_task'],
         orderBy: 'logged_at DESC',
         limit: 1,
@@ -633,12 +631,16 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
     }
   }
 
-  Future<bool> _isPhotoDueForPlant(String userPlantId, {int cycleDays = 3}) async {
+  Future<bool> _isPhotoDueForPlant(
+    String userPlantId, {
+    int cycleDays = 3,
+  }) async {
     final db = await _dbHelper.database;
     final rows = await db.query(
       DatabaseHelper.tableGrowthLogs,
       columns: ['logged_at'],
-      where: 'user_plant_id = ? AND photo_path IS NOT NULL AND photo_path != \'\'',
+      where:
+          'user_plant_id = ? AND photo_path IS NOT NULL AND photo_path != \'\'',
       whereArgs: [userPlantId],
       orderBy: 'logged_at DESC',
       limit: 1,
@@ -650,7 +652,9 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
 
     final now = DateTime.now();
     final diffDays = DateTime(now.year, now.month, now.day)
-        .difference(DateTime(lastPhotoDate.year, lastPhotoDate.month, lastPhotoDate.day))
+        .difference(
+          DateTime(lastPhotoDate.year, lastPhotoDate.month, lastPhotoDate.day),
+        )
         .inDays;
 
     return diffDays >= cycleDays;
@@ -662,19 +666,25 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
       final db = await _dbHelper.database;
       final parsedUserId = int.tryParse(userId ?? '1') ?? 1;
 
-      final plantXpResult = await db.rawQuery('''
+      final plantXpResult = await db.rawQuery(
+        '''
         SELECT COALESCE(SUM(xp), 0) as total_xp
         FROM ${DatabaseHelper.tableUserPlants}
         WHERE (user_id = ? OR CAST(user_id AS TEXT) = ?)
-      ''', [parsedUserId, userId ?? '1']);
+      ''',
+        [parsedUserId, userId ?? '1'],
+      );
       final plantXp = Sqflite.firstIntValue(plantXpResult) ?? 0;
 
-      final logXpResult = await db.rawQuery('''
+      final logXpResult = await db.rawQuery(
+        '''
         SELECT COALESCE(SUM(c.xp_awarded), 0) as total_xp
         FROM ${DatabaseHelper.tableCareActionLogs} c
         JOIN ${DatabaseHelper.tableUserPlants} p ON c.user_plant_id = p.id
         WHERE (p.user_id = ? OR CAST(p.user_id AS TEXT) = ?)
-      ''', [parsedUserId, userId ?? '1']);
+      ''',
+        [parsedUserId, userId ?? '1'],
+      );
       final logXp = Sqflite.firstIntValue(logXpResult) ?? 0;
 
       final result = plantXp > logXp ? plantXp : logXp;
@@ -712,8 +722,9 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           whereArgs: [plantId, today],
         );
 
-        final completedTypes =
-            loggedTasks.map((t) => t['task_type'] as String).toSet();
+        final completedTypes = loggedTasks
+            .map((t) => t['task_type'] as String)
+            .toSet();
 
         for (final reqType in requiredTaskTypes) {
           if (!completedTypes.contains(reqType)) {

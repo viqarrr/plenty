@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 
 void main() {
   group('BadgeItem Model Tests', () {

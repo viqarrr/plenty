@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:plenty/features/profile/presentation/screens/badge_detail_screen.dart';
 
 /// Legacy shim delegating detail presentation to the full-screen [BadgeDetailScreen].

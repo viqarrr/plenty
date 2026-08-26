@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/utils/debouncer.dart';
+import 'package:plenty/features/garden/data/data_sources/plant_remote_data_source.dart';
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/models/perenual/perenual_care_guide_model.dart';
+import 'package:plenty/features/garden/domain/models/perenual/perenual_detail_model.dart';
+import 'package:plenty/features/garden/domain/models/perenual/perenual_species_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
-import 'package:plenty/features/plant_catalog/data/datasources/plant_remote_data_source.dart';
-import 'package:plenty/features/plant_catalog/domain/models/perenual_care_guide_model.dart';
-import 'package:plenty/features/plant_catalog/domain/models/perenual_detail_model.dart';
-import 'package:plenty/features/plant_catalog/domain/models/perenual_species_model.dart';
-import 'package:plenty/features/plant_catalog/presentation/controllers/choose_species_controller.dart';
+import 'package:plenty/features/garden/presentation/controllers/choose_species_controller.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class FakePlantRemoteDataSource implements PlantRemoteDataSource {
@@ -38,7 +38,8 @@ class FakePlantRemoteDataSource implements PlantRemoteDataSource {
 
   @override
   Future<List<PerenualCareGuideModel>> fetchSpeciesCareGuides(
-      int speciesId) async {
+    int speciesId,
+  ) async {
     return [];
   }
 }
@@ -100,83 +101,91 @@ void main() {
   });
 
   group('ChooseSpeciesController Unit Tests', () {
-    test('Initial state reflects defaults and loads initial catalog list',
-        () async {
-      final controller = ChooseSpeciesController(
-        plantRepository: plantRepository,
-        debouncer: Debouncer(delay: const Duration(milliseconds: 50)),
-      );
+    test(
+      'Initial state reflects defaults and loads initial catalog list',
+      () async {
+        final controller = ChooseSpeciesController(
+          plantRepository: plantRepository,
+          debouncer: Debouncer(delay: const Duration(milliseconds: 50)),
+        );
 
-      // Wait for initial load
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+        // Wait for initial load
+        await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      expect(controller.state.query, '');
-      expect(controller.state.careFilter, 'Semua');
-      expect(controller.state.isLoading, isFalse);
-      expect(controller.state.speciesList.length, 3);
-      expect(controller.state.filteredList.length, 3);
+        expect(controller.state.query, '');
+        expect(controller.state.careFilter, 'Semua');
+        expect(controller.state.isLoading, isFalse);
+        expect(controller.state.speciesList.length, 3);
+        expect(controller.state.filteredList.length, 3);
 
-      controller.dispose();
-    });
+        controller.dispose();
+      },
+    );
 
-    test('onSearchChanged sets isLoading true, debounces query, and updates list',
-        () async {
-      final debouncer = Debouncer(delay: const Duration(milliseconds: 100));
-      final controller = ChooseSpeciesController(
-        plantRepository: plantRepository,
-        debouncer: debouncer,
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+    test(
+      'onSearchChanged sets isLoading true, debounces query, and updates list',
+      () async {
+        final debouncer = Debouncer(delay: const Duration(milliseconds: 100));
+        final controller = ChooseSpeciesController(
+          plantRepository: plantRepository,
+          debouncer: debouncer,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      // Trigger search
-      controller.onSearchChanged('monstera');
+        // Trigger search
+        controller.onSearchChanged('monstera');
 
-      // Immediately: query is set, isLoading is true
-      expect(controller.state.query, 'monstera');
-      expect(controller.state.isLoading, isTrue);
+        // Immediately: query is set, isLoading is true
+        expect(controller.state.query, 'monstera');
+        expect(controller.state.isLoading, isTrue);
 
-      // Wait for debouncer delay to lapse
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+        // Wait for debouncer delay to lapse
+        await Future<void>.delayed(const Duration(milliseconds: 300));
 
-      expect(controller.state.isLoading, isFalse);
-      expect(controller.state.filteredList.length, 1);
-      expect(controller.state.filteredList.first.commonName,
-          'Monstera Deliciosa');
+        expect(controller.state.isLoading, isFalse);
+        expect(controller.state.filteredList.length, 1);
+        expect(
+          controller.state.filteredList.first.commonName,
+          'Monstera Deliciosa',
+        );
 
-      controller.dispose();
-    });
+        controller.dispose();
+      },
+    );
 
-    test('Filtering by care level filters list by Easy Care and Low Light',
-        () async {
-      final controller = ChooseSpeciesController(
-        plantRepository: plantRepository,
-        debouncer: Debouncer(delay: const Duration(milliseconds: 50)),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+    test(
+      'Filtering by care level filters list by Easy Care and Low Light',
+      () async {
+        final controller = ChooseSpeciesController(
+          plantRepository: plantRepository,
+          debouncer: Debouncer(delay: const Duration(milliseconds: 50)),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      // Initial count is 3
-      expect(controller.state.filteredList.length, 3);
+        // Initial count is 3
+        expect(controller.state.filteredList.length, 3);
 
-      // 1. Filter by Easy Care -> Monstera & Snake Plant (2)
-      controller.setCareFilter('Easy Care');
-      expect(controller.state.careFilter, 'Easy Care');
-      expect(controller.state.filteredList.length, 2);
-      expect(
-        controller.state.filteredList.map((p) => p.commonName),
-        containsAll(['Monstera Deliciosa', 'Snake Plant']),
-      );
+        // 1. Filter by Easy Care -> Monstera & Snake Plant (2)
+        controller.setCareFilter('Easy Care');
+        expect(controller.state.careFilter, 'Easy Care');
+        expect(controller.state.filteredList.length, 2);
+        expect(
+          controller.state.filteredList.map((p) => p.commonName),
+          containsAll(['Monstera Deliciosa', 'Snake Plant']),
+        );
 
-      // 2. Filter by Pencahayaan Rendah -> Snake Plant (1)
-      controller.setCareFilter('Pencahayaan Rendah');
-      expect(controller.state.careFilter, 'Pencahayaan Rendah');
-      expect(controller.state.filteredList.length, 1);
-      expect(controller.state.filteredList.first.commonName, 'Snake Plant');
+        // 2. Filter by Pencahayaan Rendah -> Snake Plant (1)
+        controller.setCareFilter('Pencahayaan Rendah');
+        expect(controller.state.careFilter, 'Pencahayaan Rendah');
+        expect(controller.state.filteredList.length, 1);
+        expect(controller.state.filteredList.first.commonName, 'Snake Plant');
 
-      // 3. Reset filter to 'Semua' -> All 3
-      controller.setCareFilter('Semua');
-      expect(controller.state.filteredList.length, 3);
+        // 3. Reset filter to 'Semua' -> All 3
+        controller.setCareFilter('Semua');
+        expect(controller.state.filteredList.length, 3);
 
-      controller.dispose();
-    });
+        controller.dispose();
+      },
+    );
   });
 }

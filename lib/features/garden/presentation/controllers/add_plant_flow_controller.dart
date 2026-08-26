@@ -3,14 +3,15 @@ import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
 
 enum AddPlantEntryPoint { onboarding, emptyState, fabHome }
 
 class AddPlantFlowState {
-  final int currentStep; // 0: Select Species, 1: Species Preview, 2: Name & Photo, 3: Environment, 4: Area, 5: Light, 6: Time Capsule
+  final int
+  currentStep; // 0: Select Species, 1: Species Preview, 2: Name & Photo, 3: Environment, 4: Area, 5: Light, 6: Time Capsule
   final PlantCatalogModel? selectedSpecies;
   final String plantName;
   final String? customPhotoPath;
@@ -48,10 +49,7 @@ class AddPlantFlowState {
 
   /// Helper factory for initial state
   factory AddPlantFlowState.initial(AddPlantEntryPoint entryPoint) =>
-      AddPlantFlowState(
-        plantedDate: DateTime.now(),
-        entryPoint: entryPoint,
-      );
+      AddPlantFlowState(plantedDate: DateTime.now(), entryPoint: entryPoint);
 
   /// Environment string format ('Indoor' or 'Outdoor')
   String get environment => isIndoor ? 'Indoor' : 'Outdoor';
@@ -150,8 +148,8 @@ class AddPlantFlowController extends ChangeNotifier {
     IPlantRepository? plantRepo,
     AddPlantEntryPoint entryPoint = AddPlantEntryPoint.fabHome,
     this.userId = 'usr_default',
-  })  : _plantRepo = plantRepo ?? Injector.plantRepository,
-        _state = AddPlantFlowState.initial(entryPoint);
+  }) : _plantRepo = plantRepo ?? Injector.plantRepository,
+       _state = AddPlantFlowState.initial(entryPoint);
 
   @override
   void dispose() {
@@ -192,7 +190,9 @@ class AddPlantFlowController extends ChangeNotifier {
         plantedDate: stage == 'seed' ? DateTime.now() : _state.plantedDate,
         initialHeightCm: stage == 'seed' && _state.initialHeightCm == 25.0
             ? 2.0
-            : (stage == 'mature' && _state.initialHeightCm == 2.0 ? 25.0 : _state.initialHeightCm),
+            : (stage == 'mature' && _state.initialHeightCm == 2.0
+                  ? 25.0
+                  : _state.initialHeightCm),
       ),
     );
   }
@@ -218,19 +218,18 @@ class AddPlantFlowController extends ChangeNotifier {
         newRoom = 'Ruang Tamu';
       }
     } else {
-      if (const ['Ruang Tamu', 'Kamar Tidur', 'Dapur', 'Ruang Kerja']
-              .contains(newRoom) ||
+      if (const [
+            'Ruang Tamu',
+            'Kamar Tidur',
+            'Dapur',
+            'Ruang Kerja',
+          ].contains(newRoom) ||
           newRoom.isEmpty) {
         newRoom = 'Balkon';
       }
     }
 
-    _updateState(
-      _state.copyWith(
-        isIndoor: isIndoor,
-        selectedRoom: newRoom,
-      ),
-    );
+    _updateState(_state.copyWith(isIndoor: isIndoor, selectedRoom: newRoom));
   }
 
   void setDrainage(String drainage) {
@@ -283,15 +282,16 @@ class AddPlantFlowController extends ChangeNotifier {
       final effectiveUserId = (userId != 'usr_default' && userId.isNotEmpty)
           ? userId
           : ((user?.id != null && user!.id! > 0)
-              ? user.id.toString()
-              : (userId.isNotEmpty ? userId : '1'));
+                ? user.id.toString()
+                : (userId.isNotEmpty ? userId : '1'));
 
       final name = _state.plantName.trim().isNotEmpty
           ? _state.plantName.trim()
           : (_state.selectedSpecies?.commonName ?? 'Tanaman Baru');
 
       final customPhoto = _state.customPhotoPath;
-      final coverPhoto = customPhoto ??
+      final coverPhoto =
+          customPhoto ??
           _state.selectedSpecies?.imageUrl ??
           _state.selectedSpecies?.localImagePath;
 
@@ -320,11 +320,15 @@ class AddPlantFlowController extends ChangeNotifier {
           _updateState(_state.copyWith(isLoading: false));
           return result;
         case Error(:final failure):
-          _updateState(_state.copyWith(isLoading: false, errorMessage: failure.message));
+          _updateState(
+            _state.copyWith(isLoading: false, errorMessage: failure.message),
+          );
           return result;
       }
     } catch (e) {
-      _updateState(_state.copyWith(isLoading: false, errorMessage: e.toString()));
+      _updateState(
+        _state.copyWith(isLoading: false, errorMessage: e.toString()),
+      );
       return Error(DatabaseFailure(e.toString()));
     }
   }

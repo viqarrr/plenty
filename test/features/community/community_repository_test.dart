@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/features/community/data/repositories/community_repository_impl.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -23,23 +23,19 @@ void main() {
     );
     await dbHelper.deleteDb();
     final db = await dbHelper.database;
-    await db.insert(
-      'users',
-      {
-        'id': 2,
-        'email': 'user2@plenty.app',
-        'username': 'user_two',
-        'password': '',
-        'display_name': 'User Two',
-        'streak_count': 0,
-        'longest_streak': 0,
-        'total_xp': 0,
-        'level': 1,
-        'unlocked_badges_count': 0,
-        'created_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.ignore,
-    );
+    await db.insert('users', {
+      'id': 2,
+      'email': 'user2@plenty.app',
+      'username': 'user_two',
+      'password': '',
+      'display_name': 'User Two',
+      'streak_count': 0,
+      'longest_streak': 0,
+      'total_xp': 0,
+      'level': 1,
+      'unlocked_badges_count': 0,
+      'created_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
     repository = CommunityRepositoryImpl(dbHelper: dbHelper);
   });
 
@@ -48,14 +44,17 @@ void main() {
   });
 
   group('CommunityRepository Unit Tests', () {
-    test('getPosts auto-seeds default posts and new user has isLiked false on all', () async {
-      final postsRes = await repository.getPosts(currentUserId: 2);
-      final posts = postsRes.dataOrNull ?? [];
-      expect(posts.isNotEmpty, isTrue);
-      expect(posts.length, greaterThanOrEqualTo(3));
-      // For a new user (ID: 2), all posts should have isLiked == false
-      expect(posts.every((p) => p.isLiked == false), isTrue);
-    });
+    test(
+      'getPosts auto-seeds default posts and new user has isLiked false on all',
+      () async {
+        final postsRes = await repository.getPosts(currentUserId: 2);
+        final posts = postsRes.dataOrNull ?? [];
+        expect(posts.isNotEmpty, isTrue);
+        expect(posts.length, greaterThanOrEqualTo(3));
+        // For a new user (ID: 2), all posts should have isLiked == false
+        expect(posts.every((p) => p.isLiked == false), isTrue);
+      },
+    );
 
     test('getPosts filters accurately by category', () async {
       final tanyaPostsRes = await repository.getPosts(category: 'pertanyaan');
@@ -71,64 +70,73 @@ void main() {
       expect(tipsPosts.every((p) => p.category == 'tips'), isTrue);
     });
 
-    test('createPost inserts new post and retrieves it with user attribution', () async {
-      final newPost = CommunityPost(
-        id: 'test_post_1',
-        authorName: 'rian_plant',
-        timeAgo: 'Baru saja',
-        category: 'pertanyaan',
-        content: 'Bagaimana cara mengatasi kutu putih pada aglonema?',
-        createdAt: DateTime.now(),
-      );
+    test(
+      'createPost inserts new post and retrieves it with user attribution',
+      () async {
+        final newPost = CommunityPost(
+          id: 'test_post_1',
+          authorName: 'rian_plant',
+          timeAgo: 'Baru saja',
+          category: 'pertanyaan',
+          content: 'Bagaimana cara mengatasi kutu putih pada aglonema?',
+          createdAt: DateTime.now(),
+        );
 
-      final createdRes = await repository.createPost(newPost, userId: 1);
-      final created = createdRes.dataOrNull!;
-      expect(created.id, 'test_post_1');
+        final createdRes = await repository.createPost(newPost, userId: 1);
+        final created = createdRes.dataOrNull!;
+        expect(created.id, 'test_post_1');
 
-      final postsRes = await repository.getPosts(category: 'pertanyaan');
-      final posts = postsRes.dataOrNull ?? [];
-      expect(posts.any((p) => p.id == 'test_post_1'), isTrue);
-    });
+        final postsRes = await repository.getPosts(category: 'pertanyaan');
+        final posts = postsRes.dataOrNull ?? [];
+        expect(posts.any((p) => p.id == 'test_post_1'), isTrue);
+      },
+    );
 
-    test('createPost with attached badge saves and retrieves badge relation', () async {
-      const badge = BadgeItem(
-        id: 'first_plant',
-        title: 'Adopsi Pertama',
-        desc: 'Mengadopsi tanaman pertama',
-        iconName: 'eco',
-        isUnlocked: true,
-        level: 1,
-        progress: 1,
-        total: 1,
-        bgColorHex: '#EBF7F1',
-        accentColorHex: '#2D6A4F',
-      );
+    test(
+      'createPost with attached badge saves and retrieves badge relation',
+      () async {
+        const badge = BadgeItem(
+          id: 'first_plant',
+          title: 'Adopsi Pertama',
+          desc: 'Mengadopsi tanaman pertama',
+          iconName: 'eco',
+          isUnlocked: true,
+          level: 1,
+          progress: 1,
+          total: 1,
+          bgColorHex: '#EBF7F1',
+          accentColorHex: '#2D6A4F',
+        );
 
-      final postWithBadge = CommunityPost(
-        id: 'badge_post_1',
-        authorName: 'alex_green',
-        timeAgo: 'Baru saja',
-        category: 'pencapaian',
-        content: 'Berhasil membuka lencana Adopsi Pertama!',
-        attachedBadge: badge,
-        createdAt: DateTime.now(),
-      );
+        final postWithBadge = CommunityPost(
+          id: 'badge_post_1',
+          authorName: 'alex_green',
+          timeAgo: 'Baru saja',
+          category: 'pencapaian',
+          content: 'Berhasil membuka lencana Adopsi Pertama!',
+          attachedBadge: badge,
+          createdAt: DateTime.now(),
+        );
 
-      await repository.createPost(postWithBadge, userId: 1);
+        await repository.createPost(postWithBadge, userId: 1);
 
-      final postsRes = await repository.getPosts(category: 'pencapaian');
-      final posts = postsRes.dataOrNull ?? [];
-      final found = posts.firstWhere((p) => p.id == 'badge_post_1');
-      expect(found.attachedBadge, isNotNull);
-      expect(found.attachedBadge?.id, 'first_plant');
-    });
+        final postsRes = await repository.getPosts(category: 'pencapaian');
+        final posts = postsRes.dataOrNull ?? [];
+        final found = posts.firstWhere((p) => p.id == 'badge_post_1');
+        expect(found.attachedBadge, isNotNull);
+        expect(found.attachedBadge?.id, 'first_plant');
+      },
+    );
 
     test('toggleLike isolates like states between different users', () async {
       final initialPostsRes = await repository.getPosts(currentUserId: 1);
       final targetPost = initialPostsRes.dataOrNull!.first;
 
       // User 1 likes post
-      final user1PostRes = await repository.toggleLike(targetPost.id, userId: 1);
+      final user1PostRes = await repository.toggleLike(
+        targetPost.id,
+        userId: 1,
+      );
       final user1Post = user1PostRes.dataOrNull!;
       expect(user1Post.isLiked, isTrue);
 
@@ -140,19 +148,27 @@ void main() {
       expect(user2Post.likesCount, user1Post.likesCount);
 
       // User 2 likes post as well -> count increments
-      final user2PostAfterLikeRes = await repository.toggleLike(targetPost.id, userId: 2);
+      final user2PostAfterLikeRes = await repository.toggleLike(
+        targetPost.id,
+        userId: 2,
+      );
       final user2PostAfterLike = user2PostAfterLikeRes.dataOrNull!;
       expect(user2PostAfterLike.isLiked, isTrue);
       expect(user2PostAfterLike.likesCount, user1Post.likesCount + 1);
 
       // User 1 unlikes post -> user 2 still has isLiked == true
-      final user1PostAfterUnlikeRes = await repository.toggleLike(targetPost.id, userId: 1);
+      final user1PostAfterUnlikeRes = await repository.toggleLike(
+        targetPost.id,
+        userId: 1,
+      );
       final user1PostAfterUnlike = user1PostAfterUnlikeRes.dataOrNull!;
       expect(user1PostAfterUnlike.isLiked, isFalse);
 
       final user2PostsFinalRes = await repository.getPosts(currentUserId: 2);
       final user2PostsFinal = user2PostsFinalRes.dataOrNull ?? [];
-      final user2PostFinal = user2PostsFinal.firstWhere((p) => p.id == targetPost.id);
+      final user2PostFinal = user2PostsFinal.firstWhere(
+        (p) => p.id == targetPost.id,
+      );
       expect(user2PostFinal.isLiked, isTrue);
     });
 
@@ -197,7 +213,10 @@ void main() {
 
       await repository.createPost(newPost, userId: 1);
 
-      final deleteRes = await repository.deletePost('delete_test_post', userId: 1);
+      final deleteRes = await repository.deletePost(
+        'delete_test_post',
+        userId: 1,
+      );
       expect(deleteRes.isSuccess, isTrue);
 
       final postsRes = await repository.getPosts();
@@ -205,27 +224,30 @@ void main() {
       expect(posts.any((p) => p.id == 'delete_test_post'), isFalse);
     });
 
-    test('deletePost rejects deletion when performed by a non-author', () async {
-      final newPost = CommunityPost(
-        id: 'user1_post',
-        authorName: 'rian_plant',
-        timeAgo: 'Baru saja',
-        category: 'tips',
-        content: 'Postingan milik user 1',
-        createdAt: DateTime.now(),
-      );
+    test(
+      'deletePost rejects deletion when performed by a non-author',
+      () async {
+        final newPost = CommunityPost(
+          id: 'user1_post',
+          authorName: 'rian_plant',
+          timeAgo: 'Baru saja',
+          category: 'tips',
+          content: 'Postingan milik user 1',
+          createdAt: DateTime.now(),
+        );
 
-      await repository.createPost(newPost, userId: 1);
+        await repository.createPost(newPost, userId: 1);
 
-      // Attempt deletion as user 2
-      final deleteRes = await repository.deletePost('user1_post', userId: 2);
-      expect(deleteRes.isError, isTrue);
+        // Attempt deletion as user 2
+        final deleteRes = await repository.deletePost('user1_post', userId: 2);
+        expect(deleteRes.isError, isTrue);
 
-      // Post should still exist
-      final postsRes = await repository.getPosts();
-      final posts = postsRes.dataOrNull ?? [];
-      expect(posts.any((p) => p.id == 'user1_post'), isTrue);
-    });
+        // Post should still exist
+        final postsRes = await repository.getPosts();
+        final posts = postsRes.dataOrNull ?? [];
+        expect(posts.any((p) => p.id == 'user1_post'), isTrue);
+      },
+    );
 
     test('updatePost rejects editing when performed by a non-author', () async {
       final newPost = CommunityPost(
@@ -244,7 +266,10 @@ void main() {
       );
 
       // Attempt edit as user 2
-      final updateRes = await repository.updatePost(unauthorizedDraft, userId: 2);
+      final updateRes = await repository.updatePost(
+        unauthorizedDraft,
+        userId: 2,
+      );
       expect(updateRes.isError, isTrue);
 
       // Content remains original

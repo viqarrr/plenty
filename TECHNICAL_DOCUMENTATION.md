@@ -336,7 +336,7 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | `TEXT` | `PRIMARY KEY` | Schedule ID (`sched_<plantId>_<taskType>`). |
 | `user_plant_id` | `TEXT` | `NOT NULL, FK -> user_plants(id) ON DELETE CASCADE` | Associated plant ID. |
-| `task_type` | `TEXT` | `NOT NULL` | Task ID (`'siram'`, `'bersih_bersih'`, `'monitor_tinggi'`). |
+| `task_type` | `TEXT` | `NOT NULL` | Task ID (`'siram'`, `'bersih'`, `'monitor'`). |
 | `interval_days` | `INTEGER` | `NOT NULL` | Schedule interval in days. |
 | `last_performed_at` | `TEXT` | `NULL` | Last completion timestamp. |
 | `next_due_date` | `TEXT` | `NOT NULL` | ISO8601 target due date. |

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 
 /// Presentation extension providing visual Flutter widgets and colors from BadgeItem domain model.
 extension BadgeItemUIExtension on BadgeItem {
@@ -33,23 +33,7 @@ extension BadgeItemUIExtension on BadgeItem {
     }
   }
 
-  /// Resolves background Color from hex string.
-  Color get bgColor => _parseHexColor(bgColorHex, const Color(0xFFEBF7F1));
+  Color get bgColor => const Color(0xFFEBF7F1);
 
-  /// Resolves accent Color from hex string.
-  Color get accentColor => _parseHexColor(accentColorHex, const Color(0xFF2D6A4F));
-
-  static Color _parseHexColor(String hexString, Color fallback) {
-    try {
-      final cleanHex = hexString.replaceAll('#', '').trim();
-      if (cleanHex.length == 6) {
-        return Color(int.parse('FF$cleanHex', radix: 16));
-      } else if (cleanHex.length == 8) {
-        return Color(int.parse(cleanHex, radix: 16));
-      }
-      return fallback;
-    } catch (_) {
-      return fallback;
-    }
-  }
+  Color get accentColor => const Color(0xFF2D6A4F);
 }

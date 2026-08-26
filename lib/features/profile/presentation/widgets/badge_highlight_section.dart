@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
-import 'package:plenty/core/domain/models/badge_item.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/badge_ui_extension.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
+import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:plenty/features/profile/presentation/screens/all_badges_screen.dart';
 import 'package:plenty/features/profile/presentation/screens/badge_detail_screen.dart';

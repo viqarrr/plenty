@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
-import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/error/result.dart';
+import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/features/garden/domain/models/plant_catalog_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/catalog_plant_card.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/catalog_search_bar.dart';
+import 'package:plenty/features/garden/presentation/widgets/catalog_plant_card.dart';
+import 'package:plenty/features/garden/presentation/widgets/catalog_search_bar.dart';
 
 class SelectSpeciesStep extends StatefulWidget {
   final PlantCatalogModel? selectedSpecies;

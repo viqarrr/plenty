@@ -29,19 +29,18 @@ void main() {
     await dbHelper.deleteDb();
 
     final db = await dbHelper.database;
-    await db.insert(
-      DatabaseHelper.tableUsers,
-      {
-        'id': 1,
-        'email': 'care_user@plenty.app',
-        'display_name': 'Care User',
-        'created_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(DatabaseHelper.tableUsers, {
+      'id': 1,
+      'email': 'care_user@plenty.app',
+      'display_name': 'Care User',
+      'created_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
-    careRepo = DailyCareRepositoryImpl(dbHelper: dbHelper, plantRepo: plantRepo);
+    careRepo = DailyCareRepositoryImpl(
+      dbHelper: dbHelper,
+      plantRepo: plantRepo,
+    );
 
     // Seed test plant
     final addResultRes = await plantRepo.addPlant(
@@ -57,16 +56,15 @@ void main() {
     await db.update(
       DatabaseHelper.tableCareSchedules,
       {
-        'next_due_date':
-            DateTime.now().subtract(const Duration(hours: 1)).toIso8601String(),
+        'next_due_date': DateTime.now()
+            .subtract(const Duration(hours: 1))
+            .toIso8601String(),
       },
       where: 'user_plant_id = ? AND task_type = ?',
       whereArgs: [addResult.plant.id, 'siram'],
     );
 
-    controller = DailyCareController(
-      repository: careRepo,
-    );
+    controller = DailyCareController(repository: careRepo);
   });
 
   tearDown(() async {
@@ -75,100 +73,123 @@ void main() {
   });
 
   group('DailyCareController 2-Layer MVP Tests', () {
-    test('Loads today care items with mandatory log and due schedules', () async {
-      await controller.loadTodayCare();
+    test(
+      'Loads today care items with mandatory log and due schedules',
+      () async {
+        await controller.loadTodayCare();
 
-      final state = controller.state;
-      expect(state.isLoading, isFalse);
-      expect(state.heightLogs.isNotEmpty, isTrue);
-      expect(state.heightLogs.first.plant.nickname, 'Monstera Test');
-      expect(state.heightLogs.first.lastRecordedHeight, 42.0);
-      expect(state.heightLogs.first.isCompletedToday, isFalse);
+        final state = controller.state;
+        expect(state.isLoading, isFalse);
+        expect(state.heightLogs.isNotEmpty, isTrue);
+        expect(state.heightLogs.first.plant.nickname, 'Monstera Test');
+        expect(state.heightLogs.first.lastRecordedHeight, 42.0);
+        expect(state.heightLogs.first.isCompletedToday, isFalse);
 
-      expect(state.dueSchedules.isNotEmpty, isTrue);
-      expect(state.dueSchedules.first.taskType, 'siram');
-      expect(state.dueSchedules.first.subtitle, 'Siram 250ml air');
-    });
+        expect(state.dueSchedules.isNotEmpty, isTrue);
+        expect(state.dueSchedules.first.taskType, 'siram');
+        expect(state.dueSchedules.first.subtitle, 'Siram 250ml air');
+      },
+    );
 
-    test('completeHeightTask atomically logs height, adds XP, and updates completed state', () async {
-      await controller.loadTodayCare();
-      final plant = controller.state.heightLogs.first.plant;
+    test(
+      'completeHeightTask atomically logs height, adds XP, and updates completed state',
+      () async {
+        await controller.loadTodayCare();
+        final plant = controller.state.heightLogs.first.plant;
 
-      await controller.completeHeightTask(
-        plant: plant,
-        heightCm: 43.5,
-        note: 'Tunas baru sehat',
-      );
+        await controller.completeHeightTask(
+          plant: plant,
+          heightCm: 43.5,
+          note: 'Tunas baru sehat',
+        );
 
-      final updatedState = controller.state;
-      expect(updatedState.heightLogs.first.isCompletedToday, isTrue);
-      expect(updatedState.heightLogs.first.loggedHeightToday, 43.5);
+        final updatedState = controller.state;
+        expect(updatedState.heightLogs.first.isCompletedToday, isTrue);
+        expect(updatedState.heightLogs.first.loggedHeightToday, 43.5);
 
-      // Verify care history recorded
-      final historyRes = await careRepo.getCareHistory(userId: '1');
-      final history = historyRes.dataOrNull ?? [];
-      expect(history.any((h) => h.taskType == 'monitor_tinggi'), isTrue);
-      expect(history.first.activityDetail, 'Tinggi dicatat: 43.5 cm');
-      expect(history.first.xpAwarded, 15);
-    });
+        // Verify care history recorded
+        final historyRes = await careRepo.getCareHistory(userId: '1');
+        final history = historyRes.dataOrNull ?? [];
+        expect(history.any((h) => h.taskType == 'monitor'), isTrue);
+        expect(history.first.activityDetail, 'Tinggi dicatat: 43.5 cm');
+        expect(history.first.xpAwarded, 15);
+      },
+    );
 
-    test('completeHeightTask with photo atomically saves photo and updates cover', () async {
-      await controller.loadTodayCare();
-      final plant = controller.state.heightLogs.first.plant;
+    test(
+      'completeHeightTask with photo atomically saves photo and updates cover',
+      () async {
+        await controller.loadTodayCare();
+        final plant = controller.state.heightLogs.first.plant;
 
-      // First time with no previous photo -> isPhotoDue should be true
-      expect(controller.state.heightLogs.first.isPhotoDue, isTrue);
+        // First time with no previous photo -> isPhotoDue should be true
+        expect(controller.state.heightLogs.first.isPhotoDue, isTrue);
 
-      await controller.completeHeightTask(
-        plant: plant,
-        heightCm: 44.0,
-        note: 'Foto tunas',
-        photoPath: 'assets/images/sample.jpg',
-      );
+        await controller.completeHeightTask(
+          plant: plant,
+          heightCm: 44.0,
+          note: 'Foto tunas',
+          photoPath: 'assets/images/sample.jpg',
+        );
 
-      final updatedState = controller.state;
-      expect(updatedState.heightLogs.first.isCompletedToday, isTrue);
-      expect(updatedState.heightLogs.first.loggedPhotoPathToday, 'assets/images/sample.jpg');
+        final updatedState = controller.state;
+        expect(updatedState.heightLogs.first.isCompletedToday, isTrue);
+        expect(
+          updatedState.heightLogs.first.loggedPhotoPathToday,
+          'assets/images/sample.jpg',
+        );
 
-      final historyRes = await careRepo.getCareHistory(userId: '1');
-      final history = historyRes.dataOrNull ?? [];
-      expect(history.first.photoPath, 'assets/images/sample.jpg');
-    });
+        final historyRes = await careRepo.getCareHistory(userId: '1');
+        final history = historyRes.dataOrNull ?? [];
+        expect(history.first.photoPath, 'assets/images/sample.jpg');
+      },
+    );
 
-    test('updateHeightTask updates growth log, note, and plant height without duplicate XP', () async {
-      await controller.loadTodayCare();
-      final plant = controller.state.heightLogs.first.plant;
+    test(
+      'updateHeightTask updates growth log, note, and plant height without duplicate XP',
+      () async {
+        await controller.loadTodayCare();
+        final plant = controller.state.heightLogs.first.plant;
 
-      // 1. Initial completion
-      await controller.completeHeightTask(
-        plant: plant,
-        heightCm: 44.0,
-        note: 'Tinggi awal',
-      );
+        // 1. Initial completion
+        await controller.completeHeightTask(
+          plant: plant,
+          heightCm: 44.0,
+          note: 'Tinggi awal',
+        );
 
-      // 2. User edits/updates their log
-      await controller.updateHeightTask(
-        plant: plant,
-        heightCm: 45.5,
-        note: 'Revisi setelah diukur ulang',
-        photoPath: 'assets/images/revised.jpg',
-      );
+        // 2. User edits/updates their log
+        await controller.updateHeightTask(
+          plant: plant,
+          heightCm: 45.5,
+          note: 'Revisi setelah diukur ulang',
+          photoPath: 'assets/images/revised.jpg',
+        );
 
-      final updatedState = controller.state;
-      expect(updatedState.heightLogs.first.isCompletedToday, isTrue);
-      expect(updatedState.heightLogs.first.loggedHeightToday, 45.5);
-      expect(updatedState.heightLogs.first.loggedNoteToday, 'Revisi setelah diukur ulang');
-      expect(updatedState.heightLogs.first.loggedPhotoPathToday, 'assets/images/revised.jpg');
+        final updatedState = controller.state;
+        expect(updatedState.heightLogs.first.isCompletedToday, isTrue);
+        expect(updatedState.heightLogs.first.loggedHeightToday, 45.5);
+        expect(
+          updatedState.heightLogs.first.loggedNoteToday,
+          'Revisi setelah diukur ulang',
+        );
+        expect(
+          updatedState.heightLogs.first.loggedPhotoPathToday,
+          'assets/images/revised.jpg',
+        );
 
-      // Verify latest height and photo in care repo
-      final latestHeightRes = await careRepo.getLatestRecordedHeight(plant.id);
-      expect(latestHeightRes.dataOrNull, 45.5);
-      final latestPhotoRes = await careRepo.getLoggedPhotoToday(plant.id);
-      expect(latestPhotoRes.dataOrNull, 'assets/images/revised.jpg');
+        // Verify latest height and photo in care repo
+        final latestHeightRes = await careRepo.getLatestRecordedHeight(
+          plant.id,
+        );
+        expect(latestHeightRes.dataOrNull, 45.5);
+        final latestPhotoRes = await careRepo.getLoggedPhotoToday(plant.id);
+        expect(latestPhotoRes.dataOrNull, 'assets/images/revised.jpg');
 
-      // Verify user_plants table has updated plant height
-      final plantRes = await plantRepo.getPlantById(plant.id);
-      expect(plantRes.dataOrNull?.currentHeightCm, 45.5);
-    });
+        // Verify user_plants table has updated plant height
+        final plantRes = await plantRepo.getPlantById(plant.id);
+        expect(plantRes.dataOrNull?.currentHeightCm, 45.5);
+      },
+    );
   });
 }

@@ -126,7 +126,7 @@ CREATE TABLE user_plants (
 CREATE TABLE care_schedules (
   id TEXT PRIMARY KEY,
   user_plant_id TEXT NOT NULL REFERENCES user_plants(id),
-  task_type TEXT NOT NULL,          -- v2: 'siram' | 'bersih_bersih' | 'monitor_tinggi'  (cek_hama removed)
+  task_type TEXT NOT NULL,          -- v2: 'siram' | 'bersih' | 'monitor'  (cek_hama removed)
   interval_days INTEGER,
   last_performed_at TEXT,
   next_due_date TEXT,
@@ -198,8 +198,8 @@ No XP curve was specified in the diagram — this plan assumes a simple, tunable
 class XpConfig {
   static const Map<String, int> xpPerTask = {
     'siram': 10,
-    'bersih_bersih': 10,
-    'monitor_tinggi': 15,   // slightly higher — requires actual input, not just a tap
+    'bersih': 10,
+    'monitor': 15,   // slightly higher — requires actual input, not just a tap
   };
   static const int xpPerLevel = 100;   // Level = (xp / 100).floor() + 1
   static int levelForXp(int xp) => (xp ~/ xpPerLevel) + 1;
@@ -410,7 +410,7 @@ class PlantRepository {
 - [ ] `care_repository.dart`:
   - `getTodaysTasks(userPlantId)` → always includes `bersih_bersih` + `monitor_tinggi`; includes `siram` only if due (unchanged branch logic, new task set)
   - `completeSimpleTask(userPlantId, taskType)` for `bersih_bersih` (tap-to-complete)
-  - `completeHeightTask(userPlantId, heightCm)` → **not just a checkbox**: inserts `growth_logs` row (`source='daily_task'`), then logs `care_action_logs(task_type='monitor_tinggi')`, then calls `growth_repository.awardXp(userPlantId, 'monitor_tinggi')`
+  - `completeHeightTask(userPlantId, heightCm)` → **not just a checkbox**: inserts `growth_logs` row (`source='daily_task'`), then logs `care_action_logs(task_type='monitor')`, then calls `growth_repository.awardXp(userPlantId, 'monitor')`
   - `completeWateringTask(userPlantId)` → logs action, resets `care_schedules.next_due_date` (unchanged from v1)
 - [ ] **Daily Tasks Card** on Home — aggregate view across all active plants (per diagram, task card lives at Home level, not nested in a per-plant screen); each task row expands per-plant if the user has more than one plant due for that task
 - [ ] XP award wiring: every `completeXTask` call also calls `growth_repository.awardXp(userPlantId, taskType)`:
@@ -440,7 +440,7 @@ lib/data/repositories/growth_repository.dart   # + awardXp
 enum HomeState { empty, populated }
 
 class CareRepository {
-  Future<List<String>> getTodaysTaskTypes(String userPlantId); // ['bersih_bersih','monitor_tinggi', if due: 'siram']
+  Future<List<String>> getTodaysTaskTypes(String userPlantId); // ['bersih','monitor', if due: 'siram']
   Future<void> completeSimpleTask({required String userPlantId, required String taskType});
   Future<void> completeHeightTask({required String userPlantId, required double heightCm});
   Future<void> completeWateringTask({required String userPlantId});

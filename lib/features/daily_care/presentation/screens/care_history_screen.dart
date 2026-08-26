@@ -2,11 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
-import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/error/result.dart';
-import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/core/theme/app_typography.dart';
+import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/features/daily_care/domain/models/care_history_item.dart';
 import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
 
@@ -40,8 +40,9 @@ class _CareHistoryScreenState extends State<CareHistoryScreen> {
     });
 
     final user = await PreferenceHandler.getUser();
-    final userId =
-        (user?.id != null && user!.id! > 0) ? user.id.toString() : '1';
+    final userId = (user?.id != null && user!.id! > 0)
+        ? user.id.toString()
+        : '1';
     final result = await _careRepo.getCareHistory(userId: userId);
     if (!mounted) return;
     switch (result) {
@@ -92,11 +93,11 @@ class _CareHistoryScreenState extends State<CareHistoryScreen> {
 
   IconData _getTaskIcon(String taskType) {
     switch (taskType) {
-      case 'monitor_tinggi':
+      case 'monitor':
         return Icons.straighten;
       case 'siram':
         return Icons.water_drop_outlined;
-      case 'bersih_bersih':
+      case 'bersih':
         return Icons.cleaning_services_outlined;
       default:
         return Icons.task_alt;
@@ -135,47 +136,47 @@ class _CareHistoryScreenState extends State<CareHistoryScreen> {
               child: CircularProgressIndicator(color: AppColors.forest),
             )
           : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Text(
-                      'Gagal memuat riwayat: $_errorMessage',
-                      style: AppTypography.bodyRegular.copyWith(
-                        color: AppColors.muted,
-                      ),
-                      textAlign: TextAlign.center,
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Text(
+                  'Gagal memuat riwayat: $_errorMessage',
+                  style: AppTypography.bodyRegular.copyWith(
+                    color: AppColors.muted,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          : _items.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.history_outlined,
+                    size: 48,
+                    color: AppColors.muted,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Belum ada riwayat perawatan.',
+                    style: AppTypography.calloutBold.copyWith(
+                      color: AppColors.inkSoft,
                     ),
                   ),
-                )
-              : _items.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.history_outlined,
-                            size: 48,
-                            color: AppColors.muted,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Belum ada riwayat perawatan.',
-                            style: AppTypography.calloutBold.copyWith(
-                              color: AppColors.inkSoft,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Selesaikan rutinitas harian untuk mencatat lini masa perawatan tanamanmu.',
-                            style: AppTypography.caption1Regular.copyWith(
-                              color: AppColors.muted,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    )
-                  : _buildHistoryList(),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Selesaikan rutinitas harian untuk mencatat lini masa perawatan tanamanmu.',
+                    style: AppTypography.caption1Regular.copyWith(
+                      color: AppColors.muted,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
+          : _buildHistoryList(),
     );
   }
 
@@ -198,11 +199,7 @@ class _CareHistoryScreenState extends State<CareHistoryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.only(
-                  top: 18,
-                  bottom: 8,
-                  left: 4,
-                ),
+                padding: const EdgeInsets.only(top: 18, bottom: 8, left: 4),
                 child: Text(
                   header,
                   style: AppTypography.caption1Bold.copyWith(

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
-import 'package:plenty/core/domain/models/growth_log_model.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/daily_care/data/repositories/daily_care_repository_impl.dart';
 import 'package:plenty/features/daily_care/presentation/widgets/monitor_tinggi_input_sheet.dart';
 import 'package:plenty/features/garden/data/repositories/growth_repository_impl.dart';
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
+import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/growth_repository.dart';
@@ -14,7 +14,6 @@ import 'package:plenty/features/garden/domain/repositories/plant_repository.dart
 import 'package:plenty/features/garden/presentation/screens/plant_details_screen.dart';
 import 'package:plenty/features/garden/presentation/widgets/first_reward_popup.dart';
 import 'package:plenty/features/garden/presentation/widgets/photo_timeline_stepper.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/time_capsule_modal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -40,16 +39,12 @@ void main() {
 
     // Seed default user
     final db = await dbHelper.database;
-    await db.insert(
-      DatabaseHelper.tableUsers,
-      {
-        'id': 1,
-        'email': 'user@plenty.app',
-        'display_name': 'Test User',
-        'created_at': DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert(DatabaseHelper.tableUsers, {
+      'id': 1,
+      'email': 'user@plenty.app',
+      'display_name': 'Test User',
+      'created_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     growthRepo = GrowthRepositoryImpl(dbHelper: dbHelper);
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
@@ -257,7 +252,9 @@ void main() {
       expect(find.text('Batal'), findsOneWidget);
     });
 
-    testWidgets('Editing growth log updates plant height and closes sheet', (tester) async {
+    testWidgets('Editing growth log updates plant height and closes sheet', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -346,88 +343,89 @@ void main() {
     });
 
     testWidgets(
-        'Creating time capsule from PlantDetailsScreen unlocks badge and shows FirstRewardPopup',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+      'Creating time capsule from PlantDetailsScreen unlocks badge and shows FirstRewardPopup',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      final plant = PlantModel(
-        id: 'plt_tc_reward_test',
-        userId: '1',
-        nickname: 'Philo Capsule',
-        isIndoor: true,
-        initialHeightCm: 30.0,
-        level: 1,
-        xp: 0,
-        adoptedAt: DateTime.now(),
-      );
-
-      await tester.runAsync(() async {
-        final db = await dbHelper.database;
-        await db.insert(DatabaseHelper.tableUserPlants, plant.toMap());
-        await db.insert(
-          DatabaseHelper.tableGrowthLogs,
-          GrowthLogModel(
-            id: 'log_tc_init',
-            userPlantId: plant.id,
-            heightCm: 30.0,
-            source: 'initial',
-            loggedAt: DateTime.now(),
-          ).toMap(),
+        final plant = PlantModel(
+          id: 'plt_tc_reward_test',
+          userId: '1',
+          nickname: 'Philo Capsule',
+          isIndoor: true,
+          initialHeightCm: 30.0,
+          level: 1,
+          xp: 0,
+          adoptedAt: DateTime.now(),
         );
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: PlantDetailsScreen(
-                plant: plant,
-                growthRepository: growthRepo,
-                plantRepository: plantRepo,
+        await tester.runAsync(() async {
+          final db = await dbHelper.database;
+          await db.insert(DatabaseHelper.tableUserPlants, plant.toMap());
+          await db.insert(
+            DatabaseHelper.tableGrowthLogs,
+            GrowthLogModel(
+              id: 'log_tc_init',
+              userPlantId: plant.id,
+              heightCm: 30.0,
+              source: 'initial',
+              loggedAt: DateTime.now(),
+            ).toMap(),
+          );
+
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: PlantDetailsScreen(
+                  plant: plant,
+                  growthRepository: growthRepo,
+                  plantRepository: plantRepo,
+                ),
               ),
             ),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        });
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Open modal, enter note, and save all inside runAsync
+        expect(find.text('Buat Kapsul Waktu'), findsOneWidget);
+        await tester.runAsync(() async {
+          await tester.tap(find.text('Buat Kapsul Waktu'));
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
+          await tester.enterText(
+            find.byType(TextField).first,
+            'Semoga tambah subur dan sehat!',
+          );
+          await tester.pump();
+          await tester.tap(find.text('Simpan Kapsul Waktu'));
+          await tester.pump();
+          await Future<void>.delayed(const Duration(milliseconds: 1500));
+        });
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Verify FirstRewardPopup appears for Time Capsule badge
+        expect(find.byType(RewardPopup), findsOneWidget);
+        expect(find.text('Kapsul Waktu Terbuka! ⏳'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(RewardPopup),
+            matching: find.textContaining('Philo Capsule'),
           ),
+          findsOneWidget,
         );
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-      });
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-
-      // Open modal, enter note, and save all inside runAsync
-      expect(find.text('Buat Kapsul Waktu'), findsOneWidget);
-      await tester.runAsync(() async {
-        await tester.tap(find.text('Buat Kapsul Waktu'));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
-        await tester.enterText(
-          find.byType(TextField).first,
-          'Semoga tambah subur dan sehat!',
-        );
-        await tester.pump();
-        await tester.tap(find.text('Simpan Kapsul Waktu'));
-        await tester.pump();
-        await Future<void>.delayed(const Duration(milliseconds: 1500));
-      });
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 500));
-
-      // Verify FirstRewardPopup appears for Time Capsule badge
-      expect(find.byType(FirstRewardPopup), findsOneWidget);
-      expect(find.text('Kapsul Waktu Terbuka! ⏳'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(FirstRewardPopup),
-          matching: find.textContaining('Philo Capsule'),
-        ),
-        findsOneWidget,
-      );
-
-      // Dismiss popup
-      await tester.tap(find.text('Klaim & Lanjutkan'));
-      await tester.pumpAndSettle();
-      expect(find.byType(FirstRewardPopup), findsNothing);
-    });
+        // Dismiss popup
+        await tester.tap(find.text('Klaim & Lanjutkan'));
+        await tester.pumpAndSettle();
+        expect(find.byType(RewardPopup), findsNothing);
+      },
+    );
   });
 }

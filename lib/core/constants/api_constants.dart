@@ -13,10 +13,7 @@ abstract final class ApiConstants {
   }
 
   static String get apiKey {
-    if (dotenv.isInitialized) {
-      return dotenv.env['API_KEY'] ?? 'sk-mCLH6a7d748a06b3519317';
-    }
-    return 'sk-mCLH6a7d748a06b3519317';
+    return dotenv.env['API_KEY']!;
   }
 
   /// Endpoints
@@ -25,6 +22,5 @@ abstract final class ApiConstants {
   static const String speciesCareGuideEndpoint = '/species-care-guide-list';
 
   /// Timeout configurations
-  static const Duration connectTimeout = Duration(seconds: 10);
   static const Duration receiveTimeout = Duration(seconds: 15);
 }

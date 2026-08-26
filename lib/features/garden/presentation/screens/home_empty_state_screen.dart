@@ -4,8 +4,8 @@ import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
-import 'package:plenty/features/plant_catalog/presentation/controllers/add_plant_flow_controller.dart';
-import 'package:plenty/features/plant_catalog/presentation/screens/add_plant_flow_screen.dart';
+import 'package:plenty/features/garden/presentation/controllers/add_plant_flow_controller.dart';
+import 'package:plenty/features/garden/presentation/screens/add_plant_flow_screen.dart';
 
 class HomeEmptyStateScreen extends StatelessWidget {
   final Future<void> Function() onRefresh;

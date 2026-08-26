@@ -1,16 +1,17 @@
 import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/features/daily_care/domain/models/care_schedule_model.dart';
-import 'package:plenty/core/domain/models/growth_log_model.dart';
+import 'package:plenty/features/garden/data/data_sources/plant_remote_data_source.dart';
+import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
+import 'package:plenty/features/garden/domain/models/perenual/perenual_care_guide_model.dart';
+import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_model.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
-import 'package:plenty/features/plant_catalog/data/datasources/plant_remote_data_source.dart';
-import 'package:plenty/features/plant_catalog/domain/models/perenual_care_guide_model.dart';
-import 'package:plenty/features/plant_catalog/domain/models/plant_catalog_model.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Implementation of [IPlantRepository] using Direct API calls + In-Memory Session Cache
@@ -27,8 +28,8 @@ class PlantRepositoryImpl implements IPlantRepository {
   PlantRepositoryImpl({
     DatabaseHelper? dbHelper,
     PlantRemoteDataSource? remoteDataSource,
-  })  : _dbHelper = dbHelper ?? DatabaseHelper.instance,
-        _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl();
+  }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
+       _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl();
 
   /// Clears in-memory session cache.
   void clearSessionCache() {
@@ -59,8 +60,9 @@ class PlantRepositoryImpl implements IPlantRepository {
       );
 
       if (speciesList.isNotEmpty) {
-        final catalogModels =
-            speciesList.map((s) => s.toPlantCatalogModel()).toList();
+        final catalogModels = speciesList
+            .map((s) => s.toPlantCatalogModel())
+            .toList();
         _sessionCatalogCache[cacheKey] = catalogModels;
         return Success(catalogModels);
       }
@@ -108,7 +110,8 @@ class PlantRepositoryImpl implements IPlantRepository {
 
   @override
   Future<Result<List<PerenualCareGuideModel>>> getPlantCareGuides(
-      int speciesId) async {
+    int speciesId,
+  ) async {
     if (_sessionCareGuideCache.containsKey(speciesId)) {
       return Success(_sessionCareGuideCache[speciesId]!);
     }
@@ -135,15 +138,18 @@ class PlantRepositoryImpl implements IPlantRepository {
   Future<List<PlantCatalogModel>> _loadInMemorySeeds({String? query}) async {
     List<PlantCatalogModel> seeds = [];
     try {
-      final jsonString =
-          await rootBundle.loadString('assets/data/seed_plants.json');
+      final jsonString = await rootBundle.loadString(
+        'assets/data/seed_plants.json',
+      );
       final jsonList = jsonDecode(jsonString) as List<dynamic>;
       seeds = jsonList
           .whereType<Map<String, dynamic>>()
-          .map((m) => PlantCatalogModel.fromMap({
-                ...m,
-                'cached_at': DateTime.now().toIso8601String(),
-              }))
+          .map(
+            (m) => PlantCatalogModel.fromMap({
+              ...m,
+              'cached_at': DateTime.now().toIso8601String(),
+            }),
+          )
           .toList();
     } catch (_) {
       seeds = _getHardcodedDefaultSeeds();
@@ -193,18 +199,14 @@ class PlantRepositoryImpl implements IPlantRepository {
           limit: 1,
         );
         if (userRows.isEmpty) {
-          await txn.insert(
-            DatabaseHelper.tableUsers,
-            {
-              'id': parsedUserId,
-              'email': 'user_$parsedUserId@plenty.app',
-              'username': 'user_$parsedUserId',
-              'password': '',
-              'display_name': 'Pecinta Tanaman',
-              'created_at': DateTime.now().toIso8601String(),
-            },
-            conflictAlgorithm: ConflictAlgorithm.ignore,
-          );
+          await txn.insert(DatabaseHelper.tableUsers, {
+            'id': parsedUserId,
+            'email': 'user_$parsedUserId@plenty.app',
+            'username': 'user_$parsedUserId',
+            'password': '',
+            'display_name': 'Pecinta Tanaman',
+            'created_at': DateTime.now().toIso8601String(),
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
         }
 
         // Check if this is truly the user's first plant adoption ever
@@ -220,7 +222,8 @@ class PlantRepositoryImpl implements IPlantRepository {
           whereArgs: [parsedUserId, 'first_plant'],
         );
 
-        final bool badgeAlreadyUnlocked = userBadgeRows.isNotEmpty &&
+        final bool badgeAlreadyUnlocked =
+            userBadgeRows.isNotEmpty &&
             ((userBadgeRows.first['is_unlocked'] as int?) == 1 ||
                 userBadgeRows.first['unlocked_at'] != null);
 
@@ -231,7 +234,8 @@ class PlantRepositoryImpl implements IPlantRepository {
             'plant_${DateTime.now().millisecondsSinceEpoch}_${nickname.hashCode.abs()}';
 
         final effectiveSite = site ?? windowDistance ?? 'Ruang Tamu';
-        final photo = coverPhotoPath ??
+        final photo =
+            coverPhotoPath ??
             customPhotoPath ??
             species?.imageUrl ??
             species?.localImagePath;
@@ -283,10 +287,7 @@ class PlantRepositoryImpl implements IPlantRepository {
           flowerStatus: species?.floweringDisplay,
         );
 
-        await txn.insert(
-          DatabaseHelper.tableUserPlants,
-          plant.toMap(),
-        );
+        await txn.insert(DatabaseHelper.tableUserPlants, plant.toMap());
 
         // 3. Insert initial growth log
         final initialLog = GrowthLogModel(
@@ -298,10 +299,7 @@ class PlantRepositoryImpl implements IPlantRepository {
           source: 'initial',
           note: 'Adopsi pertama $nickname',
         );
-        await txn.insert(
-          DatabaseHelper.tableGrowthLogs,
-          initialLog.toMap(),
-        );
+        await txn.insert(DatabaseHelper.tableGrowthLogs, initialLog.toMap());
 
         // 4. Insert care schedules
         final now = DateTime.now();
@@ -317,7 +315,7 @@ class PlantRepositoryImpl implements IPlantRepository {
           CareScheduleModel(
             id: 'sched_${plantId}_bersih',
             userPlantId: plantId,
-            taskType: 'bersih_bersih',
+            taskType: 'bersih',
             intervalDays: 7,
             nextDueDate: now.add(const Duration(days: 7)),
             isActive: true,
@@ -325,7 +323,7 @@ class PlantRepositoryImpl implements IPlantRepository {
           CareScheduleModel(
             id: 'sched_${plantId}_tinggi',
             userPlantId: plantId,
-            taskType: 'monitor_tinggi',
+            taskType: 'monitor',
             intervalDays: 1,
             nextDueDate: now.add(const Duration(days: 1)),
             isActive: true,
@@ -333,10 +331,7 @@ class PlantRepositoryImpl implements IPlantRepository {
         ];
 
         for (final s in schedules) {
-          await txn.insert(
-            DatabaseHelper.tableCareSchedules,
-            s.toMap(),
-          );
+          await txn.insert(DatabaseHelper.tableCareSchedules, s.toMap());
         }
 
         // 5. Check first plant badge
@@ -369,10 +364,13 @@ class PlantRepositoryImpl implements IPlantRepository {
             );
           }
 
-          final countResult = await txn.rawQuery('''
+          final countResult = await txn.rawQuery(
+            '''
             SELECT COUNT(DISTINCT badge_id) as count FROM ${DatabaseHelper.tableUserBadges}
             WHERE user_id = ? AND is_unlocked = 1
-          ''', [parsedUserId]);
+          ''',
+            [parsedUserId],
+          );
           final count = (countResult.first['count'] as int?) ?? 1;
           await txn.update(
             DatabaseHelper.tableUsers,
@@ -408,7 +406,8 @@ class PlantRepositoryImpl implements IPlantRepository {
             whereArgs: [parsedUserId, 'time_capsule'],
           );
 
-          final bool tcBadgeAlreadyUnlocked = tcBadgeRows.isNotEmpty &&
+          final bool tcBadgeAlreadyUnlocked =
+              tcBadgeRows.isNotEmpty &&
               ((tcBadgeRows.first['is_unlocked'] as int?) == 1 ||
                   tcBadgeRows.first['unlocked_at'] != null);
 
@@ -443,10 +442,13 @@ class PlantRepositoryImpl implements IPlantRepository {
             }
           }
 
-          final countResult = await txn.rawQuery('''
+          final countResult = await txn.rawQuery(
+            '''
             SELECT COUNT(DISTINCT badge_id) as count FROM ${DatabaseHelper.tableUserBadges}
             WHERE user_id = ? AND is_unlocked = 1
-          ''', [parsedUserId]);
+          ''',
+            [parsedUserId],
+          );
           final count = (countResult.first['count'] as int?) ?? 1;
           await txn.update(
             DatabaseHelper.tableUsers,
@@ -480,8 +482,7 @@ class PlantRepositoryImpl implements IPlantRepository {
       // Query user_plants directly - 100% self-contained snapshot with zero catalog joins
       final maps = await db.query(
         DatabaseHelper.tableUserPlants,
-        where:
-            '(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0',
+        where: '(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0',
         whereArgs: [parsedUserId ?? userId, userId.toString()],
         orderBy: 'adopted_at DESC',
       );
@@ -537,9 +538,7 @@ class PlantRepositoryImpl implements IPlantRepository {
   }) async {
     try {
       final db = await _dbHelper.database;
-      final values = <String, dynamic>{
-        'nickname': nickname.trim(),
-      };
+      final values = <String, dynamic>{'nickname': nickname.trim()};
       if (updatePhoto) {
         values['cover_photo_path'] = coverPhotoPath;
         values['image_path'] = coverPhotoPath;
@@ -570,10 +569,7 @@ class PlantRepositoryImpl implements IPlantRepository {
       final db = await _dbHelper.database;
       await db.update(
         DatabaseHelper.tableUserPlants,
-        {
-          'cover_photo_path': photoPath,
-          'image_path': photoPath,
-        },
+        {'cover_photo_path': photoPath, 'image_path': photoPath},
         where: 'id = ?',
         whereArgs: [plantId],
       );

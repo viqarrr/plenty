@@ -27,10 +27,6 @@ class DatabaseHelper {
   DatabaseHelper.forTesting([String? dbName])
     : _dbName = dbName ?? 'test_${DateTime.now().microsecondsSinceEpoch}.db';
 
-  DatabaseHelper.withDatabase(Database db)
-    : _dbName = 'in_memory',
-      _customDb = db;
-
   final String _dbName;
   Database? _customDb;
   static Database? _database;
@@ -73,9 +69,8 @@ class DatabaseHelper {
   Future<void> _onCreate(Database db, int version) async {
     final batch = db.batch();
 
-    // 1. Users
     batch.execute('''
-      CREATE TABLE users (
+      CREATE TABLE $tableUsers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
         username TEXT UNIQUE,
@@ -94,7 +89,7 @@ class DatabaseHelper {
     ''');
 
     batch.execute('''
-      CREATE TABLE user_preferences (
+      CREATE TABLE $tableUserPreferences (
         id TEXT PRIMARY KEY,
         user_id INTEGER NOT NULL,
         experience_level TEXT NOT NULL,
@@ -109,7 +104,7 @@ class DatabaseHelper {
     ''');
 
     batch.execute('''
-      CREATE TABLE user_plants (
+      CREATE TABLE $tableUserPlants (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         species_id INTEGER,
@@ -150,7 +145,7 @@ class DatabaseHelper {
     ''');
 
     batch.execute('''
-      CREATE TABLE care_schedules (
+      CREATE TABLE $tableCareSchedules (
         id TEXT PRIMARY KEY,
         user_plant_id TEXT NOT NULL,
         task_type TEXT NOT NULL,
@@ -163,7 +158,7 @@ class DatabaseHelper {
     ''');
 
     batch.execute('''
-      CREATE TABLE care_action_logs (
+      CREATE TABLE $tableCareActionLogs (
         id TEXT PRIMARY KEY,
         user_plant_id TEXT NOT NULL,
         task_type TEXT NOT NULL,
@@ -178,7 +173,7 @@ class DatabaseHelper {
     ''');
 
     batch.execute('''
-      CREATE TABLE growth_logs (
+      CREATE TABLE $tableGrowthLogs (
         id TEXT PRIMARY KEY,
         user_plant_id TEXT NOT NULL,
         logged_at TEXT NOT NULL,
@@ -192,7 +187,7 @@ class DatabaseHelper {
     ''');
 
     batch.execute('''
-      CREATE TABLE time_capsules (
+      CREATE TABLE $tableTimeCapsules (
         id TEXT PRIMARY KEY,
         user_plant_id TEXT NOT NULL,
         photo_path TEXT,
@@ -204,9 +199,8 @@ class DatabaseHelper {
       );
     ''');
 
-    // 7. Master Badges Definition
     batch.execute('''
-      CREATE TABLE badges (
+      CREATE TABLE $tableBadges (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         description TEXT NOT NULL,
@@ -219,9 +213,8 @@ class DatabaseHelper {
       );
     ''');
 
-    // 8. User Unlocked Badges Junction
     batch.execute('''
-      CREATE TABLE user_badges (
+      CREATE TABLE $tableUserBadges (
         id TEXT PRIMARY KEY,
         user_id INTEGER NOT NULL,
         badge_id TEXT NOT NULL,
@@ -234,7 +227,7 @@ class DatabaseHelper {
     ''');
 
     batch.execute('''
-      CREATE TABLE community_posts (
+      CREATE TABLE $tableCommunityPosts (
         id TEXT PRIMARY KEY,
         user_id INTEGER NOT NULL,
         category TEXT NOT NULL,
@@ -249,7 +242,7 @@ class DatabaseHelper {
         FOREIGN KEY (badge_id) REFERENCES badges (id) ON DELETE SET NULL
       );
     ''');
-
+    /* 
     batch.execute('''
       CREATE TABLE post_comments (
         id TEXT PRIMARY KEY,
@@ -261,9 +254,9 @@ class DatabaseHelper {
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       );
     ''');
-
+ */
     batch.execute('''
-      CREATE TABLE post_likes (
+      CREATE TABLE $tablePostLikes (
         post_id TEXT NOT NULL,
         user_id INTEGER NOT NULL,
         created_at TEXT NOT NULL,
@@ -274,7 +267,7 @@ class DatabaseHelper {
     ''');
 
     batch.execute('''
-      CREATE TABLE custom_sites (
+      CREATE TABLE $tableCustomSites (
         id TEXT PRIMARY KEY,
         user_id INTEGER NOT NULL DEFAULT 1,
         name TEXT NOT NULL,
@@ -294,7 +287,7 @@ class DatabaseHelper {
     batch.execute('''
       INSERT OR IGNORE INTO badges (id, title, description, icon_name, tier_name, level, target_total, bg_color_hex, accent_color_hex) VALUES
       ('first_plant', 'Adopsi Pertama', 'Mengadopsi tanaman pertama untuk memulai perjalanan berkebunmu.', 'sprout', '', 1, 1, '#EBF7F1', '#2D6A4F'),
-      ('water_streak', 'Penyiram Setia', 'Menyiram tanaman tepat waktu selama 7 hari berturut-turut.', 'droplets', '', 7, 7, '#FBF3DB', '#956400'),
+      ('water_streak', 'Penyiram Setia', 'Menyiram tanaman tepat waktu selama 7 kali berturut-turut.', 'droplets', '', 7, 7, '#FBF3DB', '#956400'),
       ('time_capsule', 'Kapsul Waktu', 'Membuat pesan kapsul waktu pertama saat menanam.', 'hourglass', '', 1, 1, '#E3F0FF', '#1F6C9F'),
       ('plant_collector', 'Kolektor Rimbun', 'Memiliki minimal 5 tanaman aktif di kebun virtualmu.', 'trees', '', 5, 5, '#EBF7F1', '#2D6A4F'),
       ('doctor_green', 'Dokter Tanaman', 'Mencatat jurnal kondisi kesehatan tanaman sebanyak 10 kali.', 'activity', '', 10, 10, '#EFEBF7', '#5B4B8A'),

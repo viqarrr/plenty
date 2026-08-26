@@ -90,7 +90,7 @@ class DailyTasksCard extends StatelessWidget {
           TaskCard(
             task: tasks[i],
             onAction: () {
-              if (tasks[i].type == TaskType.monitorTinggi) {
+              if (tasks[i].type == TaskType.logHarian) {
                 context.showAppBottomSheet(
                   MonitorTinggiInputSheet(
                     plant: tasks[i].plant,

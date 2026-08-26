@@ -3,18 +3,18 @@ import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/utils/image_picker_helper.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
-import 'package:plenty/features/plant_catalog/presentation/controllers/add_plant_flow_controller.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/steps/wizard_area_step.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/steps/wizard_environment_step.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/steps/wizard_growth_stage_step.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/steps/wizard_light_step.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/steps/wizard_name_photo_step.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/steps/wizard_time_capsule_step.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/wizard_step_progress.dart';
-import 'package:plenty/features/plant_catalog/presentation/widgets/select_species_step.dart';
-import 'package:plenty/features/plant_catalog/presentation/screens/species_detail_preview_screen.dart';
-import 'package:plenty/features/garden/presentation/widgets/first_reward_popup.dart';
+import 'package:plenty/features/garden/presentation/controllers/add_plant_flow_controller.dart';
+import 'package:plenty/features/garden/presentation/screens/add_plant/species_detail_preview_screen.dart';
 import 'package:plenty/features/garden/presentation/screens/home_screen.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/select_species_step.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/steps/wizard_area_step.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/steps/wizard_environment_step.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/steps/wizard_growth_stage_step.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/steps/wizard_light_step.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/steps/wizard_name_photo_step.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/steps/wizard_time_capsule_step.dart';
+import 'package:plenty/features/garden/presentation/widgets/add_plant/wizard_step_progress.dart';
+import 'package:plenty/features/garden/presentation/widgets/first_reward_popup.dart';
 
 /// Screen orchestrating species selection -> botanical preview -> 6-step custom wizard adoption flow.
 class AddPlantFlowScreen extends StatefulWidget {
@@ -49,7 +49,8 @@ class _AddPlantFlowScreenState extends State<AddPlantFlowScreen> {
     super.initState();
     _pageController = PageController();
     _controller =
-        widget.controller ?? AddPlantFlowController(entryPoint: widget.entryPoint);
+        widget.controller ??
+        AddPlantFlowController(entryPoint: widget.entryPoint);
     _controller.addListener(_onControllerUpdate);
   }
 
@@ -253,7 +254,7 @@ class _AddPlantFlowScreenState extends State<AddPlantFlowScreen> {
                         if (addResult != null) {
                           if (addResult.isFirstPlant) {
                             await context.showAppDialog(
-                              FirstRewardPopup.firstPlant(
+                              RewardPopup.firstPlant(
                                 plantNickname: addResult.plant.nickname,
                                 onDismiss: () => context.pop(),
                               ),
@@ -262,7 +263,7 @@ class _AddPlantFlowScreenState extends State<AddPlantFlowScreen> {
                           }
                           if (addResult.isFirstTimeCapsule && context.mounted) {
                             await context.showAppDialog(
-                              FirstRewardPopup.timeCapsule(
+                              RewardPopup.timeCapsule(
                                 plantNickname: addResult.plant.nickname,
                                 onDismiss: () => context.pop(),
                               ),

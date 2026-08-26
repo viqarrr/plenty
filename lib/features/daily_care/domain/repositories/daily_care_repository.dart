@@ -24,7 +24,7 @@ abstract interface class IDailyCareRepository {
     String? photoPath,
   });
 
-  /// Completes routine task (e.g. 'siram', 'bersih_bersih'), awards XP, and updates streak.
+  /// Completes routine task (e.g. 'siram', 'bersih'), awards XP, and updates streak.
   Future<Result<void>> completeRoutineTask({
     required PlantModel plant,
     required String taskType,
