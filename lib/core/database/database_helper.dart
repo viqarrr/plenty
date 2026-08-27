@@ -1,4 +1,5 @@
 import 'package:path/path.dart';
+import 'package:plenty/core/constants/site_icons.dart';
 import 'package:sqflite/sqflite.dart';
 
 class DatabaseHelper {
@@ -8,6 +9,7 @@ class DatabaseHelper {
   // Table Names
   static const String tableUsers = 'users';
   static const String tableUserPreferences = 'user_preferences';
+  static const String tableSites = 'sites';
   static const String tableUserPlants = 'user_plants';
   static const String tableCareSchedules = 'care_schedules';
   static const String tableCareActionLogs = 'care_action_logs';
@@ -18,7 +20,6 @@ class DatabaseHelper {
   static const String tableCommunityPosts = 'community_posts';
   static const String tablePostComments = 'post_comments';
   static const String tablePostLikes = 'post_likes';
-  static const String tableCustomSites = 'custom_sites';
 
   static final DatabaseHelper instance = DatabaseHelper._internal();
   factory DatabaseHelper() => instance;
@@ -99,7 +100,20 @@ class DatabaseHelper {
         available_time TEXT,
         safety_restriction TEXT,
         has_completed_onboarding INTEGER NOT NULL DEFAULT 0,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES $tableUsers (id) ON DELETE CASCADE
+      );
+    ''');
+
+    batch.execute('''
+      CREATE TABLE $tableSites (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL DEFAULT 1,
+        name TEXT NOT NULL,
+        icon_code INTEGER NOT NULL,
+        is_indoor INTEGER NOT NULL DEFAULT 1,
+        is_custom INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES $tableUsers (id) ON DELETE CASCADE
       );
     ''');
 
@@ -112,9 +126,8 @@ class DatabaseHelper {
         species_name TEXT NOT NULL DEFAULT '',
         scientific_name TEXT,
         nickname TEXT NOT NULL DEFAULT 'Tanaman Hias',
-        room_name TEXT NOT NULL DEFAULT 'Ruang Tamu',
         placement_type TEXT NOT NULL DEFAULT 'Indoor',
-        window_distance TEXT,
+        site_id TEXT NOT NULL DEFAULT 'site_default_ruang_tamu',
         pot_size TEXT,
         initial_height REAL NOT NULL DEFAULT 30.0,
         current_height REAL NOT NULL DEFAULT 30.0,
@@ -125,7 +138,6 @@ class DatabaseHelper {
         adopted_at TEXT NOT NULL DEFAULT '',
         is_indoor INTEGER NOT NULL DEFAULT 1,
         sunlight_condition TEXT,
-        site TEXT,
         initial_height_cm REAL DEFAULT 30.0,
         growth_stage TEXT NOT NULL DEFAULT 'mature',
         level INTEGER NOT NULL DEFAULT 1,
@@ -140,7 +152,8 @@ class DatabaseHelper {
         growth_cycle TEXT,
         pruning_season TEXT,
         flower_status TEXT,
-        is_archived INTEGER NOT NULL DEFAULT 0
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (site_id) REFERENCES $tableSites (id) ON DELETE SET NULL
       );
     ''');
 
@@ -153,7 +166,7 @@ class DatabaseHelper {
         last_performed_at TEXT,
         next_due_date TEXT NOT NULL,
         is_active INTEGER NOT NULL DEFAULT 1,
-        FOREIGN KEY (user_plant_id) REFERENCES user_plants (id) ON DELETE CASCADE
+        FOREIGN KEY (user_plant_id) REFERENCES $tableUserPlants (id) ON DELETE CASCADE
       );
     ''');
 
@@ -168,7 +181,7 @@ class DatabaseHelper {
         log_date TEXT,
         xp_awarded INTEGER DEFAULT 0,
         notes TEXT,
-        FOREIGN KEY (user_plant_id) REFERENCES user_plants (id) ON DELETE CASCADE
+        FOREIGN KEY (user_plant_id) REFERENCES $tableUserPlants (id) ON DELETE CASCADE
       );
     ''');
 
@@ -182,7 +195,7 @@ class DatabaseHelper {
         photo_path TEXT,
         source TEXT NOT NULL DEFAULT 'manual',
         note TEXT,
-        FOREIGN KEY (user_plant_id) REFERENCES user_plants (id) ON DELETE CASCADE
+        FOREIGN KEY (user_plant_id) REFERENCES $tableUserPlants (id) ON DELETE CASCADE
       );
     ''');
 
@@ -195,7 +208,7 @@ class DatabaseHelper {
         created_at TEXT NOT NULL,
         unlock_at TEXT NOT NULL,
         is_unlocked INTEGER NOT NULL DEFAULT 0,
-        FOREIGN KEY (user_plant_id) REFERENCES user_plants (id) ON DELETE CASCADE
+        FOREIGN KEY (user_plant_id) REFERENCES $tableUserPlants (id) ON DELETE CASCADE
       );
     ''');
 
@@ -221,8 +234,8 @@ class DatabaseHelper {
         is_unlocked INTEGER NOT NULL DEFAULT 0,
         current_progress INTEGER NOT NULL DEFAULT 0,
         unlocked_at TEXT,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-        FOREIGN KEY (badge_id) REFERENCES badges (id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES $tableUsers (id) ON DELETE CASCADE,
+        FOREIGN KEY (badge_id) REFERENCES $tableBadges (id) ON DELETE CASCADE
       );
     ''');
 
@@ -238,8 +251,8 @@ class DatabaseHelper {
         is_liked INTEGER DEFAULT 0,
         comment_count INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-        FOREIGN KEY (badge_id) REFERENCES badges (id) ON DELETE SET NULL
+        FOREIGN KEY (user_id) REFERENCES $tableUsers (id) ON DELETE CASCADE,
+        FOREIGN KEY (badge_id) REFERENCES $tableBadges (id) ON DELETE SET NULL
       );
     ''');
     /* 
@@ -261,26 +274,24 @@ class DatabaseHelper {
         user_id INTEGER NOT NULL,
         created_at TEXT NOT NULL,
         PRIMARY KEY (post_id, user_id),
-        FOREIGN KEY (post_id) REFERENCES community_posts (id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-      );
-    ''');
-
-    batch.execute('''
-      CREATE TABLE $tableCustomSites (
-        id TEXT PRIMARY KEY,
-        user_id INTEGER NOT NULL DEFAULT 1,
-        name TEXT NOT NULL,
-        icon_code INTEGER NOT NULL,
-        is_indoor INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        FOREIGN KEY (post_id) REFERENCES $tableCommunityPosts (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES $tableUsers (id) ON DELETE CASCADE
       );
     ''');
 
     batch.execute('''
       INSERT OR IGNORE INTO users (id, email, username, password, display_name, streak_count, longest_streak, total_xp, level, unlocked_badges_count, created_at)
       VALUES (1, 'default@plenty.app', 'user_default', '', 'Pecinta Tanaman', 0, 0, 0, 1, 0, '${DateTime.now().toIso8601String()}');
+    ''');
+
+    // Seed default sites (is_custom = 0)
+    batch.execute('''
+      INSERT OR IGNORE INTO $tableSites (id, user_id, name, icon_code, is_indoor, is_custom, created_at) VALUES
+      ('${SiteIcons.defaultLivingRoomId}', 1, 'Ruang Tamu', ${SiteIcons.livingRoomIconCode}, 1, 0, '${DateTime.now().toIso8601String()}'),
+      ('${SiteIcons.defaultBedroomId}', 1, 'Kamar Tidur', ${SiteIcons.bedroomIconCode}, 1, 0, '${DateTime.now().toIso8601String()}'),
+      ('${SiteIcons.defaultBalconyId}', 1, 'Balkon', ${SiteIcons.balconyIconCode}, 0, 0, '${DateTime.now().toIso8601String()}'),
+      ('${SiteIcons.defaultKitchenId}', 1, 'Dapur', ${SiteIcons.kitchenIconCode}, 1, 0, '${DateTime.now().toIso8601String()}'),
+      ('${SiteIcons.defaultTerraceId}', 1, 'Teras', ${SiteIcons.terraceIconCode}, 0, 0, '${DateTime.now().toIso8601String()}');
     ''');
 
     // Initial Badge Seeds

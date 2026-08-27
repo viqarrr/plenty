@@ -27,7 +27,7 @@ void main() {
 
       expect(columnNames.contains('growth_stage'), isTrue);
       expect(columnNames.contains('initial_height_cm'), isTrue);
-      expect(columnNames.contains('site'), isTrue);
+      expect(columnNames.contains('site_id'), isTrue);
       expect(columnNames.contains('nickname'), isTrue);
       expect(columnNames.contains('user_id'), isTrue);
 
@@ -40,15 +40,23 @@ void main() {
       expect(logColumnNames.contains('source'), isTrue);
       expect(logColumnNames.contains('height_cm'), isTrue);
 
-      // Verify custom_sites columns
-      final customSitesColumns =
-          await db.rawQuery('PRAGMA table_info(${DatabaseHelper.tableCustomSites})');
-      final customSitesColumnNames =
-          customSitesColumns.map((col) => col['name'] as String).toSet();
+      // Verify sites columns
+      final sitesColumns =
+          await db.rawQuery('PRAGMA table_info(${DatabaseHelper.tableSites})');
+      final sitesColumnNames =
+          sitesColumns.map((col) => col['name'] as String).toSet();
 
-      expect(customSitesColumnNames.contains('name'), isTrue);
-      expect(customSitesColumnNames.contains('icon_code'), isTrue);
-      expect(customSitesColumnNames.contains('is_indoor'), isTrue);
+      expect(sitesColumnNames.contains('name'), isTrue);
+      expect(sitesColumnNames.contains('icon_code'), isTrue);
+      expect(sitesColumnNames.contains('is_indoor'), isTrue);
+      expect(sitesColumnNames.contains('is_custom'), isTrue);
+
+      // Verify default sites seeded
+      final defaultSites = await db.query(
+        DatabaseHelper.tableSites,
+        where: 'is_custom = 0',
+      );
+      expect(defaultSites.length, equals(5));
 
       // Verify badges columns
       final badgesColumns =

@@ -5,8 +5,8 @@ import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/daily_care/domain/models/care_task_model.dart';
 import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
-import 'package:plenty/features/garden/domain/models/custom_site_model.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
+import 'package:plenty/features/garden/domain/models/site_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/site_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/streak_repository.dart';
@@ -19,7 +19,7 @@ class HomeState {
   final HomeStatus status;
   final List<PlantModel> userPlants;
   final List<CareTaskModel> dailyTasks;
-  final List<CustomSiteModel> customSites;
+  final List<SiteModel> sites;
   final String selectedRoomFilter;
   final int streakCount;
   final int streakTier;
@@ -38,7 +38,7 @@ class HomeState {
     this.status = HomeStatus.empty,
     this.userPlants = const [],
     this.dailyTasks = const [],
-    this.customSites = const [],
+    this.sites = const [],
     this.selectedRoomFilter = 'Semua',
     this.streakCount = 0,
     this.streakTier = 1,
@@ -58,7 +58,7 @@ class HomeState {
     HomeStatus? status,
     List<PlantModel>? userPlants,
     List<CareTaskModel>? dailyTasks,
-    List<CustomSiteModel>? customSites,
+    List<SiteModel>? sites,
     String? selectedRoomFilter,
     int? streakCount,
     int? streakTier,
@@ -77,7 +77,7 @@ class HomeState {
       status: status ?? this.status,
       userPlants: userPlants ?? this.userPlants,
       dailyTasks: dailyTasks ?? this.dailyTasks,
-      customSites: customSites ?? this.customSites,
+      sites: sites ?? this.sites,
       selectedRoomFilter: selectedRoomFilter ?? this.selectedRoomFilter,
       streakCount: streakCount ?? this.streakCount,
       streakTier: streakTier ?? this.streakTier,
@@ -95,18 +95,9 @@ class HomeState {
   }
 
   List<String> get availableRoomFilters {
-    const defaultFilters = [
-      'Semua',
-      'Ruang Tamu',
-      'Kamar Tidur',
-      'Dapur',
-      'Ruang Kerja',
-      'Balkon',
-      'Taman',
-    ];
-    final filters = <String>[...defaultFilters];
+    final filters = <String>['Semua'];
 
-    for (final s in customSites) {
+    for (final s in sites) {
       final siteName = s.name.trim();
       if (siteName.isNotEmpty &&
           !filters.any((f) => f.toLowerCase() == siteName.toLowerCase())) {
@@ -114,17 +105,6 @@ class HomeState {
       }
     }
 
-    for (final plant in userPlants) {
-      final site = plant.siteName.trim();
-      if (site.isNotEmpty &&
-          !filters.any(
-            (f) =>
-                f.toLowerCase() == site.toLowerCase() ||
-                site.toLowerCase().contains(f.toLowerCase()),
-          )) {
-        filters.add(site);
-      }
-    }
     return filters;
   }
 
@@ -132,43 +112,40 @@ class HomeState {
     if (selectedRoomFilter == 'Semua') return userPlants;
     final filter = selectedRoomFilter.trim().toLowerCase();
 
-    return userPlants.where((p) {
-      final plantSite = p.siteName.trim().toLowerCase();
+    // Find all site IDs matching the filter by name or ID
+    final matchingSiteIds = sites
+        .where((s) {
+          final sName = s.name.toLowerCase();
+          final sId = s.id.toLowerCase();
+          return sId == filter ||
+              sName == filter ||
+              sName.contains(filter) ||
+              filter.contains(sName);
+        })
+        .map((s) => s.id)
+        .toSet();
 
-      if (plantSite == filter) return true;
-      if (plantSite.isNotEmpty &&
-          (plantSite.contains(filter) || filter.contains(plantSite))) {
-        return true;
-      }
+    return userPlants.where((p) {
+      final plantSiteId = p.siteId.toLowerCase();
+
+      if (plantSiteId == filter) return true;
+      if (matchingSiteIds.contains(p.siteId)) return true;
 
       if ((filter == 'kamar' || filter == 'kamar tidur') &&
-          (plantSite.contains('kamar') || plantSite.contains('tidur'))) {
+          (plantSiteId.contains('kamar') || plantSiteId.contains('tidur'))) {
         return true;
       }
-      if (filter == 'dapur' &&
-          (plantSite.contains('dapur') || plantSite.contains('makan'))) {
+      if (filter == 'dapur' && plantSiteId.contains('dapur')) {
         return true;
       }
       if (filter == 'ruang tamu' &&
-          (plantSite.contains('tamu') ||
-              (p.isIndoor &&
-                  (plantSite.isEmpty || plantSite.contains('jendela'))))) {
+          (plantSiteId.contains('tamu') || plantSiteId.contains('living'))) {
         return true;
       }
-      if (filter == 'ruang kerja' &&
-          (plantSite.contains('kerja') || plantSite.contains('kantor'))) {
+      if (filter == 'balkon' && plantSiteId.contains('balkon')) {
         return true;
       }
-      if (filter == 'balkon' &&
-          (plantSite.contains('balkon') ||
-              plantSite.contains('teras') ||
-              !p.isIndoor)) {
-        return true;
-      }
-      if (filter == 'taman' &&
-          (plantSite.contains('taman') ||
-              plantSite.contains('halaman') ||
-              plantSite.contains('patio'))) {
+      if (filter == 'teras' && plantSiteId.contains('teras')) {
         return true;
       }
 
@@ -178,9 +155,6 @@ class HomeState {
 }
 
 /// Dashboard / Home Controller coordinating user garden, daily care tasks, and gamification state.
-///
-/// NOTE: HomeController serves as the central home dashboard aggregator, coordinating across
-/// plant, care, streak, badge, site, and user domains via explicit interface injection.
 class HomeController extends ChangeNotifier {
   final IPlantRepository _plantRepo;
   final IDailyCareRepository _careRepo;
@@ -203,12 +177,12 @@ class HomeController extends ChangeNotifier {
     IUserRepository? userRepo,
     ISiteRepository? siteRepo,
     this.userId = 'usr_default',
-  }) : _plantRepo = plantRepo ?? Injector.plantRepository,
-       _careRepo = careRepo ?? Injector.dailyCareRepository,
-       _streakRepo = streakRepo ?? Injector.streakRepository,
-       _badgeRepo = badgeRepo ?? Injector.badgeRepository,
-       _userRepo = userRepo ?? Injector.userRepository,
-       _siteRepo = siteRepo ?? Injector.siteRepository {
+  })  : _plantRepo = plantRepo ?? Injector.plantRepository,
+        _careRepo = careRepo ?? Injector.dailyCareRepository,
+        _streakRepo = streakRepo ?? Injector.streakRepository,
+        _badgeRepo = badgeRepo ?? Injector.badgeRepository,
+        _userRepo = userRepo ?? Injector.userRepository,
+        _siteRepo = siteRepo ?? Injector.siteRepository {
     loadDashboard();
   }
 
@@ -250,26 +224,26 @@ class HomeController extends ChangeNotifier {
       );
       final badgeCount = badgeCountResult.dataOrNull ?? 0;
 
-      final sitesResult = await _siteRepo.getCustomSites(effectiveUserId);
-      final customSites = sitesResult.dataOrNull ?? [];
+      final sitesResult = await _siteRepo.getSites(effectiveUserId);
+      final sites = sitesResult.dataOrNull ?? [];
 
       final userLevel = XpConfig.levelForXp(totalXp);
       final name = (user?.displayName.trim().isNotEmpty ?? false)
           ? user!.displayName
           : (_state.profileName.isNotEmpty &&
-                    _state.profileName != 'Teman Plenty'
-                ? _state.profileName
-                : 'Alice');
+                  _state.profileName != 'Teman Plenty'
+              ? _state.profileName
+              : 'Alice');
       final usernameVal = (user?.username.trim().isNotEmpty ?? false)
           ? user!.username
           : (user?.email.contains('@') ?? false
-                ? user!.email.split('@').first
-                : 'alex_plants');
+              ? user!.email.split('@').first
+              : 'alex_plants');
       final emailVal = (user?.email.trim().isNotEmpty ?? false)
           ? user!.email
           : (user?.email.contains('@') ?? false
-                ? user!.email.split('@').first
-                : 'alex_plants');
+              ? user!.email.split('@').first
+              : 'alex_plants');
       final avatarUrlVal = user?.avatarUrl;
       final bioVal = user?.bio;
 
@@ -279,7 +253,7 @@ class HomeController extends ChangeNotifier {
             status: HomeStatus.empty,
             userPlants: [],
             dailyTasks: [],
-            customSites: customSites,
+            sites: sites,
             streakCount: streakModel?.currentStreak ?? 0,
             streakTier: streakModel?.currentTier ?? 1,
             totalXp: totalXp,
@@ -321,7 +295,7 @@ class HomeController extends ChangeNotifier {
           status: HomeStatus.populated,
           userPlants: plants,
           dailyTasks: tasks,
-          customSites: customSites,
+          sites: sites,
           streakCount: streakModel?.currentStreak ?? 0,
           streakTier: streakModel?.currentTier ?? 1,
           totalXp: totalXp,

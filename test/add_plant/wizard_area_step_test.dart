@@ -66,12 +66,11 @@ void main() {
       expect(find.text('Ruang Tamu'), findsOneWidget);
       expect(find.text('Kamar Tidur'), findsOneWidget);
       expect(find.text('Dapur'), findsOneWidget);
-      expect(find.text('Ruang Kerja'), findsOneWidget);
 
       // Outdoor locations should NOT be displayed
       expect(find.text('Lokasi Outdoor'), findsNothing);
       expect(find.text('Balkon'), findsNothing);
-      expect(find.text('Taman'), findsNothing);
+      expect(find.text('Teras'), findsNothing);
 
       // Tap on 'Kamar Tidur'
       await tester.tap(find.text('Kamar Tidur'));
@@ -110,8 +109,6 @@ void main() {
       expect(find.text('Lokasi Area Outdoor'), findsOneWidget);
       expect(find.text('Lokasi Outdoor'), findsOneWidget);
       expect(find.text('Balkon'), findsOneWidget);
-      expect(find.text('Taman'), findsOneWidget);
-      expect(find.text('Patio'), findsOneWidget);
       expect(find.text('Teras'), findsOneWidget);
 
       // Indoor locations should NOT be displayed
@@ -119,11 +116,11 @@ void main() {
       expect(find.text('Ruang Tamu'), findsNothing);
       expect(find.text('Kamar Tidur'), findsNothing);
 
-      // Tap on 'Taman'
-      await tester.tap(find.text('Taman'));
+      // Tap on 'Teras'
+      await tester.tap(find.text('Teras'));
       await tester.pumpAndSettle();
 
-      expect(selectedRoom, 'Taman');
+      expect(selectedRoom, 'Teras');
     });
 
     testWidgets('switches shown locations when isIndoor toggles', (

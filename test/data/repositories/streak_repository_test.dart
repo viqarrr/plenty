@@ -37,7 +37,7 @@ void main() {
         'unlocked_badges_count': 0,
         'created_at': DateTime.now().toIso8601String(),
       },
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: ConflictAlgorithm.ignore,
     );
   });
 

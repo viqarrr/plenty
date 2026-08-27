@@ -13,7 +13,7 @@ void main() {
       'is_indoor': 1,
       'sunlight_condition': 'Sinar Tidak Langsung',
       'pot_size': 'Pot Keramik 20cm',
-      'window_distance': 'Dekat Jendela (1-1.5 meter)',
+      'site_id': 'site_default_ruang_tamu',
       'initial_height_cm': 35.5,
       'adopted_at': testAdoptedAt.toIso8601String(),
       'cover_photo_path': 'assets/images/monstera.png',
@@ -33,9 +33,7 @@ void main() {
       expect(plant.isIndoor, isTrue);
       expect(plant.sunlightCondition, 'Sinar Tidak Langsung');
       expect(plant.potSize, 'Pot Keramik 20cm');
-      expect(plant.site, 'Dekat Jendela (1-1.5 meter)');
-      expect(plant.siteName, 'Dekat Jendela (1-1.5 meter)');
-      expect(plant.windowDistance, 'Dekat Jendela (1-1.5 meter)');
+      expect(plant.siteId, 'site_default_ruang_tamu');
       expect(plant.initialHeightCm, 35.5);
       expect(plant.adoptedAt, testAdoptedAt);
       expect(plant.coverPhotoPath, 'assets/images/monstera.png');
@@ -56,8 +54,7 @@ void main() {
       expect(serialized['is_indoor'], 1);
       expect(serialized['sunlight_condition'], 'Sinar Tidak Langsung');
       expect(serialized['pot_size'], 'Pot Keramik 20cm');
-      expect(serialized['site'], 'Dekat Jendela (1-1.5 meter)');
-      expect(serialized['window_distance'], 'Dekat Jendela (1-1.5 meter)');
+      expect(serialized['site_id'], 'site_default_ruang_tamu');
       expect(serialized['initial_height_cm'], 35.5);
       expect(serialized['adopted_at'], testAdoptedAt.toIso8601String());
       expect(serialized['cover_photo_path'], 'assets/images/monstera.png');

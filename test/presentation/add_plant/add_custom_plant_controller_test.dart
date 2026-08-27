@@ -28,7 +28,7 @@ void main() {
       'email': 'user@plenty.app',
       'display_name': 'Plant Lover',
       'created_at': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
     plantRepository = PlantRepositoryImpl(dbHelper: dbHelper);
     controller = AddCustomPlantController(

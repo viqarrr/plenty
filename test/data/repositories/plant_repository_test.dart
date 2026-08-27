@@ -37,7 +37,7 @@ void main() {
           'email': 'test@plenty.app',
           'display_name': 'Test User',
           'created_at': DateTime.now().toIso8601String(),
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
         final unlockDate = DateTime.now().add(const Duration(days: 60));
         final resultRes = await plantRepository.addPlant(
@@ -46,7 +46,7 @@ void main() {
           isIndoor: true,
           sunlightCondition: 'Sinar Tidak Langsung',
           potSize: 'Ada Lubang Drainase',
-          windowDistance: 'Dekat Jendela (1-1.5 meter)',
+          siteId: 'site_default_ruang_tamu',
           initialHeightCm: 28.5,
           coverPhotoPath: 'assets/images/monstera.png',
           timeCapsule: TimeCapsuleDraft(

@@ -5,9 +5,9 @@ import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/core/widgets/custom_text_field.dart';
-import 'package:plenty/features/garden/domain/models/custom_site_model.dart';
+import 'package:plenty/features/garden/domain/models/site_model.dart';
 import 'package:plenty/features/garden/domain/repositories/site_repository.dart';
-import 'package:plenty/features/garden/presentation/extensions/custom_site_extension.dart';
+import 'package:plenty/features/garden/presentation/extensions/site_extension.dart';
 
 /// Representation of a room or area site option.
 class SiteOption {
@@ -92,86 +92,74 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
 
     _indoorSites = [
       const SiteOption(
-        id: 'in_living_room',
+        id: 'site_default_ruang_tamu',
         name: 'Ruang Tamu',
         icon: Icons.weekend_outlined,
         isIndoor: true,
       ),
       const SiteOption(
-        id: 'in_bedroom',
+        id: 'site_default_kamar_tidur',
         name: 'Kamar Tidur',
         icon: Icons.bed_outlined,
         isIndoor: true,
       ),
       const SiteOption(
-        id: 'in_kitchen',
+        id: 'site_default_dapur',
         name: 'Dapur',
         icon: Icons.soup_kitchen_outlined,
-        isIndoor: true,
-      ),
-      const SiteOption(
-        id: 'in_office',
-        name: 'Ruang Kerja',
-        icon: Icons.computer_outlined,
         isIndoor: true,
       ),
     ];
 
     _outdoorSites = [
       const SiteOption(
-        id: 'out_balcony',
+        id: 'site_default_balkon',
         name: 'Balkon',
         icon: Icons.balcony_outlined,
         isIndoor: false,
       ),
       const SiteOption(
-        id: 'out_garden',
-        name: 'Taman',
-        icon: Icons.yard_outlined,
-        isIndoor: false,
-      ),
-      const SiteOption(
-        id: 'out_patio',
-        name: 'Patio',
-        icon: Icons.deck_outlined,
-        isIndoor: false,
-      ),
-      const SiteOption(
-        id: 'out_terrace',
+        id: 'site_default_teras',
         name: 'Teras',
         icon: Icons.roofing_outlined,
         isIndoor: false,
       ),
     ];
 
-    _loadSavedCustomSites();
+    _loadSavedSites();
   }
 
-  Future<void> _loadSavedCustomSites() async {
+  Future<void> _loadSavedSites() async {
     try {
-      final savedSitesResult = await _siteRepo.getCustomSites();
-      final savedSites = savedSitesResult.dataOrNull ?? [];
-      if (!mounted) return;
+      final sitesResult = await _siteRepo.getSites();
+      final sites = sitesResult.dataOrNull ?? [];
+      if (!mounted || sites.isEmpty) return;
 
       setState(() {
-        for (final s in savedSites) {
-          final opt = SiteOption(
-            id: s.id,
-            name: s.name,
-            icon: s.iconData,
-            isCustom: true,
-            isIndoor: s.isIndoor,
-          );
-          if (s.isIndoor) {
-            if (!_indoorSites.any((item) => item.id == s.id)) {
-              _indoorSites.add(opt);
-            }
-          } else {
-            if (!_outdoorSites.any((item) => item.id == s.id)) {
-              _outdoorSites.add(opt);
-            }
-          }
-        }
+        final indoor = sites
+            .where((s) => s.isIndoor)
+            .map((s) => SiteOption(
+                  id: s.id,
+                  name: s.name,
+                  icon: s.iconData,
+                  isCustom: s.isCustom,
+                  isIndoor: s.isIndoor,
+                ))
+            .toList();
+
+        final outdoor = sites
+            .where((s) => !s.isIndoor)
+            .map((s) => SiteOption(
+                  id: s.id,
+                  name: s.name,
+                  icon: s.iconData,
+                  isCustom: s.isCustom,
+                  isIndoor: s.isIndoor,
+                ))
+            .toList();
+
+        if (indoor.isNotEmpty) _indoorSites = indoor;
+        if (outdoor.isNotEmpty) _outdoorSites = outdoor;
       });
     } catch (_) {}
   }
@@ -296,15 +284,16 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
                           isIndoor: isIndoor,
                         );
 
-                        final dbModel = CustomSiteModel(
+                        final dbModel = SiteModel(
                           id: customId,
                           name: trimmed,
                           iconCode: selectedIcon.codePoint,
                           isIndoor: isIndoor,
+                          isCustom: true,
                           createdAt: DateTime.now(),
                         );
 
-                        await _siteRepo.saveCustomSite(dbModel);
+                        await _siteRepo.addCustomSite(dbModel);
 
                         setState(() {
                           if (isIndoor) {
@@ -518,11 +507,12 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
                           icon: selectedIcon,
                         );
 
-                        final dbModel = CustomSiteModel(
+                        final dbModel = SiteModel(
                           id: site.id,
                           name: trimmed,
                           iconCode: selectedIcon.codePoint,
                           isIndoor: site.isIndoor,
+                          isCustom: true,
                           createdAt: DateTime.now(),
                         );
 

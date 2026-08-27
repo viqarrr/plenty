@@ -35,7 +35,7 @@ void main() {
       'email': 'care@plenty.app',
       'display_name': 'Care User',
       'created_at': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
     final addResult = await plantRepository.addPlant(
       userId: '1',

@@ -428,6 +428,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
 
         expect(deleteCalled, isTrue);
+        expect(editCalled, isFalse);
       },
     );
 

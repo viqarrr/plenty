@@ -31,7 +31,7 @@ void main() {
       'email': 'user@plenty.app',
       'display_name': 'Test User',
       'created_at': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
     await plantRepo.getCatalogPlants(); // seeds catalog

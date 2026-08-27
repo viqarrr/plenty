@@ -176,8 +176,7 @@ class PlantRepositoryImpl implements IPlantRepository {
     required bool isIndoor,
     String? sunlightCondition,
     String? potSize,
-    String? site,
-    String? windowDistance,
+    String siteId = 'site_default_ruang_tamu',
     double? initialHeightCm,
     String growthStage = 'mature',
     DateTime? adoptedAt,
@@ -233,7 +232,7 @@ class PlantRepositoryImpl implements IPlantRepository {
         final plantId =
             'plant_${DateTime.now().millisecondsSinceEpoch}_${nickname.hashCode.abs()}';
 
-        final effectiveSite = site ?? windowDistance ?? 'Ruang Tamu';
+        final effectiveSiteId = siteId;
         final photo =
             coverPhotoPath ??
             customPhotoPath ??
@@ -261,9 +260,7 @@ class PlantRepositoryImpl implements IPlantRepository {
           sunlightCondition: sunlightCondition ?? species?.sunlightLevel,
           sunlightPreference: sunlightCondition ?? species?.sunlightLevel,
           potSize: potSize,
-          site: effectiveSite,
-          roomName: effectiveSite,
-          windowDistance: windowDistance ?? effectiveSite,
+          siteId: effectiveSiteId,
           initialHeightCm: initialH,
           initialHeight: initialH,
           currentHeight: initialH,
@@ -309,7 +306,7 @@ class PlantRepositoryImpl implements IPlantRepository {
             userPlantId: plantId,
             taskType: 'siram',
             intervalDays: interval,
-            nextDueDate: now.add(Duration(days: interval)),
+            nextDueDate: now,
             isActive: true,
           ),
           CareScheduleModel(
@@ -317,7 +314,7 @@ class PlantRepositoryImpl implements IPlantRepository {
             userPlantId: plantId,
             taskType: 'bersih',
             intervalDays: 7,
-            nextDueDate: now.add(const Duration(days: 7)),
+            nextDueDate: now,
             isActive: true,
           ),
           CareScheduleModel(
@@ -325,7 +322,7 @@ class PlantRepositoryImpl implements IPlantRepository {
             userPlantId: plantId,
             taskType: 'monitor',
             intervalDays: 1,
-            nextDueDate: now.add(const Duration(days: 1)),
+            nextDueDate: now,
             isActive: true,
           ),
         ];
@@ -534,7 +531,7 @@ class PlantRepositoryImpl implements IPlantRepository {
     required String nickname,
     String? coverPhotoPath,
     bool updatePhoto = false,
-    String? site,
+    String? siteId,
   }) async {
     try {
       final db = await _dbHelper.database;
@@ -543,10 +540,8 @@ class PlantRepositoryImpl implements IPlantRepository {
         values['cover_photo_path'] = coverPhotoPath;
         values['image_path'] = coverPhotoPath;
       }
-      if (site != null) {
-        values['site'] = site;
-        values['room_name'] = site;
-        values['window_distance'] = site;
+      if (siteId != null) {
+        values['site_id'] = siteId;
       }
       await db.update(
         DatabaseHelper.tableUserPlants,

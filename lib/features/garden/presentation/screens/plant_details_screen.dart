@@ -109,6 +109,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
       final result = await _growthRepo.saveTimeCapsule(capsule);
       if (mounted) {
         await _loadData();
+        if (!mounted) return;
         if (result.isSuccess && (result.dataOrNull ?? false)) {
           await context.showAppDialog(
             RewardPopup.timeCapsule(
@@ -231,11 +232,12 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     context.showAppBottomSheet(
       EditPlantSheet(
         plant: _plant,
-        onSave: (newNickname, newPhotoPath, photoChanged) async {
+        onSave: (newNickname, newPhotoPath, photoChanged, newSiteId) async {
           await _handleUpdatePlantInfo(
             newNickname: newNickname,
             newPhotoPath: newPhotoPath,
             photoChanged: photoChanged,
+            newSiteId: newSiteId,
           );
         },
       ),
@@ -246,12 +248,14 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
     required String newNickname,
     required String? newPhotoPath,
     required bool photoChanged,
+    String? newSiteId,
   }) async {
     final result = await _plantRepo.updatePlantInfo(
       plantId: _plant.id,
       nickname: newNickname,
       coverPhotoPath: newPhotoPath,
       updatePhoto: photoChanged,
+      siteId: newSiteId,
     );
     if (!mounted) return;
 
@@ -261,6 +265,7 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
           _plant = _plant.copyWith(
             nickname: newNickname,
             coverPhotoPath: photoChanged ? newPhotoPath : _plant.coverPhotoPath,
+            siteId: newSiteId ?? _plant.siteId,
           );
         });
         widget.homeController?.loadDashboard();

@@ -188,8 +188,9 @@ class PhotoTimelineStepper extends StatelessWidget {
                       Builder(
                         builder: (context) {
                           final photoWidget = _buildPhotoImage(log.photoPath);
-                          if (photoWidget == null)
+                          if (photoWidget == null) {
                             return const SizedBox.shrink();
+                          }
                           return Padding(
                             padding: const EdgeInsets.only(top: 10.0),
                             child: ClipRRect(

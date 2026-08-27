@@ -49,15 +49,14 @@ abstract class IPlantRepository {
     required bool isIndoor,
     String? sunlightCondition,
     String? potSize,
-    String? site,
-    String? windowDistance,
+    String siteId = 'site_default_ruang_tamu',
     double? initialHeightCm,
     String growthStage = 'mature',
     DateTime? adoptedAt,
     String? coverPhotoPath,
     String? customPhotoPath,
     TimeCapsuleDraft? timeCapsule,
-    int defaultWateringInterval = 3,
+    int defaultWateringInterval = 7,
   });
 
   /// Retrieves active user adopted plants.
@@ -77,7 +76,7 @@ abstract class IPlantRepository {
     required String nickname,
     String? coverPhotoPath,
     bool updatePhoto = false,
-    String? site,
+    String? siteId,
   });
 
   /// Updates the cover photo path for an adopted plant.

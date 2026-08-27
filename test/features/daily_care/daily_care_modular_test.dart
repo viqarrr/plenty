@@ -38,7 +38,7 @@ void main() {
       'username': 'care_user',
       'display_name': 'Care User',
       'created_at': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
     dailyCareRepo = DailyCareRepositoryImpl(

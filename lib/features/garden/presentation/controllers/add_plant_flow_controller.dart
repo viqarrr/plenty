@@ -295,6 +295,20 @@ class AddPlantFlowController extends ChangeNotifier {
           _state.selectedSpecies?.imageUrl ??
           _state.selectedSpecies?.localImagePath;
 
+      String resolveSiteId(String room) {
+        if (room.startsWith('site_') || room.startsWith('custom_')) {
+          return room;
+        }
+        return switch (room.trim().toLowerCase()) {
+          'ruang tamu' => 'site_default_ruang_tamu',
+          'kamar tidur' || 'kamar' => 'site_default_kamar_tidur',
+          'balkon' => 'site_default_balkon',
+          'dapur' => 'site_default_dapur',
+          'teras' => 'site_default_teras',
+          _ => 'site_default_ruang_tamu',
+        };
+      }
+
       final result = await _plantRepo.addPlant(
         userId: effectiveUserId,
         species: _state.selectedSpecies,
@@ -303,8 +317,7 @@ class AddPlantFlowController extends ChangeNotifier {
         isIndoor: _state.isIndoor,
         sunlightCondition: _state.selectedLight,
         potSize: _state.potSize,
-        site: _state.selectedRoom,
-        windowDistance: _state.selectedRoom,
+        siteId: resolveSiteId(_state.selectedRoom),
         initialHeightCm: _state.initialHeightCm,
         growthStage: _state.growthStage,
         adoptedAt: _state.plantedDate,

@@ -34,7 +34,7 @@ void main() {
       'email': 'care_user@plenty.app',
       'display_name': 'Care User',
       'created_at': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
     careRepo = DailyCareRepositoryImpl(

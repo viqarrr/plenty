@@ -1,17 +1,17 @@
 import 'package:plenty/core/error/result.dart';
-import 'package:plenty/features/garden/domain/models/custom_site_model.dart';
+import 'package:plenty/features/garden/domain/models/site_model.dart';
 
 /// Contract interface for Site Repository.
 abstract interface class ISiteRepository {
-  /// Retrieves all custom sites for the specified user ordered chronologically.
-  Future<Result<List<CustomSiteModel>>> getCustomSites([String userId = '1']);
+  /// Mengambil semua site milik user (default + custom), diurutkan: default dulu baru custom.
+  Future<Result<List<SiteModel>>> getSites([String userId = '1']);
 
-  /// Inserts a new custom site record.
-  Future<Result<void>> saveCustomSite(CustomSiteModel site);
+  /// Menambah site custom baru. Selalu tersimpan dengan isCustom = true.
+  Future<Result<void>> addCustomSite(SiteModel site);
 
-  /// Updates an existing custom site record.
-  Future<Result<void>> updateCustomSite(CustomSiteModel site);
+  /// Mengubah site custom. Menolak (return Error) kalau site target isCustom == false.
+  Future<Result<void>> updateCustomSite(SiteModel site);
 
-  /// Deletes a custom site record by ID.
+  /// Menghapus site custom. Menolak (return Error) kalau site target isCustom == false.
   Future<Result<void>> deleteCustomSite(String siteId);
 }

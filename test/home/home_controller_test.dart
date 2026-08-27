@@ -46,17 +46,20 @@ void main() {
     dbHelper = DatabaseHelper.forTesting(uniqueName);
     await dbHelper.deleteDb();
 
-    // Seed default user and streak
+    // Update default user streak and profile
     final db = await dbHelper.database;
-    await db.insert(DatabaseHelper.tableUsers, {
-      'id': 1,
-      'email': 'user@plenty.app',
-      'display_name': 'Alice',
-      'streak_count': 3,
-      'longest_streak': 3,
-      'last_streak_date': '2026-08-19',
-      'created_at': DateTime.now().toIso8601String(),
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.update(
+      DatabaseHelper.tableUsers,
+      {
+        'email': 'user@plenty.app',
+        'display_name': 'Alice',
+        'streak_count': 3,
+        'longest_streak': 3,
+        'last_streak_date': '2026-08-19',
+      },
+      where: 'id = ?',
+      whereArgs: [1],
+    );
 
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);
     careRepo = DailyCareRepositoryImpl(dbHelper: dbHelper);
@@ -126,7 +129,7 @@ void main() {
         ),
         nickname: 'Living Room Plant',
         isIndoor: true,
-        site: 'Ruang Tamu',
+        siteId: 'site_default_ruang_tamu',
       );
 
       await plantRepo.addPlant(
@@ -138,7 +141,7 @@ void main() {
         ),
         nickname: 'Bedroom Plant',
         isIndoor: true,
-        site: 'Kamar Tidur',
+        siteId: 'site_default_kamar_tidur',
       );
 
       await controller.loadDashboard();

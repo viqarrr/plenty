@@ -234,7 +234,7 @@ void main() {
           species: species,
           nickname: 'My Rubber',
           isIndoor: true,
-          site: 'Living Room',
+          siteId: 'site_default_ruang_tamu',
           initialHeightCm: 45.0,
         );
 

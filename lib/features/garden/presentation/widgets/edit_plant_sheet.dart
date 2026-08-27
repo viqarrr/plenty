@@ -1,22 +1,32 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
+import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/utils/image_picker_helper.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
+import 'package:plenty/features/garden/domain/models/site_model.dart';
+import 'package:plenty/features/garden/domain/repositories/site_repository.dart';
+import 'package:plenty/features/garden/presentation/extensions/site_extension.dart';
 
-/// Modal bottom sheet allowing users to edit plant nickname and upload/change cover photo.
+/// Modal bottom sheet allowing users to edit plant nickname, location site, and upload/change cover photo.
 class EditPlantSheet extends StatefulWidget {
   final PlantModel plant;
-  final void Function(String newNickname, String? newPhotoPath, bool photoChanged)
-      onSave;
+  final void Function(
+    String newNickname,
+    String? newPhotoPath,
+    bool photoChanged,
+    String newSiteId,
+  ) onSave;
+  final ISiteRepository? siteRepo;
 
   const EditPlantSheet({
     super.key,
     required this.plant,
     required this.onSave,
+    this.siteRepo,
   });
 
   @override
@@ -25,14 +35,28 @@ class EditPlantSheet extends StatefulWidget {
 
 class _EditPlantSheetState extends State<EditPlantSheet> {
   late final TextEditingController _nameController;
+  late final ISiteRepository _siteRepo;
   String? _currentPhoto;
   bool _photoChanged = false;
+  late String _selectedSiteId;
+  List<SiteModel> _availableSites = [];
 
   @override
   void initState() {
     super.initState();
+    _siteRepo = widget.siteRepo ?? Injector.siteRepository;
     _nameController = TextEditingController(text: widget.plant.nickname);
     _currentPhoto = widget.plant.coverPhotoPath;
+    _selectedSiteId = widget.plant.siteId;
+    _loadSites();
+  }
+
+  Future<void> _loadSites() async {
+    final res = await _siteRepo.getSites();
+    if (!mounted) return;
+    setState(() {
+      _availableSites = res.dataOrNull ?? [];
+    });
   }
 
   @override
@@ -74,7 +98,8 @@ class _EditPlantSheetState extends State<EditPlantSheet> {
             ),
             child: ClipOval(
               child: (photo != null && photo.isNotEmpty)
-                  ? (photo.startsWith('http://') || photo.startsWith('https://'))
+                  ? (photo.startsWith('http://') ||
+                          photo.startsWith('https://'))
                       ? Image.network(
                           photo,
                           fit: BoxFit.cover,
@@ -180,17 +205,20 @@ class _EditPlantSheetState extends State<EditPlantSheet> {
             Center(
               child: TextButton.icon(
                 onPressed: _openImagePicker,
-                icon: const Icon(Icons.upload_file, size: 16, color: AppColors.forest),
+                icon: const Icon(Icons.upload_file,
+                    size: 16, color: AppColors.forest),
                 label: Text(
                   'Upload / Ganti Foto',
-                  style: AppTypography.caption1Bold.copyWith(color: AppColors.forest),
+                  style: AppTypography.caption1Bold
+                      .copyWith(color: AppColors.forest),
                 ),
               ),
             ),
             const SizedBox(height: 20),
             Text(
               'Nama Panggilan Tanaman *',
-              style: AppTypography.calloutBold.copyWith(color: AppColors.inkSoft),
+              style:
+                  AppTypography.calloutBold.copyWith(color: AppColors.inkSoft),
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -198,8 +226,10 @@ class _EditPlantSheetState extends State<EditPlantSheet> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: 'Contoh: Monsty, Sirih Gading Cantik',
-                hintStyle: AppTypography.bodyRegular.copyWith(color: AppColors.muted),
-                prefixIcon: const Icon(Icons.drive_file_rename_outline, color: AppColors.forest),
+                hintStyle:
+                    AppTypography.bodyRegular.copyWith(color: AppColors.muted),
+                prefixIcon: const Icon(Icons.drive_file_rename_outline,
+                    color: AppColors.forest),
                 suffixIcon: _nameController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, size: 18),
@@ -211,17 +241,66 @@ class _EditPlantSheetState extends State<EditPlantSheet> {
                     : null,
                 filled: true,
                 fillColor: AppColors.surface,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: const BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.forest, width: 1.5),
+                  borderSide:
+                      const BorderSide(color: AppColors.forest, width: 1.5),
                 ),
               ),
             ),
+            const SizedBox(height: 18),
+            Text(
+              'Lokasi Penempatan *',
+              style:
+                  AppTypography.calloutBold.copyWith(color: AppColors.inkSoft),
+            ),
+            const SizedBox(height: 8),
+            if (_availableSites.isNotEmpty)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _availableSites.any((s) => s.id == _selectedSiteId)
+                        ? _selectedSiteId
+                        : _availableSites.first.id,
+                    isExpanded: true,
+                    icon: const Icon(Icons.arrow_drop_down,
+                        color: AppColors.forest),
+                    items: _availableSites.map((site) {
+                      return DropdownMenuItem<String>(
+                        value: site.id,
+                        child: Row(
+                          children: [
+                            Icon(site.iconData,
+                                size: 18, color: AppColors.forest),
+                            const SizedBox(width: 10),
+                            Text(site.name, style: AppTypography.bodyRegular),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _selectedSiteId = val;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ),
             const SizedBox(height: 28),
             CustomButton(
               text: 'Simpan Perubahan',
@@ -231,7 +310,8 @@ class _EditPlantSheetState extends State<EditPlantSheet> {
               onPressed: isNameValid
                   ? () {
                       final newName = _nameController.text.trim();
-                      widget.onSave(newName, _currentPhoto, _photoChanged);
+                      widget.onSave(newName, _currentPhoto, _photoChanged,
+                          _selectedSiteId);
                       context.pop();
                     }
                   : null,

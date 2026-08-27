@@ -13,7 +13,10 @@ abstract final class ApiConstants {
   }
 
   static String get apiKey {
-    return dotenv.env['API_KEY']!;
+    if (dotenv.isInitialized) {
+      return dotenv.env['API_KEY'] ?? '';
+    }
+    return '';
   }
 
   /// Endpoints

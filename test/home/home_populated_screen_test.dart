@@ -43,18 +43,17 @@ void main() {
     await dbHelper.deleteDb();
 
     final db = await dbHelper.database;
-    await db.insert(
+    await db.update(
       DatabaseHelper.tableUsers,
       {
-        'id': 1,
         'email': 'nabila@plenty.app',
         'display_name': 'Nabila',
         'streak_count': 5,
         'longest_streak': 5,
         'last_streak_date': '2026-08-19',
-        'created_at': DateTime.now().toIso8601String(),
       },
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      where: 'id = ?',
+      whereArgs: [1],
     );
 
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);

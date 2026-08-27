@@ -131,7 +131,7 @@ void main() {
         'display_name': 'Test User',
         'unlocked_badges_count': 0,
         'created_at': DateTime.now().toIso8601String(),
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
       await db.insert(
         DatabaseHelper.tableUserPlants,
@@ -176,7 +176,6 @@ void main() {
         expect(resultRes.isSuccess, isTrue);
         expect(resultRes.dataOrNull, isTrue); // Newly unlocked
 
-        final db = await dbHelper.database;
         final badgeRepo = BadgeRepositoryImpl(dbHelper: dbHelper);
         final badgesRes = await badgeRepo.getBadges(userId: 1);
         expect(badgesRes.isSuccess, isTrue);

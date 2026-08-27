@@ -41,7 +41,7 @@ void main() {
         'display_name': 'Care Screen User',
         'created_at': DateTime.now().toIso8601String(),
       },
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: ConflictAlgorithm.ignore,
     );
 
     plantRepo = PlantRepositoryImpl(dbHelper: dbHelper);

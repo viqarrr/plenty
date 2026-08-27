@@ -11,7 +11,6 @@ import 'package:plenty/features/profile/presentation/widgets/change_password_she
 import 'package:plenty/features/profile/presentation/widgets/edit_field_sheet.dart';
 import 'package:plenty/features/profile/presentation/widgets/settings_item_tile.dart';
 import 'package:plenty/features/profile/presentation/widgets/settings_section.dart';
-import 'package:plenty/features/profile/presentation/widgets/theme_selector_sheet.dart';
 
 /// iOS-style profile edit & settings screen.
 ///
@@ -61,7 +60,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   late String _email;
   late String _bio;
   String? _avatarPath;
-  String _themeMode = 'Mode Terang';
 
   @override
   void initState() {
@@ -181,16 +179,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           backgroundColor: AppColors.darkGreen,
         ),
       );
-    }
-  }
-
-  Future<void> _selectTheme() async {
-    final chosen = await ThemeSelectorSheet.show(
-      context,
-      currentTheme: _themeMode,
-    );
-    if (chosen != null && mounted) {
-      setState(() => _themeMode = chosen);
     }
   }
 

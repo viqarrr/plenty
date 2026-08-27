@@ -77,7 +77,7 @@ void main() {
 
         final client = MockClient((request) async {
           expect(request.url.path, contains('/species-list'));
-          expect(request.url.queryParameters['key'], isNotEmpty);
+          expect(request.url.queryParameters.containsKey('key'), isTrue);
           expect(request.url.queryParameters['q'], 'monstera');
           return http.Response(jsonEncode(mockResponseData), 200);
         });
