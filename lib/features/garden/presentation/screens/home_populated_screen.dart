@@ -70,7 +70,9 @@ class HomePopulatedScreen extends StatelessWidget {
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
-                      children: effectiveState.availableRoomFilters.map((filter) {
+                      children: effectiveState.availableRoomFilters.map((
+                        filter,
+                      ) {
                         final isSelected =
                             effectiveState.selectedRoomFilter == filter;
                         return Padding(
@@ -166,17 +168,15 @@ class _StreakCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         height: 144,
-        decoration: const BoxDecoration(
-          color: Color(0xFFF2A33A),
-        ),
+        decoration: const BoxDecoration(color: Color(0xFFF2A33A)),
         child: Stack(
           children: [
             Positioned(
-              right: -12,
-              bottom: -12,
+              right: -40,
+              bottom: -40,
               child: Icon(
                 Icons.local_fire_department_rounded,
-                size: 78,
+                size: 144,
                 color: Colors.white.withValues(alpha: 0.20),
               ),
             ),
@@ -196,10 +196,10 @@ class _StreakCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Hari Konsisten',
+                    'Streak',
                     style: AppTypography.caption1Bold.copyWith(
                       color: Colors.white.withValues(alpha: 0.95),
-                      fontSize: 13,
+                      fontSize: 18,
                       height: 1.2,
                     ),
                   ),
@@ -230,8 +230,8 @@ class _TodayTasksOverviewCard extends StatelessWidget {
     final titleText = plantsCount == 0
         ? 'Tidak ada tugas hari ini'
         : (tasksCount > 0
-            ? '$tasksCount tanaman butuh perhatianmu hari ini'
-            : 'Semua tugas hari ini selesai 🎉');
+              ? '$tasksCount tugas belum dikerjakan'
+              : 'Semua tugas hari ini selesai 🎉');
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -241,11 +241,11 @@ class _TodayTasksOverviewCard extends StatelessWidget {
         child: Stack(
           children: [
             Positioned(
-              right: -10,
-              bottom: -10,
+              right: -40,
+              bottom: -40,
               child: Icon(
                 Icons.eco_rounded,
-                size: 76,
+                size: 144,
                 color: Colors.white.withValues(alpha: 0.15),
               ),
             ),
@@ -259,7 +259,7 @@ class _TodayTasksOverviewCard extends StatelessWidget {
                     titleText,
                     style: AppTypography.calloutBold.copyWith(
                       color: Colors.white,
-                      fontSize: 13,
+                      fontSize: 24,
                       fontWeight: FontWeight.w700,
                       height: 1.25,
                     ),
