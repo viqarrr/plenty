@@ -6,6 +6,7 @@ import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/presentation/controllers/community_controller.dart';
 import 'package:plenty/features/community/presentation/screens/create_post_screen.dart';
 import 'package:plenty/features/community/presentation/widgets/community_post_card.dart';
+import 'package:plenty/features/community/presentation/widgets/post_comments_sheet.dart';
 
 /// Main Community Feed Screen with Category Filtering, Header Bar, and Post Creation.
 class CommunityScreen extends StatefulWidget {
@@ -341,14 +342,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
                           onDeleteTap: post.isAuthor
                               ? () => _handleDeletePost(post)
                               : null,
-                          onCommentTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Komentar postingan segera dibuka!'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          },
+                          onCommentTap: () => PostCommentsSheet.show(
+                            context,
+                            controller: _controller,
+                            post: post,
+                          ),
                         );
                       },
                       childCount: _controller.posts.length,

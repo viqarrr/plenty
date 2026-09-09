@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:plenty/features/community/domain/models/community_post.dart';
 
 /// Data Model representing a comment on a community forum post.
 @immutable
@@ -21,20 +22,27 @@ class PostCommentModel {
     required this.createdAt,
   });
 
+  String get timeAgo => CommunityPost.formatTimeAgo(createdAt);
+
   factory PostCommentModel.fromMap(
     Map<String, dynamic> map, {
     String? authorName,
     String? authorAvatarUrl,
   }) {
     return PostCommentModel(
-      id: map['id'] as String,
-      postId: map['post_id'] as String,
+      id: map['id']?.toString() ?? '',
+      postId: map['post_id']?.toString() ?? '',
       userId: map['user_id']?.toString() ?? '1',
-      authorName:
-          authorName ?? (map['display_name'] as String?) ?? 'Teman Plenty',
-      authorAvatarUrl: authorAvatarUrl ?? (map['avatar_url'] as String?),
-      content: map['content'] as String,
-      createdAt: DateTime.parse(map['created_at'] as String),
+      authorName: authorName ??
+          (map['author_name'] as String?) ??
+          (map['display_name'] as String?) ??
+          'Teman Plenty',
+      authorAvatarUrl: authorAvatarUrl ??
+          (map['author_avatar_url'] as String?) ??
+          (map['avatar_url'] as String?),
+      content: map['content']?.toString() ?? '',
+      createdAt: DateTime.tryParse(map['created_at']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -45,6 +53,36 @@ class PostCommentModel {
         'content': content,
         'created_at': createdAt.toIso8601String(),
       };
+
+  Map<String, dynamic> toFirestoreMap() => {
+        'id': id,
+        'post_id': postId,
+        'user_id': userId,
+        'author_name': authorName,
+        'author_avatar_url': authorAvatarUrl,
+        'content': content,
+        'created_at': createdAt.toIso8601String(),
+      };
+
+  PostCommentModel copyWith({
+    String? id,
+    String? postId,
+    String? userId,
+    String? authorName,
+    String? authorAvatarUrl,
+    String? content,
+    DateTime? createdAt,
+  }) {
+    return PostCommentModel(
+      id: id ?? this.id,
+      postId: postId ?? this.postId,
+      userId: userId ?? this.userId,
+      authorName: authorName ?? this.authorName,
+      authorAvatarUrl: authorAvatarUrl ?? this.authorAvatarUrl,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 
   factory PostCommentModel.fromJson(Map<String, dynamic> json) =>
       PostCommentModel.fromMap(json);

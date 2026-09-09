@@ -278,5 +278,112 @@ void main() {
       final post = posts.firstWhere((p) => p.id == 'user1_post_for_edit');
       expect(post.content, 'Konten asli');
     });
+
+    test('addComment adds comment, increments post count, and getComments returns it', () async {
+      final newPost = CommunityPost(
+        id: 'comment_test_post',
+        authorName: 'rian_plant',
+        timeAgo: 'Baru saja',
+        category: 'pertanyaan',
+        content: 'Postingan untuk tes komentar',
+        createdAt: DateTime.now(),
+      );
+      await repository.createPost(newPost, userId: 1);
+
+      final commentRes = await repository.addComment(
+        postId: 'comment_test_post',
+        content: 'Ini adalah komentar pertama!',
+        userId: 2,
+        authorName: 'user_two',
+      );
+      expect(commentRes.isSuccess, isTrue);
+      final comment = commentRes.dataOrNull!;
+      expect(comment.content, 'Ini adalah komentar pertama!');
+      expect(comment.postId, 'comment_test_post');
+      expect(comment.authorName, 'user_two');
+
+      final commentsRes = await repository.getComments('comment_test_post');
+      expect(commentsRes.isSuccess, isTrue);
+      final comments = commentsRes.dataOrNull ?? [];
+      expect(comments.length, 1);
+      expect(comments.first.content, 'Ini adalah komentar pertama!');
+
+      final postsRes = await repository.getPosts();
+      final post = postsRes.dataOrNull!.firstWhere((p) => p.id == 'comment_test_post');
+      expect(post.commentsCount, 1);
+    });
+
+    test('deleteComment removes comment and decrements post comment count', () async {
+      final newPost = CommunityPost(
+        id: 'del_comment_post',
+        authorName: 'rian_plant',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Postingan tes hapus komentar',
+        createdAt: DateTime.now(),
+      );
+      await repository.createPost(newPost, userId: 1);
+
+      final commentRes = await repository.addComment(
+        postId: 'del_comment_post',
+        content: 'Komentar yang akan dihapus',
+        userId: 2,
+      );
+      final commentId = commentRes.dataOrNull!.id;
+
+      final deleteRes = await repository.deleteComment(
+        postId: 'del_comment_post',
+        commentId: commentId,
+        userId: 2,
+      );
+      expect(deleteRes.isSuccess, isTrue);
+
+      final commentsRes = await repository.getComments('del_comment_post');
+      final comments = commentsRes.dataOrNull ?? [];
+      expect(comments.isEmpty, isTrue);
+
+      final postsRes = await repository.getPosts();
+      final post = postsRes.dataOrNull!.firstWhere((p) => p.id == 'del_comment_post');
+      expect(post.commentsCount, 0);
+    });
+
+    test('deleteComment rejects deletion by a different user', () async {
+      final newPost = CommunityPost(
+        id: 'unauth_del_post',
+        authorName: 'rian_plant',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Postingan tes unauthorized delete',
+        createdAt: DateTime.now(),
+      );
+      await repository.createPost(newPost, userId: 1);
+
+      final commentRes = await repository.addComment(
+        postId: 'unauth_del_post',
+        content: 'Komentar user 1',
+        userId: 1,
+      );
+      final commentId = commentRes.dataOrNull!.id;
+
+      // User 2 attempts to delete user 1's comment
+      final deleteRes = await repository.deleteComment(
+        postId: 'unauth_del_post',
+        commentId: commentId,
+        userId: 2,
+      );
+      expect(deleteRes.isError, isTrue);
+
+      final commentsRes = await repository.getComments('unauth_del_post');
+      expect(commentsRes.dataOrNull!.length, 1);
+    });
+
+    test('addComment rejects empty content', () async {
+      final commentRes = await repository.addComment(
+        postId: 'any_post',
+        content: '   ',
+        userId: 1,
+      );
+      expect(commentRes.isError, isTrue);
+    });
   });
 }

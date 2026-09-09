@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:plenty/features/auth/data/datasources/auth_remote_datasource.dart';
-import 'package:plenty/features/auth/domain/models/user_model.dart';
 
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
 class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}

@@ -2,18 +2,25 @@ import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/auth/domain/models/user_model.dart';
+import 'package:plenty/features/community/data/datasources/community_remote_datasource.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
+import 'package:plenty/features/community/domain/models/post_comment_model.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
 import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:sqflite/sqflite.dart';
 
-/// Implementation of ICommunityRepository with SQLite persistence.
+/// Implementation of ICommunityRepository with SQLite persistence and Cloud Firestore sync.
 class CommunityRepositoryImpl implements ICommunityRepository {
   final DatabaseHelper _dbHelper;
+  final CommunityRemoteDataSource? _remoteDataSource;
   bool _isInitialized = false;
 
-  CommunityRepositoryImpl({DatabaseHelper? dbHelper})
-    : _dbHelper = dbHelper ?? DatabaseHelper.instance;
+  CommunityRepositoryImpl({
+    DatabaseHelper? dbHelper,
+    CommunityRemoteDataSource? remoteDataSource,
+  })  : _dbHelper = dbHelper ?? DatabaseHelper.instance,
+        _remoteDataSource = remoteDataSource;
 
   static const List<Map<String, dynamic>> _seedPosts = [
     {
@@ -91,6 +98,18 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         );
       ''');
 
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ${DatabaseHelper.tablePostComments} (
+          id TEXT PRIMARY KEY,
+          post_id TEXT NOT NULL,
+          user_id INTEGER NOT NULL,
+          content TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (post_id) REFERENCES ${DatabaseHelper.tableCommunityPosts} (id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES ${DatabaseHelper.tableUsers} (id) ON DELETE CASCADE
+        );
+      ''');
+
       final count = Sqflite.firstIntValue(
         await db.rawQuery(
           'SELECT COUNT(*) FROM ${DatabaseHelper.tableCommunityPosts}',
@@ -125,15 +144,76 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       await seedInitialPosts();
 
       int effectiveUserId = currentUserId ?? 1;
-      if (currentUserId == null) {
-        try {
-          final activeUser = await PreferenceHandler.getUser();
-          if (activeUser != null &&
+      String stringUserId = effectiveUserId.toString();
+      UserModel? activeUser;
+      try {
+        activeUser = await PreferenceHandler.getUser();
+        if (activeUser != null) {
+          if (currentUserId == null &&
               activeUser.numericId != null &&
               activeUser.numericId != 0) {
             effectiveUserId = activeUser.numericId!;
           }
-        } catch (_) {}
+          if (activeUser.id != null && activeUser.id!.isNotEmpty) {
+            stringUserId = activeUser.id!;
+          }
+        }
+      } catch (_) {}
+
+      // If remote data source is provided, sync remote posts to SQLite cache
+      if (_remoteDataSource != null) {
+        try {
+          final remotePosts = await _remoteDataSource.getPosts(
+            category: category,
+            currentUserId: stringUserId,
+          );
+          for (final p in remotePosts) {
+            await db.insert(
+              DatabaseHelper.tableUsers,
+              {
+                'id': p.userId ?? 999,
+                'email': '',
+                'username': p.authorName,
+                'password': '',
+                'display_name': p.authorName,
+                'avatar_url': p.authorAvatar,
+                'created_at': DateTime.now().toIso8601String(),
+              },
+              conflictAlgorithm: ConflictAlgorithm.ignore,
+            );
+            await db.insert(
+              DatabaseHelper.tableCommunityPosts,
+              {
+                'id': p.id,
+                'user_id': p.userId ?? effectiveUserId,
+                'category': _normalizeCategory(p.category) ?? 'pertanyaan',
+                'caption': p.content,
+                'image_url': p.imagePath,
+                'badge_id': p.attachedBadge?.id,
+                'kudos_count': p.likesCount,
+                'comment_count': p.commentsCount,
+                'created_at': p.createdAt.toIso8601String(),
+              },
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+            if (p.isLiked) {
+              await db.insert(
+                DatabaseHelper.tablePostLikes,
+                {
+                  'post_id': p.id,
+                  'user_id': effectiveUserId,
+                  'created_at': DateTime.now().toIso8601String(),
+                },
+                conflictAlgorithm: ConflictAlgorithm.replace,
+              );
+            }
+          }
+          if (remotePosts.isNotEmpty) {
+            return Success(remotePosts);
+          }
+        } catch (_) {
+          // Offline fallback
+        }
       }
 
       String query =
@@ -265,6 +345,19 @@ class CommunityRepositoryImpl implements ICommunityRepository {
           createdAt: DateTime.now(),
         ),
       );
+      final remote = _remoteDataSource;
+      if (remote != null) {
+        try {
+          String stringUserId = effectiveUserId.toString();
+          final activeUser = await PreferenceHandler.getUser();
+          final activeUid = activeUser?.id;
+          if (activeUid != null && activeUid.isNotEmpty) {
+            stringUserId = activeUid;
+          }
+          await remote.toggleLike(postId, stringUserId);
+        } catch (_) {}
+      }
+
       return Success(post);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -347,6 +440,20 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         isLiked: false,
         isAuthor: true,
       );
+
+      final remote = _remoteDataSource;
+      if (remote != null) {
+        try {
+          String stringUserId = effectiveUserId.toString();
+          final activeUser = await PreferenceHandler.getUser();
+          final activeUid = activeUser?.id;
+          if (activeUid != null && activeUid.isNotEmpty) {
+            stringUserId = activeUid;
+          }
+          await remote.savePost(created, userId: stringUserId);
+        } catch (_) {}
+      }
+
       return Success(created);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -416,6 +523,19 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         orElse: () => post.copyWith(category: normalizedCat, isAuthor: true),
       );
 
+      final remote = _remoteDataSource;
+      if (remote != null) {
+        try {
+          String stringUserId = effectiveUserId.toString();
+          final activeUser = await PreferenceHandler.getUser();
+          final activeUid = activeUser?.id;
+          if (activeUid != null && activeUid.isNotEmpty) {
+            stringUserId = activeUid;
+          }
+          await remote.updatePost(updatedPost, userId: stringUserId);
+        } catch (_) {}
+      }
+
       return Success(updatedPost);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -466,6 +586,14 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         where: 'id = ?',
         whereArgs: [postId],
       );
+
+      final remote = _remoteDataSource;
+      if (remote != null) {
+        try {
+          await remote.deletePost(postId);
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -496,7 +624,284 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         limit: 1,
       );
 
-      return Success(existing.isNotEmpty);
+      if (existing.isNotEmpty) {
+        return const Success(true);
+      }
+
+      final remote = _remoteDataSource;
+      if (remote != null) {
+        try {
+          String stringUserId = effectiveUserId.toString();
+          final activeUser = await PreferenceHandler.getUser();
+          final activeUid = activeUser?.id;
+          if (activeUid != null && activeUid.isNotEmpty) {
+            stringUserId = activeUid;
+          }
+          final remoteHasShared =
+              await remote.hasUserSharedBadge(badgeId, stringUserId);
+          if (remoteHasShared) {
+            return const Success(true);
+          }
+        } catch (_) {}
+      }
+
+      return const Success(false);
+    } catch (e) {
+      return Error(DatabaseFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<List<PostCommentModel>>> getComments(String postId) async {
+    try {
+      final db = await _dbHelper.database;
+      await seedInitialPosts();
+
+      final remote = _remoteDataSource;
+      if (remote != null) {
+        try {
+          final remoteComments = await remote.getComments(postId);
+          for (final c in remoteComments) {
+            final commentUid = int.tryParse(c.userId) ?? 1;
+            await db.insert(
+              DatabaseHelper.tableUsers,
+              {
+                'id': commentUid,
+                'email': '',
+                'username': c.authorName,
+                'password': '',
+                'display_name': c.authorName,
+                'avatar_url': c.authorAvatarUrl,
+                'created_at': DateTime.now().toIso8601String(),
+              },
+              conflictAlgorithm: ConflictAlgorithm.ignore,
+            );
+            await db.insert(
+              DatabaseHelper.tablePostComments,
+              {
+                'id': c.id,
+                'post_id': c.postId,
+                'user_id': commentUid,
+                'content': c.content,
+                'created_at': c.createdAt.toIso8601String(),
+              },
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+          if (remoteComments.isNotEmpty) {
+            return Success(remoteComments);
+          }
+        } catch (_) {
+          // Offline fallback
+        }
+      }
+
+      final rows = await db.rawQuery('''
+        SELECT 
+          c.id,
+          c.post_id,
+          c.user_id,
+          c.content,
+          c.created_at,
+          u.display_name,
+          u.username,
+          u.avatar_url
+        FROM ${DatabaseHelper.tablePostComments} c
+        LEFT JOIN ${DatabaseHelper.tableUsers} u ON c.user_id = u.id
+        WHERE c.post_id = ?
+        ORDER BY c.created_at ASC
+      ''', [postId]);
+
+      final comments = rows.map((row) {
+        final username = row['username'] as String?;
+        final displayName = row['display_name'] as String?;
+        final authorName = (username != null && username.isNotEmpty)
+            ? username
+            : (displayName != null && displayName.isNotEmpty
+                ? displayName
+                : 'Teman Plenty');
+
+        final createdAtStr =
+            row['created_at'] as String? ?? DateTime.now().toIso8601String();
+        final createdAt = DateTime.tryParse(createdAtStr) ?? DateTime.now();
+
+        return PostCommentModel(
+          id: row['id'] as String? ?? '',
+          postId: row['post_id'] as String? ?? postId,
+          userId: (row['user_id'] as int? ?? 1).toString(),
+          authorName: authorName,
+          authorAvatarUrl: row['avatar_url'] as String?,
+          content: row['content'] as String? ?? '',
+          createdAt: createdAt,
+        );
+      }).toList();
+
+      return Success(comments);
+    } catch (e) {
+      return Error(DatabaseFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<PostCommentModel>> addComment({
+    required String postId,
+    required String content,
+    int? userId,
+    String? authorName,
+    String? authorAvatarUrl,
+  }) async {
+    try {
+      final trimmedContent = content.trim();
+      if (trimmedContent.isEmpty) {
+        return const Error(ValidationFailure('Komentar tidak boleh kosong'));
+      }
+
+      final db = await _dbHelper.database;
+      await seedInitialPosts();
+
+      int effectiveUserId = userId ?? 1;
+      String stringUserId = effectiveUserId.toString();
+      String effectiveAuthorName = authorName ?? '';
+      String? effectiveAvatar = authorAvatarUrl;
+
+      try {
+        final activeUser = await PreferenceHandler.getUser();
+        if (activeUser != null) {
+          if (userId == null &&
+              activeUser.numericId != null &&
+              activeUser.numericId != 0) {
+            effectiveUserId = activeUser.numericId!;
+          }
+          if (activeUser.id != null && activeUser.id!.isNotEmpty) {
+            stringUserId = activeUser.id!;
+          }
+          if (effectiveAuthorName.isEmpty ||
+              effectiveAuthorName == 'Teman Plenty' ||
+              effectiveAuthorName == 'Penggemar Tanaman') {
+            if (activeUser.username.isNotEmpty) {
+              effectiveAuthorName = activeUser.username;
+            } else if (activeUser.displayName.isNotEmpty) {
+              effectiveAuthorName = activeUser.displayName;
+            }
+            effectiveAvatar = activeUser.avatarUrl;
+          }
+        }
+      } catch (_) {}
+
+      if (effectiveAuthorName.isEmpty) {
+        effectiveAuthorName = 'Penggemar Tanaman';
+      }
+
+      final commentId =
+          'cm_${DateTime.now().millisecondsSinceEpoch}_$effectiveUserId';
+      final now = DateTime.now();
+
+      await db.insert(
+        DatabaseHelper.tablePostComments,
+        {
+          'id': commentId,
+          'post_id': postId,
+          'user_id': effectiveUserId,
+          'content': trimmedContent,
+          'created_at': now.toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      // Increment comment_count on post
+      await db.rawUpdate('''
+        UPDATE ${DatabaseHelper.tableCommunityPosts}
+        SET comment_count = comment_count + 1
+        WHERE id = ?
+      ''', [postId]);
+
+      final comment = PostCommentModel(
+        id: commentId,
+        postId: postId,
+        userId: stringUserId,
+        authorName: effectiveAuthorName,
+        authorAvatarUrl: effectiveAvatar,
+        content: trimmedContent,
+        createdAt: now,
+      );
+
+      final remote = _remoteDataSource;
+      if (remote != null) {
+        try {
+          await remote.saveComment(comment);
+        } catch (_) {}
+      }
+
+      return Success(comment);
+    } catch (e) {
+      return Error(DatabaseFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> deleteComment({
+    required String postId,
+    required String commentId,
+    int? userId,
+  }) async {
+    try {
+      final db = await _dbHelper.database;
+      await seedInitialPosts();
+
+      int? effectiveUserId = userId;
+      if (effectiveUserId == null) {
+        try {
+          final activeUser = await PreferenceHandler.getUser();
+          if (activeUser != null &&
+              activeUser.numericId != null &&
+              activeUser.numericId != 0) {
+            effectiveUserId = activeUser.numericId;
+          }
+        } catch (_) {}
+      }
+
+      final existing = await db.query(
+        DatabaseHelper.tablePostComments,
+        where: 'id = ?',
+        whereArgs: [commentId],
+      );
+
+      if (existing.isEmpty) {
+        return const Error(NotFoundFailure('Komentar tidak ditemukan'));
+      }
+
+      final commentUserId = existing.first['user_id'] as int?;
+      if (effectiveUserId != null &&
+          commentUserId != null &&
+          commentUserId != effectiveUserId) {
+        return const Error(
+          ValidationFailure(
+            'Anda tidak dapat menghapus komentar milik pengguna lain',
+          ),
+        );
+      }
+
+      await db.delete(
+        DatabaseHelper.tablePostComments,
+        where: 'id = ?',
+        whereArgs: [commentId],
+      );
+
+      // Decrement comment_count on post
+      await db.rawUpdate('''
+        UPDATE ${DatabaseHelper.tableCommunityPosts}
+        SET comment_count = CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END
+        WHERE id = ?
+      ''', [postId]);
+
+      final remote = _remoteDataSource;
+      if (remote != null) {
+        try {
+          await remote.deleteComment(postId, commentId);
+        } catch (_) {}
+      }
+
+      return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
     }

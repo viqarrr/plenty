@@ -267,19 +267,17 @@ class DatabaseHelper {
         FOREIGN KEY (badge_id) REFERENCES $tableBadges (id) ON DELETE SET NULL
       );
     ''');
-    /* 
     batch.execute('''
-      CREATE TABLE post_comments (
+      CREATE TABLE $tablePostComments (
         id TEXT PRIMARY KEY,
         post_id TEXT NOT NULL,
         user_id INTEGER NOT NULL,
         content TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        FOREIGN KEY (post_id) REFERENCES community_posts (id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        FOREIGN KEY (post_id) REFERENCES $tableCommunityPosts (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES $tableUsers (id) ON DELETE CASCADE
       );
     ''');
- */
     batch.execute('''
       CREATE TABLE $tablePostLikes (
         post_id TEXT NOT NULL,

@@ -70,6 +70,58 @@ class CommunityPost {
     );
   }
 
+  Map<String, dynamic> toFirestoreMap() => {
+        'id': id,
+        'user_id': userId?.toString() ?? '1',
+        'author_name': authorName,
+        'author_avatar_url': authorAvatar,
+        'category': category,
+        'caption': content,
+        'image_url': imagePath,
+        'badge_id': attachedBadge?.id,
+        'kudos_count': likesCount,
+        'comment_count': commentsCount,
+        'created_at': createdAt.toIso8601String(),
+      };
+
+  factory CommunityPost.fromFirestoreMap(
+    Map<String, dynamic> map, {
+    String? currentUserId,
+    bool isLiked = false,
+  }) {
+    final rawUserId = map['user_id']?.toString() ?? '1';
+    final parsedIntId = int.tryParse(rawUserId);
+    final isAuthor = currentUserId != null &&
+        (currentUserId == rawUserId ||
+            (parsedIntId != null && currentUserId == parsedIntId.toString()));
+    final createdAtStr =
+        map['created_at']?.toString() ?? DateTime.now().toIso8601String();
+    final createdAt = DateTime.tryParse(createdAtStr) ?? DateTime.now();
+
+    return CommunityPost(
+      id: map['id']?.toString() ?? '',
+      userId: parsedIntId ?? 1,
+      authorName: (map['author_name'] as String?) ??
+          (map['display_name'] as String?) ??
+          'Penggemar Tanaman',
+      authorAvatar: (map['author_avatar_url'] as String?) ??
+          (map['avatar_url'] as String?),
+      timeAgo: formatTimeAgo(createdAt),
+      category: map['category'] as String? ?? 'pertanyaan',
+      content: (map['caption'] as String?) ?? (map['content'] as String?) ?? '',
+      imagePath: (map['image_url'] as String?) ?? (map['image_path'] as String?),
+      likesCount: (map['kudos_count'] as num?)?.toInt() ??
+          (map['likes_count'] as num?)?.toInt() ??
+          0,
+      isLiked: isLiked,
+      isAuthor: isAuthor,
+      commentsCount: (map['comment_count'] as num?)?.toInt() ??
+          (map['comments_count'] as num?)?.toInt() ??
+          0,
+      createdAt: createdAt,
+    );
+  }
+
   static String formatTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);

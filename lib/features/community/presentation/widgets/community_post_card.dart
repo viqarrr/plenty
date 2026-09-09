@@ -205,47 +205,46 @@ class CommunityPostCard extends StatelessWidget {
                 ),
               ),
 
-              // // TODO: Tombol Komentar & Bagikan di-comment terlebih dahulu sesuai spesifikasi
-              // const SizedBox(width: 24),
-              // GestureDetector(
-              //   onTap: onCommentTap,
-              //   behavior: HitTestBehavior.opaque,
-              //   child: Row(
-              //     children: [
-              //       const Icon(
-              //         Icons.chat_bubble_outline_rounded,
-              //         size: 18,
-              //         color: AppColors.muted,
-              //       ),
-              //       const SizedBox(width: 6),
-              //       Text(
-              //         '${post.commentsCount}',
-              //         style: AppTypography.caption1Bold.copyWith(
-              //           color: AppColors.muted,
-              //         ),
-              //       ),
-              //     ],
-              //   ),
-              // ),
-              // const Spacer(),
-              // IconButton(
-              //   onPressed: onShareTap ??
-              //       () {
-              //         ScaffoldMessenger.of(context).showSnackBar(
-              //           const SnackBar(
-              //             content: Text('Tautan postingan disalin!'),
-              //             duration: Duration(seconds: 2),
-              //           ),
-              //         );
-              //       },
-              //   icon: const Icon(
-              //     Icons.share_outlined,
-              //     size: 19,
-              //     color: AppColors.muted,
-              //   ),
-              //   padding: EdgeInsets.zero,
-              //   constraints: const BoxConstraints(),
-              // ),
+              const SizedBox(width: 24),
+              GestureDetector(
+                onTap: onCommentTap,
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 18,
+                      color: AppColors.muted,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${post.commentsCount}',
+                      style: AppTypography.caption1Bold.copyWith(
+                        color: AppColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: onShareTap ??
+                    () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Tautan postingan disalin!'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                icon: const Icon(
+                  Icons.share_outlined,
+                  size: 19,
+                  color: AppColors.muted,
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
             ],
           ),
         ],

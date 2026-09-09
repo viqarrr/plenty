@@ -257,7 +257,7 @@ class GrowthRepositoryImpl implements IGrowthRepository {
       // Sync badge to Cloud Firestore
       if (isFirstTimeCapsule && _badgeRepo != null) {
         try {
-          await _badgeRepo?.awardBadge(
+          await _badgeRepo.awardBadge(
             userId: effectiveUserId.toString(),
             badgeId: 'time_capsule',
           );

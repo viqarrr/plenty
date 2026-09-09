@@ -252,7 +252,7 @@ class PlantRepositoryImpl implements IPlantRepository {
           DatabaseHelper.tableUserPlants,
           where: isDefaultUser
               ? "(user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = '1' OR user_id = 'user_1' OR user_id = 'usr_default') AND is_archived = 0"
-              : "(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0",
+              : '(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0',
           whereArgs: [effectiveUserId, effectiveUserId],
         );
 

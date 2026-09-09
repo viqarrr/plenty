@@ -104,12 +104,11 @@ class BadgeRepositoryImpl implements IBadgeRepository {
             ? activeUser.id!
             : (userId?.toString() ?? '1');
         if (uid.isNotEmpty && uid != '0' && uid != '1' && uid != 'usr_default') {
-          final remoteBadges = await _remoteDataSource?.getUserBadges(uid);
+          final remoteBadges = await _remoteDataSource.getUserBadges(uid);
           final remoteUnlockedMap = {
-            if (remoteBadges != null)
-              for (final b in remoteBadges)
-                if (b['is_unlocked'] == true || b['is_unlocked'] == 1)
-                  b['badge_id'] as String?: b,
+            for (final b in remoteBadges)
+              if (b['is_unlocked'] == true || b['is_unlocked'] == 1)
+                b['badge_id'] as String?: b,
           };
 
           badges = badges.map((badge) {
@@ -129,7 +128,7 @@ class BadgeRepositoryImpl implements IBadgeRepository {
           for (final b in badges) {
             if (b.isUnlocked && !remoteUnlockedMap.containsKey(b.id)) {
               try {
-                await _remoteDataSource?.awardBadge(
+                await _remoteDataSource.awardBadge(
                   uid,
                   b.id,
                   b.unlockedDate ?? formattedDate,
@@ -277,7 +276,7 @@ class BadgeRepositoryImpl implements IBadgeRepository {
             ? rawUid
             : (activeUser?.id ?? '');
         if (uid.isNotEmpty && uid != '0' && uid != '1' && uid != 'usr_default') {
-          await _remoteDataSource?.awardBadge(uid, badgeId, formattedDate);
+          await _remoteDataSource.awardBadge(uid, badgeId, formattedDate);
         }
       } catch (_) {}
 

@@ -25,7 +25,6 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
   final DatabaseHelper _dbHelper;
   final IPlantRepository _plantRepo;
   final IStreakRepository _streakRepo;
-  final IBadgeRepository? _badgeRepo;
   final ProfileRemoteDataSource? _remoteDataSource;
   final CareRemoteDataSource? _careRemoteDataSource;
   final GrowthRemoteDataSource? _growthRemoteDataSource;
@@ -41,7 +40,6 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
   }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
        _plantRepo = plantRepo ?? PlantRepositoryImpl(dbHelper: dbHelper),
        _streakRepo = streakRepo ?? StreakRepositoryImpl(dbHelper: dbHelper),
-       _badgeRepo = badgeRepo,
        _remoteDataSource = remoteDataSource,
        _careRemoteDataSource = careRemoteDataSource,
        _growthRemoteDataSource = growthRemoteDataSource;
@@ -235,7 +233,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           );
 
           final activeUser = await PreferenceHandler.getUser();
-          int? numId = parsedUserId ?? activeUser?.numericId;
+          int numId = parsedUserId;
           if (activeUser?.email != null && activeUser!.email.isNotEmpty) {
             final uRows = await txn.query(
               DatabaseHelper.tableUsers,
@@ -248,24 +246,22 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
               numId = uRows.first['id'] as int;
             }
           }
-          if (numId != null) {
-            final userRows = await txn.query(
+          final userRows = await txn.query(
+            DatabaseHelper.tableUsers,
+            where: 'id = ?',
+            whereArgs: [numId],
+            limit: 1,
+          );
+          if (userRows.isNotEmpty) {
+            final currentUserXp = (userRows.first['total_xp'] as int? ?? 0);
+            final newUserXp = currentUserXp + xpAwarded;
+            final newUserLevel = XpConfig.levelForXp(newUserXp);
+            await txn.update(
               DatabaseHelper.tableUsers,
+              {'total_xp': newUserXp, 'level': newUserLevel},
               where: 'id = ?',
               whereArgs: [numId],
-              limit: 1,
             );
-            if (userRows.isNotEmpty) {
-              final currentUserXp = (userRows.first['total_xp'] as int? ?? 0);
-              final newUserXp = currentUserXp + xpAwarded;
-              final newUserLevel = XpConfig.levelForXp(newUserXp);
-              await txn.update(
-                DatabaseHelper.tableUsers,
-                {'total_xp': newUserXp, 'level': newUserLevel},
-                where: 'id = ?',
-                whereArgs: [numId],
-              );
-            }
           }
         }
 
@@ -465,24 +461,22 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
               numId = uRows.first['id'] as int;
             }
           }
-          if (numId != null) {
-            final userRows = await txn.query(
+          final userRows = await txn.query(
+            DatabaseHelper.tableUsers,
+            where: 'id = ?',
+            whereArgs: [numId],
+            limit: 1,
+          );
+          if (userRows.isNotEmpty) {
+            final currentUserXp = (userRows.first['total_xp'] as int? ?? 0);
+            final newUserXp = currentUserXp + xpAwarded;
+            final newUserLevel = XpConfig.levelForXp(newUserXp);
+            await txn.update(
               DatabaseHelper.tableUsers,
+              {'total_xp': newUserXp, 'level': newUserLevel},
               where: 'id = ?',
               whereArgs: [numId],
-              limit: 1,
             );
-            if (userRows.isNotEmpty) {
-              final currentUserXp = (userRows.first['total_xp'] as int? ?? 0);
-              final newUserXp = currentUserXp + xpAwarded;
-              final newUserLevel = XpConfig.levelForXp(newUserXp);
-              await txn.update(
-                DatabaseHelper.tableUsers,
-                {'total_xp': newUserXp, 'level': newUserLevel},
-                where: 'id = ?',
-                whereArgs: [numId],
-              );
-            }
           }
         }
 

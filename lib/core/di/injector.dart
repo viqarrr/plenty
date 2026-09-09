@@ -3,6 +3,7 @@ import 'package:plenty/features/auth/data/datasources/auth_local_datasource.dart
 import 'package:plenty/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:plenty/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:plenty/features/auth/domain/repositories/auth_repository.dart';
+import 'package:plenty/features/community/data/datasources/community_remote_datasource.dart';
 import 'package:plenty/features/community/data/repositories/community_repository_impl.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
 import 'package:plenty/features/daily_care/data/datasources/care_remote_datasource.dart';
@@ -62,6 +63,10 @@ class Injector {
   static GrowthRemoteDataSource? _growthRemoteDataSource;
   static GrowthRemoteDataSource get growthRemoteDataSource =>
       _growthRemoteDataSource ??= FirestoreGrowthRemoteDataSourceImpl();
+
+  static CommunityRemoteDataSource? _communityRemoteDataSource;
+  static CommunityRemoteDataSource get communityRemoteDataSource =>
+      _communityRemoteDataSource ??= FirestoreCommunityRemoteDataSourceImpl();
 
   // Repositories
   static IAuthRepository? _authRepository;
@@ -127,6 +132,7 @@ class Injector {
   static ICommunityRepository get communityRepository =>
       _communityRepository ??= CommunityRepositoryImpl(
         dbHelper: databaseHelper,
+        remoteDataSource: communityRemoteDataSource,
       );
 
   static IGrowthRepository? _growthRepository;
@@ -164,6 +170,8 @@ class Injector {
       _dailyCareRepository = repo;
   static set communityRepository(ICommunityRepository? repo) =>
       _communityRepository = repo;
+  static set communityRemoteDataSource(CommunityRemoteDataSource? ds) =>
+      _communityRemoteDataSource = ds;
   static set growthRepository(IGrowthRepository? repo) =>
       _growthRepository = repo;
 
@@ -177,6 +185,7 @@ class Injector {
     _gardenRemoteDataSource = null;
     _careRemoteDataSource = null;
     _growthRemoteDataSource = null;
+    _communityRemoteDataSource = null;
     _authRepository = null;
     _badgeRepository = null;
     _userRepository = null;

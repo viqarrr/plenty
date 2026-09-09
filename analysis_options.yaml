@@ -9,6 +9,11 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    - tool/**
+  errors:
+    subtype_of_sealed_class: ignore
+    prefer_initializing_formals: ignore
+    use_null_aware_elements: ignore
   language:
     strict-casts: true
 
