@@ -87,19 +87,13 @@ class PlantRepositoryImpl implements IPlantRepository {
 
       // If empty response from API, return empty list
       return const Success([]);
-    } on Failure catch (failure) {
+    } on Failure catch (_) {
       // On network failure or rate limit, provide in-memory seed fallback for smooth offline UX
       final fallbackSeeds = await _loadInMemorySeeds(query: q);
-      if (fallbackSeeds.isNotEmpty) {
-        return Success(fallbackSeeds);
-      }
-      return Error(failure);
-    } catch (e) {
+      return Success(fallbackSeeds);
+    } catch (_) {
       final fallbackSeeds = await _loadInMemorySeeds(query: q);
-      if (fallbackSeeds.isNotEmpty) {
-        return Success(fallbackSeeds);
-      }
-      return Error(ServerFailure('Gagal memuat katalog tanaman: $e'));
+      return Success(fallbackSeeds);
     }
   }
 
