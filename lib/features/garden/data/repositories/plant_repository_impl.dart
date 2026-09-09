@@ -12,6 +12,8 @@ import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_mode
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/auth/domain/models/user_model.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -191,7 +193,21 @@ class PlantRepositoryImpl implements IPlantRepository {
   }) async {
     try {
       final db = await _dbHelper.database;
-      final int parsedUserId = int.tryParse(userId.toString()) ?? 1;
+      UserModel? activeUser;
+      try {
+        activeUser = await PreferenceHandler.getUser();
+      } catch (_) {}
+      final resolvedId = (userId.isNotEmpty &&
+              userId != 'usr_default' &&
+              userId != '1' &&
+              userId != '0')
+          ? userId
+          : ((activeUser?.id != null && activeUser!.id!.isNotEmpty && activeUser.id != '0')
+              ? activeUser.id!
+              : (userId.isNotEmpty && userId != '0' ? userId : '1'));
+      final effectiveUserId = resolvedId == '0' ? '1' : resolvedId;
+      final int rawParsed = int.tryParse(effectiveUserId.toString()) ?? (activeUser?.numericId ?? 1);
+      final int parsedUserId = rawParsed > 0 ? rawParsed : 1;
 
       final result = await db.transaction<AddPlantResult>((txn) async {
         // 1. Ensure user row exists for relational integrity
@@ -204,10 +220,10 @@ class PlantRepositoryImpl implements IPlantRepository {
         if (userRows.isEmpty) {
           await txn.insert(DatabaseHelper.tableUsers, {
             'id': parsedUserId,
-            'email': 'user_$parsedUserId@plenty.app',
-            'username': 'user_$parsedUserId',
+            'email': activeUser?.email ?? 'user_$parsedUserId@plenty.app',
+            'username': activeUser?.username ?? 'user_$parsedUserId',
             'password': '',
-            'display_name': 'Pecinta Tanaman',
+            'display_name': activeUser?.displayName ?? 'Pecinta Tanaman',
             'created_at': DateTime.now().toIso8601String(),
           }, conflictAlgorithm: ConflictAlgorithm.ignore);
         }
@@ -215,8 +231,8 @@ class PlantRepositoryImpl implements IPlantRepository {
         // Check if this is truly the user's first plant adoption ever
         final existingPlants = await txn.query(
           DatabaseHelper.tableUserPlants,
-          where: '(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0',
-          whereArgs: [userId, userId],
+          where: "(user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = 'usr_default') AND is_archived = 0",
+          whereArgs: [effectiveUserId, effectiveUserId],
         );
 
         final userBadgeRows = await txn.query(
@@ -252,7 +268,7 @@ class PlantRepositoryImpl implements IPlantRepository {
         // 2. Insert self-contained snapshot into user_plants (ZERO disk catalog dependency)
         final plant = PlantModel(
           id: plantId,
-          userId: userId,
+          userId: effectiveUserId,
           speciesId: speciesIdNum,
           catalogId: species?.id ?? catalogId,
           nickname: nickname,
@@ -310,7 +326,7 @@ class PlantRepositoryImpl implements IPlantRepository {
             userPlantId: plantId,
             taskType: 'siram',
             intervalDays: interval,
-            nextDueDate: now.add(Duration(days: interval)),
+            nextDueDate: now,
             isActive: true,
           ),
           CareScheduleModel(
@@ -318,7 +334,7 @@ class PlantRepositoryImpl implements IPlantRepository {
             userPlantId: plantId,
             taskType: 'bersih',
             intervalDays: 7,
-            nextDueDate: now.add(const Duration(days: 7)),
+            nextDueDate: now,
             isActive: true,
           ),
           CareScheduleModel(
@@ -468,20 +484,30 @@ class PlantRepositoryImpl implements IPlantRepository {
 
       // Synchronize badges with IBadgeRepository & Cloud Firestore
       if (result.isFirstPlant) {
-        await _badgeRepo?.awardBadge(userId: userId, badgeId: 'first_plant');
+        await _badgeRepo?.awardBadge(userId: effectiveUserId, badgeId: 'first_plant');
       }
       if (result.isFirstTimeCapsule) {
-        await _badgeRepo?.awardBadge(userId: userId, badgeId: 'time_capsule');
+        await _badgeRepo?.awardBadge(userId: effectiveUserId, badgeId: 'time_capsule');
       }
       try {
-        final allPlantsRes = await getUserPlants(userId);
+        final allPlantsRes = await getUserPlants(effectiveUserId);
         final count = (allPlantsRes.dataOrNull ?? []).length;
         if (count >= 5) {
-          await _badgeRepo?.awardBadge(userId: userId, badgeId: 'plant_collector');
+          await _badgeRepo?.awardBadge(userId: effectiveUserId, badgeId: 'plant_collector');
         }
       } catch (_) {}
-      if (sunlightCondition != null && sunlightCondition.trim().isNotEmpty) {
-        await _badgeRepo?.awardBadge(userId: userId, badgeId: 'sun_master');
+
+      // Migrate any legacy orphaned plants to effective user
+      if (effectiveUserId.isNotEmpty &&
+          effectiveUserId != 'usr_default' &&
+          effectiveUserId != '1') {
+        try {
+          await db.update(
+            DatabaseHelper.tableUserPlants,
+            {'user_id': effectiveUserId},
+            where: "user_id = 'usr_default' OR user_id = '1'",
+          );
+        } catch (_) {}
       }
 
       return Success(result);
@@ -496,13 +522,20 @@ class PlantRepositoryImpl implements IPlantRepository {
   ]) async {
     try {
       final db = await _dbHelper.database;
-      final parsedUserId = int.tryParse(userId.toString());
+      UserModel? activeUser;
+      try {
+        activeUser = await PreferenceHandler.getUser();
+      } catch (_) {}
+      final effectiveUserId = (userId.isNotEmpty && userId != 'usr_default')
+          ? userId
+          : (activeUser?.id ?? userId);
+      final parsedUserId = int.tryParse(effectiveUserId.toString());
 
-      // Query user_plants directly - 100% self-contained snapshot with zero catalog joins
+      // Query user_plants directly - matches user ID, string UID, or legacy usr_default
       final maps = await db.query(
         DatabaseHelper.tableUserPlants,
-        where: '(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0',
-        whereArgs: [parsedUserId ?? userId, userId.toString()],
+        where: "(user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = ? OR user_id = 'usr_default') AND is_archived = 0",
+        whereArgs: [parsedUserId ?? effectiveUserId, effectiveUserId.toString(), activeUser?.id ?? ''],
         orderBy: 'adopted_at DESC',
       );
 

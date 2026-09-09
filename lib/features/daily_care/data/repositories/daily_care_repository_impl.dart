@@ -203,22 +203,38 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
             whereArgs: [plant.id],
           );
 
-          final userRows = await txn.query(
-            DatabaseHelper.tableUsers,
-            where: 'id = ?',
-            whereArgs: [parsedUserId],
-            limit: 1,
-          );
-          if (userRows.isNotEmpty) {
-            final currentUserXp = (userRows.first['total_xp'] as int? ?? 0);
-            final newUserXp = currentUserXp + xpAwarded;
-            final newUserLevel = XpConfig.levelForXp(newUserXp);
-            await txn.update(
+          final activeUser = await PreferenceHandler.getUser();
+          int? numId = parsedUserId ?? activeUser?.numericId;
+          if (activeUser?.email != null && activeUser!.email.isNotEmpty) {
+            final uRows = await txn.query(
               DatabaseHelper.tableUsers,
-              {'total_xp': newUserXp, 'level': newUserLevel},
-              where: 'id = ?',
-              whereArgs: [parsedUserId],
+              columns: ['id'],
+              where: 'email = ?',
+              whereArgs: [activeUser.email],
+              limit: 1,
             );
+            if (uRows.isNotEmpty) {
+              numId = uRows.first['id'] as int;
+            }
+          }
+          if (numId != null) {
+            final userRows = await txn.query(
+              DatabaseHelper.tableUsers,
+              where: 'id = ?',
+              whereArgs: [numId],
+              limit: 1,
+            );
+            if (userRows.isNotEmpty) {
+              final currentUserXp = (userRows.first['total_xp'] as int? ?? 0);
+              final newUserXp = currentUserXp + xpAwarded;
+              final newUserLevel = XpConfig.levelForXp(newUserXp);
+              await txn.update(
+                DatabaseHelper.tableUsers,
+                {'total_xp': newUserXp, 'level': newUserLevel},
+                where: 'id = ?',
+                whereArgs: [numId],
+              );
+            }
           }
         }
 
@@ -361,22 +377,38 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
             whereArgs: [plant.id],
           );
 
-          final userRows = await txn.query(
-            DatabaseHelper.tableUsers,
-            where: 'id = ?',
-            whereArgs: [parsedUserId],
-            limit: 1,
-          );
-          if (userRows.isNotEmpty) {
-            final currentUserXp = (userRows.first['total_xp'] as int? ?? 0);
-            final newUserXp = currentUserXp + xpAwarded;
-            final newUserLevel = XpConfig.levelForXp(newUserXp);
-            await txn.update(
+          final activeUser = await PreferenceHandler.getUser();
+          int? numId = parsedUserId;
+          if (activeUser?.email != null && activeUser!.email.isNotEmpty) {
+            final uRows = await txn.query(
               DatabaseHelper.tableUsers,
-              {'total_xp': newUserXp, 'level': newUserLevel},
-              where: 'id = ?',
-              whereArgs: [parsedUserId],
+              columns: ['id'],
+              where: 'email = ?',
+              whereArgs: [activeUser.email],
+              limit: 1,
             );
+            if (uRows.isNotEmpty) {
+              numId = uRows.first['id'] as int;
+            }
+          }
+          if (numId != null) {
+            final userRows = await txn.query(
+              DatabaseHelper.tableUsers,
+              where: 'id = ?',
+              whereArgs: [numId],
+              limit: 1,
+            );
+            if (userRows.isNotEmpty) {
+              final currentUserXp = (userRows.first['total_xp'] as int? ?? 0);
+              final newUserXp = currentUserXp + xpAwarded;
+              final newUserLevel = XpConfig.levelForXp(newUserXp);
+              await txn.update(
+                DatabaseHelper.tableUsers,
+                {'total_xp': newUserXp, 'level': newUserLevel},
+                where: 'id = ?',
+                whereArgs: [numId],
+              );
+            }
           }
         }
 
@@ -672,16 +704,22 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
   Future<Result<int>> getTotalUserXp([String? userId]) async {
     try {
       final db = await _dbHelper.database;
-      final parsedUserId = int.tryParse(userId ?? '1') ?? 1;
       final activeUser = await PreferenceHandler.getUser();
+      final effectiveUserId = (userId != null &&
+              userId.isNotEmpty &&
+              userId != '1' &&
+              userId != 'usr_default')
+          ? userId
+          : (activeUser?.id ?? userId ?? '1');
+      final parsedUserId = int.tryParse(effectiveUserId) ?? (activeUser?.numericId ?? 1);
 
       final plantXpResult = await db.rawQuery(
         '''
         SELECT COALESCE(SUM(xp), 0) as total_xp
         FROM ${DatabaseHelper.tableUserPlants}
-        WHERE (user_id = ? OR CAST(user_id AS TEXT) = ?)
+        WHERE (user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = ? OR user_id = 'usr_default')
       ''',
-        [parsedUserId, userId ?? '1'],
+        [parsedUserId, effectiveUserId, activeUser?.id ?? ''],
       );
       final plantXp = Sqflite.firstIntValue(plantXpResult) ?? 0;
 
@@ -690,9 +728,9 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         SELECT COALESCE(SUM(c.xp_awarded), 0) as total_xp
         FROM ${DatabaseHelper.tableCareActionLogs} c
         JOIN ${DatabaseHelper.tableUserPlants} p ON c.user_plant_id = p.id
-        WHERE (p.user_id = ? OR CAST(p.user_id AS TEXT) = ?)
+        WHERE (p.user_id = ? OR CAST(p.user_id AS TEXT) = ? OR p.user_id = ? OR p.user_id = 'usr_default')
       ''',
-        [parsedUserId, userId ?? '1'],
+        [parsedUserId, effectiveUserId, activeUser?.id ?? ''],
       );
       final logXp = Sqflite.firstIntValue(logXpResult) ?? 0;
 
@@ -701,9 +739,9 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         final uRows = await db.rawQuery(
           '''
           SELECT total_xp FROM ${DatabaseHelper.tableUsers}
-          WHERE id = ? OR email = ?
+          WHERE id = ? OR email = ? OR id = ?
           ''',
-          [parsedUserId, activeUser?.email ?? ''],
+          [parsedUserId, activeUser?.email ?? '', activeUser?.numericId ?? 0],
         );
         if (uRows.isNotEmpty) {
           userTableXp = (uRows.first['total_xp'] as int?) ?? 0;
@@ -880,23 +918,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         ));
       }
 
-      // 5. Check Doctor Green badge (10 care logs recorded)
-      final countRes = await db.rawQuery(
-        '''
-        SELECT COUNT(*) as count FROM ${DatabaseHelper.tableCareActionLogs} c
-        JOIN ${DatabaseHelper.tableUserPlants} p ON c.user_plant_id = p.id
-        WHERE p.user_id = ? OR CAST(p.user_id AS TEXT) = ?
-        ''',
-        [stringUserId, stringUserId],
-      );
-      final logCount =
-          (countRes.isNotEmpty ? countRes.first['count'] as int? : 0) ?? 0;
-      if (logCount >= 10) {
-        await _badgeRepo?.awardBadge(
-            userId: stringUserId, badgeId: 'doctor_green');
-      }
-
-      // 6. Evaluate daily streak
+      // 5. Evaluate daily streak
       await _streakRepo.evaluateDailyStreak(stringUserId);
     } catch (_) {}
   }

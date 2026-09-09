@@ -28,11 +28,11 @@ void main() {
   });
 
   group('Profile BadgeRepository', () {
-    test('getBadges returns all 6 seeded master badges starting with 0 progress for new user', () async {
+    test('getBadges returns all 4 seeded master badges starting with 0 progress for new user', () async {
       final badgesRes = await badgeRepository.getBadges(userId: 1);
       final badges = badgesRes.dataOrNull ?? [];
 
-      expect(badges.length, equals(6));
+      expect(badges.length, equals(4));
 
       final firstPlant = badges.firstWhere((b) => b.id == 'first_plant');
       expect(firstPlant.title, 'Adopsi Pertama');
@@ -71,14 +71,14 @@ void main() {
     });
 
     test('getBadgeById retrieves specific badge item', () async {
-      final badgeRes = await badgeRepository.getBadgeById('doctor_green', userId: 1);
+      final badgeRes = await badgeRepository.getBadgeById('plant_collector', userId: 1);
       final badge = badgeRes.dataOrNull;
 
       expect(badge, isNotNull);
-      expect(badge?.title, 'Dokter Tanaman');
+      expect(badge?.title, 'Kolektor Rimbun');
       expect(badge?.isUnlocked, isFalse);
       expect(badge?.progress, 0);
-      expect(badge?.total, 10);
+      expect(badge?.total, 5);
     });
   });
 }

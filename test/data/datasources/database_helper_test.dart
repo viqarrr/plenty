@@ -85,7 +85,7 @@ void main() {
 
       // Verify initial master badges seeded
       final masterBadges = await db.query(DatabaseHelper.tableBadges);
-      expect(masterBadges.length, equals(6));
+      expect(masterBadges.length, equals(4));
 
       // Verify initial user badges seeded
       final userBadges = await db.query(
@@ -93,7 +93,7 @@ void main() {
         where: 'user_id = ?',
         whereArgs: [1],
       );
-      expect(userBadges.length, equals(6));
+      expect(userBadges.length, equals(4));
       final unlockedUserBadges =
           userBadges.where((b) => b['is_unlocked'] == 1).toList();
       expect(unlockedUserBadges.length, equals(0));

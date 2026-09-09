@@ -52,6 +52,12 @@ class DatabaseHelper {
       version: _databaseVersion,
       onConfigure: (db) async => await db.execute('PRAGMA foreign_keys = ON;'),
       onCreate: _onCreate,
+      onOpen: (db) async {
+        try {
+          await db.delete(tableBadges, where: "id IN ('doctor_green', 'sun_master')");
+          await db.delete(tableUserBadges, where: "badge_id IN ('doctor_green', 'sun_master')");
+        } catch (_) {}
+      },
     );
   }
 
@@ -64,6 +70,12 @@ class DatabaseHelper {
       version: _databaseVersion,
       onConfigure: (db) async => await db.execute('PRAGMA foreign_keys = ON;'),
       onCreate: _onCreate,
+      onOpen: (db) async {
+        try {
+          await db.delete(tableBadges, where: "id IN ('doctor_green', 'sun_master')");
+          await db.delete(tableUserBadges, where: "badge_id IN ('doctor_green', 'sun_master')");
+        } catch (_) {}
+      },
     );
   }
 
@@ -300,9 +312,7 @@ class DatabaseHelper {
       ('first_plant', 'Adopsi Pertama', 'Mengadopsi tanaman pertama untuk memulai perjalanan berkebunmu.', 'sprout', '', 1, 1, '#EBF7F1', '#2D6A4F'),
       ('water_streak', 'Penyiram Setia', 'Menyiram tanaman tepat waktu selama 7 kali berturut-turut.', 'droplets', '', 7, 7, '#FBF3DB', '#956400'),
       ('time_capsule', 'Kapsul Waktu', 'Membuat pesan kapsul waktu pertama saat menanam.', 'hourglass', '', 1, 1, '#E3F0FF', '#1F6C9F'),
-      ('plant_collector', 'Kolektor Rimbun', 'Memiliki minimal 5 tanaman aktif di kebun virtualmu.', 'trees', '', 5, 5, '#EBF7F1', '#2D6A4F'),
-      ('doctor_green', 'Dokter Tanaman', 'Mencatat jurnal kondisi kesehatan tanaman sebanyak 10 kali.', 'activity', '', 10, 10, '#EFEBF7', '#5B4B8A'),
-      ('sun_master', 'Pencari Cahaya', 'Menempatkan tanaman di lokasi dengan intensitas cahaya ideal.', 'sun', '', 1, 1, '#FBF3DB', '#956400');
+      ('plant_collector', 'Kolektor Rimbun', 'Memiliki minimal 5 tanaman aktif di kebun virtualmu.', 'trees', '', 5, 5, '#EBF7F1', '#2D6A4F');
     ''');
 
     // Default User Initial Progress Seed (User ID 1 starts with 0 unlocked badges)
@@ -311,9 +321,7 @@ class DatabaseHelper {
       ('ub_1_first_plant', 1, 'first_plant', 0, 0, NULL),
       ('ub_1_water_streak', 1, 'water_streak', 0, 0, NULL),
       ('ub_1_time_capsule', 1, 'time_capsule', 0, 0, NULL),
-      ('ub_1_plant_collector', 1, 'plant_collector', 0, 0, NULL),
-      ('ub_1_doctor_green', 1, 'doctor_green', 0, 0, NULL),
-      ('ub_1_sun_master', 1, 'sun_master', 0, 0, NULL);
+      ('ub_1_plant_collector', 1, 'plant_collector', 0, 0, NULL);
     ''');
 
     await batch.commit(noResult: true);

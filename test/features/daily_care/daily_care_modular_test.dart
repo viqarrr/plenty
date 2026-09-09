@@ -93,7 +93,7 @@ void main() {
         'Calathea Beautiful',
       );
       expect(controller.state.heightLogs.first.isCompletedToday, false);
-      expect(controller.state.dueSchedules, isEmpty);
+      expect(controller.state.dueSchedules.length, 2);
     });
 
     test('Completing height task updates state atomically', () async {

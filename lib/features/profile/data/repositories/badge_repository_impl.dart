@@ -75,7 +75,10 @@ class BadgeRepositoryImpl implements IBadgeRepository {
         [effectiveUserId],
       );
 
-      var badges = rows.map(_mapRowToBadgeItem).toList();
+      var badges = rows
+          .map(_mapRowToBadgeItem)
+          .where((b) => b.id != 'doctor_green' && b.id != 'sun_master')
+          .toList();
 
       // Merge badges from Cloud Firestore if available
       try {
@@ -110,7 +113,7 @@ class BadgeRepositoryImpl implements IBadgeRepository {
           final plantRows = await db.rawQuery(
             '''
             SELECT COUNT(*) as count FROM ${DatabaseHelper.tableUserPlants}
-            WHERE (user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0
+            WHERE (user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = 'usr_default') AND is_archived = 0
             ''',
             [effectiveUserId, uid],
           );

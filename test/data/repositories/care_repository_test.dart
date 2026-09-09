@@ -56,26 +56,26 @@ void main() {
       () async {
         final db = await dbHelper.database;
 
-        // 1. When cleaning and watering are NOT due today: returns only ['monitor'] (Daily Log)
+        // 1. On initial plant adoption: watering and cleaning are due immediately
         var tasksRes = await careRepository.getTodaysTaskTypes(plantId);
         var tasks = tasksRes.dataOrNull ?? [];
-        expect(tasks, ['monitor']);
+        expect(tasks, containsAll(['monitor', 'siram', 'bersih']));
         expect(tasks.contains('cek_hama'), isFalse);
-        expect(tasks.contains('siram'), isFalse);
-        expect(tasks.contains('bersih'), isFalse);
 
-        // 2. Set watering and cleaning next_due_date to today: returns ['monitor', 'siram', 'bersih']
+        // 2. When cleaning and watering are postponed to tomorrow: returns only ['monitor']
+        final tomorrowStr = DateTime.now().add(const Duration(days: 1)).toIso8601String();
         await db.update(
           DatabaseHelper.tableCareSchedules,
-          {'next_due_date': DateTime.now().toIso8601String()},
-          where: 'user_plant_id = ?',
+          {'next_due_date': tomorrowStr},
+          where: "user_plant_id = ? AND task_type != 'monitor'",
           whereArgs: [plantId],
         );
 
         tasksRes = await careRepository.getTodaysTaskTypes(plantId);
         tasks = tasksRes.dataOrNull ?? [];
-        expect(tasks, containsAll(['monitor', 'siram', 'bersih']));
-        expect(tasks.contains('cek_hama'), isFalse);
+        expect(tasks, ['monitor']);
+        expect(tasks.contains('siram'), isFalse);
+        expect(tasks.contains('bersih'), isFalse);
       },
     );
 

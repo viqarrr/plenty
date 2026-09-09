@@ -61,7 +61,7 @@ class PreferenceHandler {
       final legacyProfileName = prefs.getString('profile_name');
       if (legacyProfileName != null && legacyProfileName.isNotEmpty) {
         return UserModel(
-          id: '0',
+          id: '1',
           email: 'user@plenty.app',
           password: '',
           username: legacyProfileName,
