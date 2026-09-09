@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:plenty/core/constants/xp_config.dart';
 import 'package:plenty/core/di/injector.dart';
@@ -261,15 +262,42 @@ class HomeController extends ChangeNotifier {
                   _state.profileName != 'Teman Plenty'
               ? _state.profileName
               : 'Alice');
+      final userEmail = user?.email.trim();
+      String emailVal = '';
+      if (userEmail != null && userEmail.isNotEmpty && userEmail.contains('@')) {
+        emailVal = userEmail;
+      } else {
+        try {
+          final fbEmail = FirebaseAuth.instance.currentUser?.email?.trim();
+          if (fbEmail != null && fbEmail.isNotEmpty && fbEmail.contains('@')) {
+            emailVal = fbEmail;
+          }
+        } catch (_) {}
+
+        if (emailVal.isEmpty) {
+          try {
+            final authEmail = Injector.authRepository.currentUser?.email.trim();
+            if (authEmail != null && authEmail.isNotEmpty && authEmail.contains('@')) {
+              emailVal = authEmail;
+            }
+          } catch (_) {}
+        }
+
+        if (emailVal.isEmpty && userEmail != null && userEmail.isNotEmpty) {
+          emailVal = userEmail;
+        }
+      }
+
+      if (user != null && user.email != emailVal && emailVal.isNotEmpty) {
+        try {
+          await PreferenceHandler.setUser(user.copyWith(email: emailVal));
+        } catch (_) {}
+      }
+
       final usernameVal = (user?.username.trim().isNotEmpty ?? false)
           ? user!.username
-          : (user?.email.contains('@') ?? false
-              ? user!.email.split('@').first
-              : 'alex_plants');
-      final emailVal = (user?.email.trim().isNotEmpty ?? false)
-          ? user!.email
-          : (user?.email.contains('@') ?? false
-              ? user!.email.split('@').first
+          : (emailVal.contains('@')
+              ? emailVal.split('@').first
               : 'alex_plants');
       final avatarUrlVal = user?.avatarUrl;
       final bioVal = user?.bio;
@@ -340,6 +368,7 @@ class HomeController extends ChangeNotifier {
           badgeCount: badgeCount,
           profileName: name,
           username: usernameVal,
+          email: emailVal,
           avatarUrl: avatarUrlVal,
           bio: bioVal,
           isLoading: false,

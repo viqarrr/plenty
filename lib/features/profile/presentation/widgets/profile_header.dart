@@ -9,6 +9,7 @@ import 'package:plenty/features/profile/presentation/widgets/header_concave_clip
 class ProfileHeader extends StatelessWidget {
   final String profileName;
   final String username;
+  final String? email;
   final String? avatarPath;
 
   /// Called when the gear icon is tapped.
@@ -18,6 +19,7 @@ class ProfileHeader extends StatelessWidget {
     super.key,
     required this.profileName,
     this.username = 'alex_plants',
+    this.email,
     this.avatarPath,
     this.onSettingsTap,
   });
@@ -113,6 +115,17 @@ class ProfileHeader extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
+              if (email != null && email!.trim().isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  email!.trim(),
+                  style: AppTypography.caption1Regular.copyWith(
+                    color: AppColors.muted.withValues(alpha: 0.8),
+                    fontSize: 13,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ],
           ),
         ),
