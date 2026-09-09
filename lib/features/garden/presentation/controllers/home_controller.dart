@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:plenty/core/constants/xp_config.dart';
 import 'package:plenty/core/di/injector.dart';
@@ -190,20 +191,30 @@ class HomeController extends ChangeNotifier {
     loadDashboard();
   }
 
+  final StreamController<HomeState> _stateController =
+      StreamController<HomeState>.broadcast();
+  Stream<HomeState> get stateStream => _stateController.stream;
+
   @override
   void dispose() {
     _isDisposed = true;
+    _stateController.close();
     super.dispose();
   }
 
   void _updateState(HomeState newState) {
     if (_isDisposed) return;
     _state = newState;
+    if (!_stateController.isClosed) {
+      _stateController.add(newState);
+    }
     notifyListeners();
   }
 
-  Future<void> loadDashboard() async {
-    _updateState(_state.copyWith(isLoading: true, errorMessage: null));
+  Future<void> loadDashboard({bool silent = false}) async {
+    if (!silent) {
+      _updateState(_state.copyWith(isLoading: true, errorMessage: null));
+    }
 
     try {
       final userProfileResult = await _userRepo.getUserProfile();
@@ -345,13 +356,21 @@ class HomeController extends ChangeNotifier {
   }
 
   Future<void> completeTask(CareTaskModel task) async {
+    final updatedTasks = _state.dailyTasks.map((t) {
+      if (t.id == task.id) {
+        return t.copyWith(isCompleted: true);
+      }
+      return t;
+    }).toList();
+    _updateState(_state.copyWith(dailyTasks: updatedTasks));
+
     final result = await _careRepo.completeRoutineTask(
       plant: task.plant,
       taskType: task.type.dbString,
     );
     switch (result) {
       case Success():
-        await loadDashboard();
+        await loadDashboard(silent: true);
       case Error(:final failure):
         _updateState(_state.copyWith(errorMessage: failure.message));
     }

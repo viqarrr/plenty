@@ -98,7 +98,9 @@ class TasksTab extends StatelessWidget {
                     final task = tasks[index];
                     return TaskCard(
                       task: task,
+                      isCompleted: task.isCompleted,
                       onAction: () {
+                        if (task.isCompleted) return;
                         if (task.type == TaskType.monitor) {
                           context.showAppBottomSheet(
                             MonitorTinggiInputSheet(
