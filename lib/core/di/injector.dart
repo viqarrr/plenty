@@ -16,6 +16,7 @@ import 'package:plenty/features/garden/domain/repositories/growth_repository.dar
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/site_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/streak_repository.dart';
+import 'package:plenty/features/profile/data/datasources/profile_remote_datasource.dart';
 import 'package:plenty/features/profile/data/repositories/badge_repository_impl.dart';
 import 'package:plenty/features/profile/data/repositories/user_repository_impl.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
@@ -43,6 +44,10 @@ class Injector {
   static AuthLocalDataSource get authLocalDataSource =>
       _authLocalDataSource ??= AuthLocalDataSourceImpl(databaseHelper);
 
+  static ProfileRemoteDataSource? _profileRemoteDataSource;
+  static ProfileRemoteDataSource get profileRemoteDataSource =>
+      _profileRemoteDataSource ??= FirestoreProfileRemoteDataSourceImpl();
+
   // Repositories
   static IAuthRepository? _authRepository;
   static IAuthRepository get authRepository =>
@@ -53,11 +58,17 @@ class Injector {
 
   static IBadgeRepository? _badgeRepository;
   static IBadgeRepository get badgeRepository =>
-      _badgeRepository ??= BadgeRepositoryImpl(dbHelper: databaseHelper);
+      _badgeRepository ??= BadgeRepositoryImpl(
+        dbHelper: databaseHelper,
+        remoteDataSource: profileRemoteDataSource,
+      );
 
   static IUserRepository? _userRepository;
   static IUserRepository get userRepository =>
-      _userRepository ??= UserRepositoryImpl(dbHelper: databaseHelper);
+      _userRepository ??= UserRepositoryImpl(
+        dbHelper: databaseHelper,
+        remoteDataSource: profileRemoteDataSource,
+      );
 
   static ISiteRepository? _siteRepository;
   static ISiteRepository get siteRepository =>
@@ -75,6 +86,7 @@ class Injector {
       _streakRepository ??= StreakRepositoryImpl(
         dbHelper: databaseHelper,
         badgeRepo: badgeRepository,
+        remoteDataSource: profileRemoteDataSource,
       );
 
   static IDailyCareRepository? _dailyCareRepository;
@@ -103,6 +115,8 @@ class Injector {
       _authRemoteDataSource = ds;
   static set authLocalDataSource(AuthLocalDataSource? ds) =>
       _authLocalDataSource = ds;
+  static set profileRemoteDataSource(ProfileRemoteDataSource? ds) =>
+      _profileRemoteDataSource = ds;
   static set authRepository(IAuthRepository? repo) => _authRepository = repo;
   static set badgeRepository(IBadgeRepository? repo) => _badgeRepository = repo;
   static set userRepository(IUserRepository? repo) => _userRepository = repo;
@@ -123,6 +137,7 @@ class Injector {
     _plantRemoteDataSource = null;
     _authRemoteDataSource = null;
     _authLocalDataSource = null;
+    _profileRemoteDataSource = null;
     _authRepository = null;
     _badgeRepository = null;
     _userRepository = null;

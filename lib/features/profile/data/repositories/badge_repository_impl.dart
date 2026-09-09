@@ -2,23 +2,31 @@ import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/profile/data/datasources/profile_remote_datasource.dart';
 import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
-/// Implementation of IBadgeRepository for SQLite database.
+/// Implementation of IBadgeRepository combining Cloud Firestore and local SQLite caching.
 class BadgeRepositoryImpl implements IBadgeRepository {
   final DatabaseHelper _dbHelper;
+  final ProfileRemoteDataSource _remoteDataSource;
 
-  BadgeRepositoryImpl({DatabaseHelper? dbHelper})
-    : _dbHelper = dbHelper ?? DatabaseHelper.instance;
+  BadgeRepositoryImpl({
+    DatabaseHelper? dbHelper,
+    ProfileRemoteDataSource? remoteDataSource,
+  })  : _dbHelper = dbHelper ?? DatabaseHelper.instance,
+        _remoteDataSource =
+            remoteDataSource ?? FirestoreProfileRemoteDataSourceImpl();
 
   Future<int> _resolveUserId(int? userId) async {
     if (userId != null && userId != 0) return userId;
     try {
       final activeUser = await PreferenceHandler.getUser();
-      if (activeUser != null && activeUser.id != null && activeUser.id != 0) {
-        return activeUser.id!;
+      if (activeUser != null &&
+          activeUser.numericId != null &&
+          activeUser.numericId != 0) {
+        return activeUser.numericId!;
       }
     } catch (_) {}
     return 1;
@@ -54,6 +62,38 @@ class BadgeRepositoryImpl implements IBadgeRepository {
       );
 
       final badges = rows.map(_mapRowToBadgeItem).toList();
+
+      // Merge badges from Cloud Firestore if available
+      try {
+        final activeUser = await PreferenceHandler.getUser();
+        final uid = activeUser?.id;
+        if (uid != null && uid.isNotEmpty && uid != '0' && uid != '1') {
+          final remoteBadges = await _remoteDataSource.getUserBadges(uid);
+          if (remoteBadges.isNotEmpty) {
+            final remoteUnlockedMap = {
+              for (final b in remoteBadges)
+                if (b['is_unlocked'] == true || b['is_unlocked'] == 1)
+                  b['badge_id'] as String?: b,
+            };
+
+            final merged = badges.map((badge) {
+              final remote = remoteUnlockedMap[badge.id];
+              if (remote != null && !badge.isUnlocked) {
+                return badge.copyWith(
+                  isUnlocked: true,
+                  unlockedDate: remote['unlocked_at'] as String?,
+                  progress:
+                      (remote['current_progress'] as num?)?.toInt() ?? badge.total,
+                );
+              }
+              return badge;
+            }).toList();
+
+            return Success(merged);
+          }
+        }
+      } catch (_) {}
+
       return Success(badges);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -216,6 +256,18 @@ class BadgeRepositoryImpl implements IBadgeRepository {
         where: 'id = ?',
         whereArgs: [effectiveUserId],
       );
+
+      // Sync badge award to Cloud Firestore
+      try {
+        final activeUser = await PreferenceHandler.getUser();
+        final uid = (activeUser?.id != null && activeUser!.id!.isNotEmpty)
+            ? activeUser.id!
+            : userId?.toString() ?? '1';
+        if (uid.isNotEmpty && uid != '0' && uid != '1') {
+          await _remoteDataSource.awardBadge(uid, badgeId, formattedDate);
+        }
+      } catch (_) {}
+
       return const Success(true);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));

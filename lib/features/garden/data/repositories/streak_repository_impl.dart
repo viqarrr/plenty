@@ -4,6 +4,7 @@ import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/garden/domain/models/streak_model.dart';
 import 'package:plenty/features/garden/domain/repositories/streak_repository.dart';
+import 'package:plenty/features/profile/data/datasources/profile_remote_datasource.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:plenty/features/profile/data/repositories/badge_repository_impl.dart';
 
@@ -11,12 +12,16 @@ import 'package:plenty/features/profile/data/repositories/badge_repository_impl.
 class StreakRepositoryImpl implements IStreakRepository {
   final DatabaseHelper _dbHelper;
   final IBadgeRepository _badgeRepo;
+  final ProfileRemoteDataSource _remoteDataSource;
 
   StreakRepositoryImpl({
     DatabaseHelper? dbHelper,
     IBadgeRepository? badgeRepo,
+    ProfileRemoteDataSource? remoteDataSource,
   })  : _dbHelper = dbHelper ?? DatabaseHelper.instance,
-        _badgeRepo = badgeRepo ?? BadgeRepositoryImpl(dbHelper: dbHelper);
+        _badgeRepo = badgeRepo ?? BadgeRepositoryImpl(dbHelper: dbHelper),
+        _remoteDataSource =
+            remoteDataSource ?? FirestoreProfileRemoteDataSourceImpl();
 
   static String _formatDate(DateTime dt) {
     return '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
@@ -201,5 +206,21 @@ class StreakRepositoryImpl implements IStreakRepository {
     );
 
     await PreferenceHandler.setStreakCount(streak.currentStreak);
+
+    // Sync streak metrics with Cloud Firestore
+    try {
+      final activeUser = await PreferenceHandler.getUser();
+      final uid = (activeUser?.id != null && activeUser!.id!.isNotEmpty)
+          ? activeUser.id!
+          : streak.userId;
+      if (uid.isNotEmpty && uid != '0' && uid != '1') {
+        await _remoteDataSource.updateUserStreak(
+          uid,
+          streak: streak.currentStreak,
+          longestStreak: streak.longestStreak,
+          lastStreakDate: streak.lastStreakDate,
+        );
+      }
+    } catch (_) {}
   }
 }
