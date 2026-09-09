@@ -8,6 +8,7 @@ import 'package:plenty/features/community/domain/repositories/community_reposito
 import 'package:plenty/features/daily_care/data/repositories/daily_care_repository_impl.dart';
 import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
 import 'package:plenty/features/garden/data/data_sources/plant_remote_data_source.dart';
+import 'package:plenty/features/garden/data/datasources/garden_remote_datasource.dart';
 import 'package:plenty/features/garden/data/repositories/growth_repository_impl.dart';
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
 import 'package:plenty/features/garden/data/repositories/site_repository_impl.dart';
@@ -48,6 +49,10 @@ class Injector {
   static ProfileRemoteDataSource get profileRemoteDataSource =>
       _profileRemoteDataSource ??= FirestoreProfileRemoteDataSourceImpl();
 
+  static GardenRemoteDataSource? _gardenRemoteDataSource;
+  static GardenRemoteDataSource get gardenRemoteDataSource =>
+      _gardenRemoteDataSource ??= FirestoreGardenRemoteDataSourceImpl();
+
   // Repositories
   static IAuthRepository? _authRepository;
   static IAuthRepository get authRepository =>
@@ -72,13 +77,17 @@ class Injector {
 
   static ISiteRepository? _siteRepository;
   static ISiteRepository get siteRepository =>
-      _siteRepository ??= SiteRepositoryImpl(dbHelper: databaseHelper);
+      _siteRepository ??= SiteRepositoryImpl(
+        dbHelper: databaseHelper,
+        remoteDataSource: gardenRemoteDataSource,
+      );
 
   static IPlantRepository? _plantRepository;
   static IPlantRepository get plantRepository =>
       _plantRepository ??= PlantRepositoryImpl(
         dbHelper: databaseHelper,
         remoteDataSource: plantRemoteDataSource,
+        gardenRemoteDataSource: gardenRemoteDataSource,
         badgeRepo: badgeRepository,
       );
 
@@ -120,6 +129,8 @@ class Injector {
       _authLocalDataSource = ds;
   static set profileRemoteDataSource(ProfileRemoteDataSource? ds) =>
       _profileRemoteDataSource = ds;
+  static set gardenRemoteDataSource(GardenRemoteDataSource? ds) =>
+      _gardenRemoteDataSource = ds;
   static set authRepository(IAuthRepository? repo) => _authRepository = repo;
   static set badgeRepository(IBadgeRepository? repo) => _badgeRepository = repo;
   static set userRepository(IUserRepository? repo) => _userRepository = repo;
@@ -141,6 +152,7 @@ class Injector {
     _authRemoteDataSource = null;
     _authLocalDataSource = null;
     _profileRemoteDataSource = null;
+    _gardenRemoteDataSource = null;
     _authRepository = null;
     _badgeRepository = null;
     _userRepository = null;

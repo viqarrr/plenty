@@ -14,6 +14,7 @@ import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/auth/domain/models/user_model.dart';
+import 'package:plenty/features/garden/data/datasources/garden_remote_datasource.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -22,6 +23,7 @@ import 'package:sqflite/sqflite.dart';
 class PlantRepositoryImpl implements IPlantRepository {
   final DatabaseHelper _dbHelper;
   final PlantRemoteDataSource _remoteDataSource;
+  final GardenRemoteDataSource? _gardenRemoteDataSource;
   final IBadgeRepository? _badgeRepo;
 
   // In-Memory Session Caches (zero SQLite disk hoarding)
@@ -32,9 +34,11 @@ class PlantRepositoryImpl implements IPlantRepository {
   PlantRepositoryImpl({
     DatabaseHelper? dbHelper,
     PlantRemoteDataSource? remoteDataSource,
+    GardenRemoteDataSource? gardenRemoteDataSource,
     IBadgeRepository? badgeRepo,
   }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
        _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl(),
+       _gardenRemoteDataSource = gardenRemoteDataSource,
        _badgeRepo = badgeRepo;
 
   /// Clears in-memory session cache.
@@ -519,6 +523,17 @@ class PlantRepositoryImpl implements IPlantRepository {
         } catch (_) {}
       }
 
+      // Dual-write to Cloud Firestore
+      if (_gardenRemoteDataSource != null &&
+          effectiveUserId.isNotEmpty &&
+          effectiveUserId != 'usr_default') {
+        try {
+          await _gardenRemoteDataSource.savePlant(result.plant);
+        } catch (_) {
+          // Offline resilience: SQLite persistence completed successfully
+        }
+      }
+
       return Success(result);
     } catch (e) {
       return Error(DatabaseFailure('Gagal menambahkan tanaman: $e'));
@@ -540,11 +555,35 @@ class PlantRepositoryImpl implements IPlantRepository {
           : (activeUser?.id ?? userId);
       final parsedUserId = int.tryParse(effectiveUserId.toString());
 
+      // Cloud sync from Firestore if remote data source is available
+      if (_gardenRemoteDataSource != null &&
+          effectiveUserId.isNotEmpty &&
+          effectiveUserId != 'usr_default') {
+        try {
+          final remotePlants =
+              await _gardenRemoteDataSource.getUserPlants(effectiveUserId);
+          for (final plant in remotePlants) {
+            await db.insert(
+              DatabaseHelper.tableUserPlants,
+              plant.toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        } catch (_) {
+          // Graceful fallback to SQLite local cache
+        }
+      }
+
       // Query user_plants directly - matches user ID, string UID, or legacy usr_default
       final maps = await db.query(
         DatabaseHelper.tableUserPlants,
-        where: "(user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = ? OR user_id = 'usr_default') AND is_archived = 0",
-        whereArgs: [parsedUserId ?? effectiveUserId, effectiveUserId.toString(), activeUser?.id ?? ''],
+        where:
+            "(user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = ? OR user_id = 'usr_default') AND is_archived = 0",
+        whereArgs: [
+          parsedUserId ?? effectiveUserId,
+          effectiveUserId.toString(),
+          activeUser?.id ?? '',
+        ],
         orderBy: 'adopted_at DESC',
       );
 
@@ -566,8 +605,27 @@ class PlantRepositoryImpl implements IPlantRepository {
         limit: 1,
       );
 
-      if (maps.isEmpty) return const Success(null);
-      return Success(PlantModel.fromMap(maps.first));
+      if (maps.isNotEmpty) {
+        return Success(PlantModel.fromMap(maps.first));
+      }
+
+      // Check Cloud Firestore if absent from SQLite local cache
+      if (_gardenRemoteDataSource != null) {
+        try {
+          final remotePlant =
+              await _gardenRemoteDataSource.getPlantById(plantId);
+          if (remotePlant != null) {
+            await db.insert(
+              DatabaseHelper.tableUserPlants,
+              remotePlant.toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+            return Success(remotePlant);
+          }
+        } catch (_) {}
+      }
+
+      return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal mengambil tanaman: $e'));
     }
@@ -583,6 +641,13 @@ class PlantRepositoryImpl implements IPlantRepository {
         where: 'id = ?',
         whereArgs: [plantId],
       );
+
+      if (_gardenRemoteDataSource != null) {
+        try {
+          await _gardenRemoteDataSource.archivePlant(plantId);
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal mengarsipkan tanaman: $e'));
@@ -613,6 +678,13 @@ class PlantRepositoryImpl implements IPlantRepository {
         where: 'id = ?',
         whereArgs: [plantId],
       );
+
+      if (_gardenRemoteDataSource != null) {
+        try {
+          await _gardenRemoteDataSource.updatePlant(plantId, values);
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal memperbarui informasi tanaman: $e'));
@@ -632,6 +704,16 @@ class PlantRepositoryImpl implements IPlantRepository {
         where: 'id = ?',
         whereArgs: [plantId],
       );
+
+      if (_gardenRemoteDataSource != null) {
+        try {
+          await _gardenRemoteDataSource.updatePlant(plantId, {
+            'cover_photo_path': photoPath,
+            'image_path': photoPath,
+          });
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal memperbarui foto tanaman: $e'));
@@ -669,6 +751,13 @@ class PlantRepositoryImpl implements IPlantRepository {
           whereArgs: [plantId],
         );
       });
+
+      if (_gardenRemoteDataSource != null) {
+        try {
+          await _gardenRemoteDataSource.deletePlant(plantId);
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal menghapus tanaman: $e'));
