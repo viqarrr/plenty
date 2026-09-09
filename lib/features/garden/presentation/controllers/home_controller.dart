@@ -23,6 +23,7 @@ class HomeState {
   final String selectedRoomFilter;
   final int streakCount;
   final int streakTier;
+  final bool isStreakActive;
   final int totalXp;
   final int userLevel;
   final int badgeCount;
@@ -42,6 +43,7 @@ class HomeState {
     this.selectedRoomFilter = 'Semua',
     this.streakCount = 0,
     this.streakTier = 1,
+    this.isStreakActive = false,
     this.totalXp = 0,
     this.userLevel = 1,
     this.badgeCount = 0,
@@ -62,6 +64,7 @@ class HomeState {
     String? selectedRoomFilter,
     int? streakCount,
     int? streakTier,
+    bool? isStreakActive,
     int? totalXp,
     int? userLevel,
     int? badgeCount,
@@ -81,6 +84,7 @@ class HomeState {
       selectedRoomFilter: selectedRoomFilter ?? this.selectedRoomFilter,
       streakCount: streakCount ?? this.streakCount,
       streakTier: streakTier ?? this.streakTier,
+      isStreakActive: isStreakActive ?? this.isStreakActive,
       totalXp: totalXp ?? this.totalXp,
       userLevel: userLevel ?? this.userLevel,
       badgeCount: badgeCount ?? this.badgeCount,
@@ -268,6 +272,7 @@ class HomeController extends ChangeNotifier {
             sites: sites,
             streakCount: streakModel?.currentStreak ?? 0,
             streakTier: streakModel?.currentTier ?? 1,
+            isStreakActive: false,
             totalXp: totalXp,
             userLevel: userLevel,
             badgeCount: badgeCount,
@@ -302,6 +307,10 @@ class HomeController extends ChangeNotifier {
         }
       }
 
+      final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+      final isStreakActive = (plants.isNotEmpty && tasks.isEmpty) ||
+          (streakModel?.lastStreakDate == todayStr && (streakModel?.currentStreak ?? 0) > 0);
+
       _updateState(
         _state.copyWith(
           status: HomeStatus.populated,
@@ -310,6 +319,7 @@ class HomeController extends ChangeNotifier {
           sites: sites,
           streakCount: streakModel?.currentStreak ?? 0,
           streakTier: streakModel?.currentTier ?? 1,
+          isStreakActive: isStreakActive,
           totalXp: totalXp,
           userLevel: userLevel,
           badgeCount: badgeCount,

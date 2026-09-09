@@ -80,6 +80,23 @@ class BadgeRepositoryImpl implements IBadgeRepository {
           .where((b) => b.id != 'doctor_green' && b.id != 'sun_master')
           .toList();
 
+      final now = DateTime.now();
+      const months = [
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
+      ];
+      final formattedDate = '${now.day} ${months[now.month - 1]} ${now.year}';
+
       // Merge badges from Cloud Firestore if available
       try {
         final activeUser = await PreferenceHandler.getUser();
@@ -88,25 +105,37 @@ class BadgeRepositoryImpl implements IBadgeRepository {
             : (userId?.toString() ?? '1');
         if (uid.isNotEmpty && uid != '0' && uid != '1' && uid != 'usr_default') {
           final remoteBadges = await _remoteDataSource?.getUserBadges(uid);
-          if (remoteBadges != null && remoteBadges.isNotEmpty) {
-            final remoteUnlockedMap = {
+          final remoteUnlockedMap = {
+            if (remoteBadges != null)
               for (final b in remoteBadges)
                 if (b['is_unlocked'] == true || b['is_unlocked'] == 1)
                   b['badge_id'] as String?: b,
-            };
+          };
 
-            badges = badges.map((badge) {
-              final remote = remoteUnlockedMap[badge.id];
-              if (remote != null && !badge.isUnlocked) {
-                return badge.copyWith(
-                  isUnlocked: true,
-                  unlockedDate: remote['unlocked_at'] as String?,
-                  progress:
-                      (remote['current_progress'] as num?)?.toInt() ?? badge.total,
+          badges = badges.map((badge) {
+            final remote = remoteUnlockedMap[badge.id];
+            if (remote != null && !badge.isUnlocked) {
+              return badge.copyWith(
+                isUnlocked: true,
+                unlockedDate: remote['unlocked_at'] as String?,
+                progress:
+                    (remote['current_progress'] as num?)?.toInt() ?? badge.total,
+              );
+            }
+            return badge;
+          }).toList();
+
+          // Push any locally unlocked badges to remote Firestore if missing remotely
+          for (final b in badges) {
+            if (b.isUnlocked && !remoteUnlockedMap.containsKey(b.id)) {
+              try {
+                await _remoteDataSource?.awardBadge(
+                  uid,
+                  b.id,
+                  b.unlockedDate ?? formattedDate,
                 );
-              }
-              return badge;
-            }).toList();
+              } catch (_) {}
+            }
           }
 
           // Auto-check and backfill earned badges from existing local plants & streak
@@ -240,6 +269,19 @@ class BadgeRepositoryImpl implements IBadgeRepository {
       ];
       final formattedDate = '${now.day} ${months[now.month - 1]} ${now.year}';
 
+      // 1. Sync badge award to Cloud Firestore unconditionally if user is authenticated
+      try {
+        final activeUser = await PreferenceHandler.getUser();
+        final rawUid = userId?.toString() ?? '';
+        final uid = (rawUid.isNotEmpty && rawUid != '1' && rawUid != '0' && rawUid != 'usr_default')
+            ? rawUid
+            : (activeUser?.id ?? '');
+        if (uid.isNotEmpty && uid != '0' && uid != '1' && uid != 'usr_default') {
+          await _remoteDataSource?.awardBadge(uid, badgeId, formattedDate);
+        }
+      } catch (_) {}
+
+      // 2. Check local SQLite record
       final existing = await db.query(
         DatabaseHelper.tableUserBadges,
         where: 'user_id = ? AND badge_id = ?',
@@ -294,18 +336,6 @@ class BadgeRepositoryImpl implements IBadgeRepository {
         where: 'id = ?',
         whereArgs: [effectiveUserId],
       );
-
-      // Sync badge award to Cloud Firestore
-      try {
-        final activeUser = await PreferenceHandler.getUser();
-        final rawUid = userId?.toString() ?? '';
-        final uid = (rawUid.isNotEmpty && rawUid != '1' && rawUid != '0')
-            ? rawUid
-            : (activeUser?.id ?? '1');
-        if (uid.isNotEmpty && uid != '0' && uid != '1' && uid != 'usr_default') {
-          await _remoteDataSource?.awardBadge(uid, badgeId, formattedDate);
-        }
-      } catch (_) {}
 
       return const Success(true);
     } catch (e) {

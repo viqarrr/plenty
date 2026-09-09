@@ -229,9 +229,14 @@ class PlantRepositoryImpl implements IPlantRepository {
         }
 
         // Check if this is truly the user's first plant adoption ever
+        final isDefaultUser = effectiveUserId == 'usr_default' ||
+            effectiveUserId == '1' ||
+            effectiveUserId == 'user_1';
         final existingPlants = await txn.query(
           DatabaseHelper.tableUserPlants,
-          where: "(user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = 'usr_default') AND is_archived = 0",
+          where: isDefaultUser
+              ? "(user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = '1' OR user_id = 'user_1' OR user_id = 'usr_default') AND is_archived = 0"
+              : "(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0",
           whereArgs: [effectiveUserId, effectiveUserId],
         );
 
@@ -483,17 +488,21 @@ class PlantRepositoryImpl implements IPlantRepository {
       });
 
       // Synchronize badges with IBadgeRepository & Cloud Firestore
+      final badgeRepoToUse = _badgeRepo;
       if (result.isFirstPlant) {
-        await _badgeRepo?.awardBadge(userId: effectiveUserId, badgeId: 'first_plant');
+        await badgeRepoToUse?.awardBadge(userId: effectiveUserId, badgeId: 'first_plant');
       }
       if (result.isFirstTimeCapsule) {
-        await _badgeRepo?.awardBadge(userId: effectiveUserId, badgeId: 'time_capsule');
+        await badgeRepoToUse?.awardBadge(userId: effectiveUserId, badgeId: 'time_capsule');
       }
       try {
         final allPlantsRes = await getUserPlants(effectiveUserId);
-        final count = (allPlantsRes.dataOrNull ?? []).length;
-        if (count >= 5) {
-          await _badgeRepo?.awardBadge(userId: effectiveUserId, badgeId: 'plant_collector');
+        final plantsList = allPlantsRes.dataOrNull ?? [];
+        if (plantsList.isNotEmpty) {
+          await badgeRepoToUse?.awardBadge(userId: effectiveUserId, badgeId: 'first_plant');
+        }
+        if (plantsList.length >= 5) {
+          await badgeRepoToUse?.awardBadge(userId: effectiveUserId, badgeId: 'plant_collector');
         }
       } catch (_) {}
 

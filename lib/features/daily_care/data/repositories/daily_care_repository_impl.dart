@@ -767,32 +767,28 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
       final activePlants = await db.query(
         DatabaseHelper.tableUserPlants,
         columns: ['id'],
-        where: '(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0',
-        whereArgs: [parsedUserId ?? userId, userId.toString()],
+        where: "(user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = ? OR user_id = 'usr_default') AND is_archived = 0",
+        whereArgs: [parsedUserId ?? userId, userId.toString(), userId],
       );
 
       if (activePlants.isEmpty) return const Success(false);
+
+      // Verify that the user has performed at least one care action today
+      final totalTodayLogs = await db.query(
+        DatabaseHelper.tableCareActionLogs,
+        where: 'log_date = ?',
+        whereArgs: [today],
+      );
+      if (totalTodayLogs.isEmpty) {
+        return const Success(false);
+      }
 
       for (final plantMap in activePlants) {
         final plantId = plantMap['id'] as String;
         final requiredTaskTypesRes = await getTodaysTaskTypes(plantId);
         final requiredTaskTypes = requiredTaskTypesRes.dataOrNull ?? [];
-
-        final loggedTasks = await db.query(
-          DatabaseHelper.tableCareActionLogs,
-          columns: ['task_type'],
-          where: 'user_plant_id = ? AND log_date = ?',
-          whereArgs: [plantId, today],
-        );
-
-        final completedTypes = loggedTasks
-            .map((t) => t['task_type'] as String)
-            .toSet();
-
-        for (final reqType in requiredTaskTypes) {
-          if (!completedTypes.contains(reqType)) {
-            return const Success(false);
-          }
+        if (requiredTaskTypes.isNotEmpty) {
+          return const Success(false);
         }
       }
 
@@ -918,8 +914,11 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         ));
       }
 
-      // 5. Evaluate daily streak
-      await _streakRepo.evaluateDailyStreak(stringUserId);
+      // 5. Evaluate daily streak ONLY when all tasks for today are completed
+      final allDoneRes = await isAllTasksCompleteTodayForUser(stringUserId);
+      if (allDoneRes.dataOrNull == true) {
+        await _streakRepo.evaluateDailyStreak(stringUserId);
+      }
     } catch (_) {}
   }
 }
