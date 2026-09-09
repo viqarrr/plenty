@@ -12,6 +12,7 @@ import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_mode
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
+import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Implementation of [IPlantRepository] using Direct API calls + In-Memory Session Cache
@@ -19,6 +20,7 @@ import 'package:sqflite/sqflite.dart';
 class PlantRepositoryImpl implements IPlantRepository {
   final DatabaseHelper _dbHelper;
   final PlantRemoteDataSource _remoteDataSource;
+  final IBadgeRepository? _badgeRepo;
 
   // In-Memory Session Caches (zero SQLite disk hoarding)
   final Map<String, List<PlantCatalogModel>> _sessionCatalogCache = {};
@@ -28,8 +30,10 @@ class PlantRepositoryImpl implements IPlantRepository {
   PlantRepositoryImpl({
     DatabaseHelper? dbHelper,
     PlantRemoteDataSource? remoteDataSource,
+    IBadgeRepository? badgeRepo,
   }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
-       _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl();
+       _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl(),
+       _badgeRepo = badgeRepo;
 
   /// Clears in-memory session cache.
   void clearSessionCache() {
@@ -211,8 +215,8 @@ class PlantRepositoryImpl implements IPlantRepository {
         // Check if this is truly the user's first plant adoption ever
         final existingPlants = await txn.query(
           DatabaseHelper.tableUserPlants,
-          where: 'user_id = ? AND is_archived = 0',
-          whereArgs: [parsedUserId],
+          where: '(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0',
+          whereArgs: [userId, userId],
         );
 
         final userBadgeRows = await txn.query(
@@ -306,7 +310,7 @@ class PlantRepositoryImpl implements IPlantRepository {
             userPlantId: plantId,
             taskType: 'siram',
             intervalDays: interval,
-            nextDueDate: now,
+            nextDueDate: now.add(Duration(days: interval)),
             isActive: true,
           ),
           CareScheduleModel(
@@ -314,7 +318,7 @@ class PlantRepositoryImpl implements IPlantRepository {
             userPlantId: plantId,
             taskType: 'bersih',
             intervalDays: 7,
-            nextDueDate: now,
+            nextDueDate: now.add(const Duration(days: 7)),
             isActive: true,
           ),
           CareScheduleModel(
@@ -461,6 +465,24 @@ class PlantRepositoryImpl implements IPlantRepository {
           isFirstTimeCapsule: isFirstTimeCapsule,
         );
       });
+
+      // Synchronize badges with IBadgeRepository & Cloud Firestore
+      if (result.isFirstPlant) {
+        await _badgeRepo?.awardBadge(userId: userId, badgeId: 'first_plant');
+      }
+      if (result.isFirstTimeCapsule) {
+        await _badgeRepo?.awardBadge(userId: userId, badgeId: 'time_capsule');
+      }
+      try {
+        final allPlantsRes = await getUserPlants(userId);
+        final count = (allPlantsRes.dataOrNull ?? []).length;
+        if (count >= 5) {
+          await _badgeRepo?.awardBadge(userId: userId, badgeId: 'plant_collector');
+        }
+      } catch (_) {}
+      if (sunlightCondition != null && sunlightCondition.trim().isNotEmpty) {
+        await _badgeRepo?.awardBadge(userId: userId, badgeId: 'sun_master');
+      }
 
       return Success(result);
     } catch (e) {

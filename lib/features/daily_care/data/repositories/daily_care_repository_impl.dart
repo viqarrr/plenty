@@ -13,6 +13,8 @@ import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/features/garden/domain/repositories/streak_repository.dart';
+import 'package:plenty/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Consolidated implementation of IDailyCareRepository.
@@ -20,14 +22,20 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
   final DatabaseHelper _dbHelper;
   final IPlantRepository _plantRepo;
   final IStreakRepository _streakRepo;
+  final IBadgeRepository? _badgeRepo;
+  final ProfileRemoteDataSource? _remoteDataSource;
 
   DailyCareRepositoryImpl({
     DatabaseHelper? dbHelper,
     IPlantRepository? plantRepo,
     IStreakRepository? streakRepo,
+    IBadgeRepository? badgeRepo,
+    ProfileRemoteDataSource? remoteDataSource,
   }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
        _plantRepo = plantRepo ?? PlantRepositoryImpl(dbHelper: dbHelper),
-       _streakRepo = streakRepo ?? StreakRepositoryImpl(dbHelper: dbHelper);
+       _streakRepo = streakRepo ?? StreakRepositoryImpl(dbHelper: dbHelper),
+       _badgeRepo = badgeRepo,
+       _remoteDataSource = remoteDataSource;
 
   @override
   Future<Result<DailyCareState>> loadDailyCareData({
@@ -225,7 +233,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         );
       });
 
-      await _streakRepo.evaluateDailyStreak(plant.userId);
+      await _syncUserXpAndBadges(rawUserId: plant.userId);
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -396,7 +404,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         );
       });
 
-      await _streakRepo.evaluateDailyStreak(plant.userId);
+      await _syncUserXpAndBadges(rawUserId: plant.userId);
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -665,6 +673,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
     try {
       final db = await _dbHelper.database;
       final parsedUserId = int.tryParse(userId ?? '1') ?? 1;
+      final activeUser = await PreferenceHandler.getUser();
 
       final plantXpResult = await db.rawQuery(
         '''
@@ -687,7 +696,23 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
       );
       final logXp = Sqflite.firstIntValue(logXpResult) ?? 0;
 
-      final result = plantXp > logXp ? plantXp : logXp;
+      int userTableXp = 0;
+      try {
+        final uRows = await db.rawQuery(
+          '''
+          SELECT total_xp FROM ${DatabaseHelper.tableUsers}
+          WHERE id = ? OR email = ?
+          ''',
+          [parsedUserId, activeUser?.email ?? ''],
+        );
+        if (uRows.isNotEmpty) {
+          userTableXp = (uRows.first['total_xp'] as int?) ?? 0;
+        }
+      } catch (_) {}
+
+      final sessionXp = activeUser?.totalXp ?? 0;
+      final result = [plantXp, logXp, userTableXp, sessionXp]
+          .reduce((a, b) => a > b ? a : b);
       return Success(result);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -793,5 +818,86 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
     }
+  }
+
+  Future<void> _syncUserXpAndBadges({
+    required String rawUserId,
+  }) async {
+    try {
+      final activeUser = await PreferenceHandler.getUser();
+      final stringUserId = (rawUserId.isNotEmpty &&
+              rawUserId != '1' &&
+              rawUserId != '0' &&
+              rawUserId != 'usr_default')
+          ? rawUserId
+          : (activeUser?.id ?? '1');
+
+      // 1. Compute the new total user XP from plants and care action logs
+      final totalXpRes = await getTotalUserXp(stringUserId);
+      final computedXp = totalXpRes.dataOrNull ?? 0;
+      final newLevel = XpConfig.levelForXp(computedXp);
+
+      // 2. Update SQLite users table for active user
+      final db = await _dbHelper.database;
+      int? targetNumId = activeUser?.numericId ?? int.tryParse(stringUserId);
+      if (targetNumId == null && activeUser?.email != null) {
+        final userRows = await db.query(
+          DatabaseHelper.tableUsers,
+          columns: ['id'],
+          where: 'email = ?',
+          whereArgs: [activeUser!.email],
+          limit: 1,
+        );
+        if (userRows.isNotEmpty) {
+          targetNumId = userRows.first['id'] as int;
+        }
+      }
+      if (targetNumId != null) {
+        await db.update(
+          DatabaseHelper.tableUsers,
+          {'total_xp': computedXp, 'level': newLevel},
+          where: 'id = ?',
+          whereArgs: [targetNumId],
+        );
+      }
+
+      // 3. Update Cloud Firestore
+      if (stringUserId.isNotEmpty &&
+          stringUserId != '1' &&
+          stringUserId != 'usr_default') {
+        await _remoteDataSource?.updateUserXpAndLevel(
+          stringUserId,
+          totalXp: computedXp,
+          level: newLevel,
+        );
+      }
+
+      // 4. Update local session cache (PreferenceHandler)
+      if (activeUser != null) {
+        await PreferenceHandler.setUser(activeUser.copyWith(
+          totalXp: computedXp,
+          level: newLevel,
+        ));
+      }
+
+      // 5. Check Doctor Green badge (10 care logs recorded)
+      final countRes = await db.rawQuery(
+        '''
+        SELECT COUNT(*) as count FROM ${DatabaseHelper.tableCareActionLogs} c
+        JOIN ${DatabaseHelper.tableUserPlants} p ON c.user_plant_id = p.id
+        WHERE p.user_id = ? OR CAST(p.user_id AS TEXT) = ?
+        ''',
+        [stringUserId, stringUserId],
+      );
+      final logCount =
+          (countRes.isNotEmpty ? countRes.first['count'] as int? : 0) ?? 0;
+      if (logCount >= 10) {
+        await _badgeRepo?.awardBadge(
+            userId: stringUserId, badgeId: 'doctor_green');
+      }
+
+      // 6. Evaluate daily streak
+      await _streakRepo.evaluateDailyStreak(stringUserId);
+    } catch (_) {}
   }
 }

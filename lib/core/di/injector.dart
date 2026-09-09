@@ -79,6 +79,7 @@ class Injector {
       _plantRepository ??= PlantRepositoryImpl(
         dbHelper: databaseHelper,
         remoteDataSource: plantRemoteDataSource,
+        badgeRepo: badgeRepository,
       );
 
   static IStreakRepository? _streakRepository;
@@ -95,6 +96,8 @@ class Injector {
         dbHelper: databaseHelper,
         plantRepo: plantRepository,
         streakRepo: streakRepository,
+        badgeRepo: badgeRepository,
+        remoteDataSource: profileRemoteDataSource,
       );
 
   static ICommunityRepository? _communityRepository;

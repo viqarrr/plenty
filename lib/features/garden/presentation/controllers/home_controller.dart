@@ -217,7 +217,19 @@ class HomeController extends ChangeNotifier {
       final streakModel = streakResult.dataOrNull;
 
       final xpResult = await _careRepo.getTotalUserXp(effectiveUserId);
-      final totalXp = xpResult.dataOrNull ?? 0;
+      final totalXpFromCare = xpResult.dataOrNull ?? 0;
+      final totalXpFromUser = user?.totalXp ?? 0;
+      final totalXp =
+          totalXpFromCare > totalXpFromUser ? totalXpFromCare : totalXpFromUser;
+
+      if (user != null && totalXp != user.totalXp) {
+        await PreferenceHandler.setUser(
+          user.copyWith(
+            totalXp: totalXp,
+            level: XpConfig.levelForXp(totalXp),
+          ),
+        );
+      }
 
       final badgeCountResult = await _badgeRepo.getUserBadgeCount(
         effectiveUserId,

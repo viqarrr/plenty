@@ -174,14 +174,8 @@ class StreakRepositoryImpl implements IStreakRepository {
 
       await _saveStreak(updated);
 
-      if (computedStreak >= 3) {
-        await _badgeRepo.awardBadge(userId: userId, badgeId: 'STREAK_3');
-      }
       if (computedStreak >= 7) {
-        await _badgeRepo.awardBadge(userId: userId, badgeId: 'STREAK_7');
-      }
-      if (computedStreak >= 30) {
-        await _badgeRepo.awardBadge(userId: userId, badgeId: 'STREAK_30');
+        await _badgeRepo.awardBadge(userId: userId, badgeId: 'water_streak');
       }
 
       return Success(updated);
