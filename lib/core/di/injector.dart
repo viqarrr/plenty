@@ -1,5 +1,6 @@
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/features/auth/data/datasources/auth_local_datasource.dart';
+import 'package:plenty/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:plenty/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:plenty/features/auth/domain/repositories/auth_repository.dart';
 import 'package:plenty/features/community/data/repositories/community_repository_impl.dart';
@@ -34,6 +35,10 @@ class Injector {
   static PlantRemoteDataSource get plantRemoteDataSource =>
       _plantRemoteDataSource ??= PlantRemoteDataSourceImpl();
 
+  static AuthRemoteDataSource? _authRemoteDataSource;
+  static AuthRemoteDataSource get authRemoteDataSource =>
+      _authRemoteDataSource ??= FirebaseAuthRemoteDataSourceImpl();
+
   static AuthLocalDataSource? _authLocalDataSource;
   static AuthLocalDataSource get authLocalDataSource =>
       _authLocalDataSource ??= AuthLocalDataSourceImpl(databaseHelper);
@@ -41,7 +46,10 @@ class Injector {
   // Repositories
   static IAuthRepository? _authRepository;
   static IAuthRepository get authRepository =>
-      _authRepository ??= AuthRepositoryImpl(authLocalDataSource);
+      _authRepository ??= AuthRepositoryImpl(
+        remoteDataSource: authRemoteDataSource,
+        localDataSource: authLocalDataSource,
+      );
 
   static IBadgeRepository? _badgeRepository;
   static IBadgeRepository get badgeRepository =>
@@ -91,6 +99,8 @@ class Injector {
   static set databaseHelper(DatabaseHelper? helper) => _databaseHelper = helper;
   static set plantRemoteDataSource(PlantRemoteDataSource? ds) =>
       _plantRemoteDataSource = ds;
+  static set authRemoteDataSource(AuthRemoteDataSource? ds) =>
+      _authRemoteDataSource = ds;
   static set authLocalDataSource(AuthLocalDataSource? ds) =>
       _authLocalDataSource = ds;
   static set authRepository(IAuthRepository? repo) => _authRepository = repo;
@@ -111,6 +121,7 @@ class Injector {
   static void reset() {
     _databaseHelper = null;
     _plantRemoteDataSource = null;
+    _authRemoteDataSource = null;
     _authLocalDataSource = null;
     _authRepository = null;
     _badgeRepository = null;

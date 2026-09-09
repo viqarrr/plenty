@@ -61,7 +61,7 @@ class PreferenceHandler {
       final legacyProfileName = prefs.getString('profile_name');
       if (legacyProfileName != null && legacyProfileName.isNotEmpty) {
         return UserModel(
-          id: 0,
+          id: '0',
           email: 'user@plenty.app',
           password: '',
           username: legacyProfileName,
@@ -73,9 +73,14 @@ class PreferenceHandler {
     return null;
   }
 
-  static Future<int?> getUserId() async {
+  static Future<String?> getUserId() async {
     final user = await getUser();
     return user?.id;
+  }
+
+  static Future<int?> getNumericUserId() async {
+    final user = await getUser();
+    return user?.numericId;
   }
 
   // --- Onboarding State ---

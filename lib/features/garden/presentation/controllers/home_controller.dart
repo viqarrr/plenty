@@ -206,8 +206,8 @@ class HomeController extends ChangeNotifier {
       final user =
           userProfileResult.dataOrNull ?? await PreferenceHandler.getUser();
       final userIdVal = user?.id;
-      final effectiveUserId = (userIdVal != null && userIdVal > 0)
-          ? userIdVal.toString()
+      final effectiveUserId = (userIdVal != null && userIdVal.isNotEmpty && userIdVal != '0')
+          ? userIdVal
           : (userId.isNotEmpty ? userId : 'usr_default');
 
       final plantsResult = await _plantRepo.getUserPlants(effectiveUserId);

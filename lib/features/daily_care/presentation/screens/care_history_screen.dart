@@ -40,8 +40,8 @@ class _CareHistoryScreenState extends State<CareHistoryScreen> {
     });
 
     final user = await PreferenceHandler.getUser();
-    final userId = (user?.id != null && user!.id! > 0)
-        ? user.id.toString()
+    final userId = (user?.id != null && user!.id!.isNotEmpty)
+        ? user.id!
         : '1';
     final result = await _careRepo.getCareHistory(userId: userId);
     if (!mounted) return;

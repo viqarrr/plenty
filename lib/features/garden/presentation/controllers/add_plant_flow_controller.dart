@@ -281,8 +281,8 @@ class AddPlantFlowController extends ChangeNotifier {
       final user = await PreferenceHandler.getUser();
       final effectiveUserId = (userId != 'usr_default' && userId.isNotEmpty)
           ? userId
-          : ((user?.id != null && user!.id! > 0)
-                ? user.id.toString()
+          : ((user?.id != null && user!.id!.isNotEmpty)
+                ? user.id!
                 : (userId.isNotEmpty ? userId : '1'));
 
       final name = _state.plantName.trim().isNotEmpty

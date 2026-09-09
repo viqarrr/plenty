@@ -180,7 +180,7 @@ class CommunityController extends ChangeNotifier {
       final user = await PreferenceHandler.getUser();
       final result = await _repository.updatePost(
         updatedDraft,
-        userId: user?.id,
+        userId: user?.numericId,
       );
       switch (result) {
         case Success(:final data):
@@ -202,7 +202,7 @@ class CommunityController extends ChangeNotifier {
   Future<bool> deletePost(String postId) async {
     try {
       final user = await PreferenceHandler.getUser();
-      final result = await _repository.deletePost(postId, userId: user?.id);
+      final result = await _repository.deletePost(postId, userId: user?.numericId);
       switch (result) {
         case Success():
           _posts = _posts.where((p) => p.id != postId).toList();

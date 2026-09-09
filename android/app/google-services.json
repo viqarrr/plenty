@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "939863038145",
+    "project_id": "plenty-ae791",
+    "storage_bucket": "plenty-ae791.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:939863038145:android:357278b1c09c4886dd1c40",
+        "android_client_info": {
+          "package_name": "com.vee.plenty"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDv_OGIJf3KFiRwj-cCzSXExAHkd_M6Crk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

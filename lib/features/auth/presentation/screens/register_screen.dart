@@ -4,14 +4,65 @@ import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/core/widgets/custom_text_field.dart';
+import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/features/auth/domain/models/user_model.dart';
-import 'package:plenty/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:plenty/features/auth/domain/repositories/auth_repository.dart';
 import 'package:plenty/features/auth/presentation/screens/login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
-  final AuthRepositoryImpl? authRepository;
+  final IAuthRepository? authRepository;
 
   const RegisterScreen({super.key, this.authRepository});
+
+  /// Validates password complexity:
+  /// - Not empty
+  /// - Minimal 8 characters
+  /// - At least one uppercase letter (A-Z)
+  /// - At least one lowercase letter (a-z)
+  /// - At least one number (0-9)
+  /// - At least one symbol/special character
+  ///
+  /// If multiple criteria fail, displays all missing requirements together.
+  static String? validatePassword(String? v) {
+    if (v == null || v.isEmpty) {
+      return 'Kata sandi tidak boleh kosong';
+    }
+
+    final missing = <String>[];
+    if (v.length < 8) {
+      missing.add('minimal 8 karakter');
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(v)) {
+      missing.add('huruf besar');
+    }
+    if (!RegExp(r'[a-z]').hasMatch(v)) {
+      missing.add('huruf kecil');
+    }
+    if (!RegExp(r'[0-9]').hasMatch(v)) {
+      missing.add('angka');
+    }
+    if (!RegExp(r'[^a-zA-Z0-9\s]').hasMatch(v)) {
+      missing.add('simbol');
+    }
+
+    if (missing.isEmpty) return null;
+
+    if (missing.length == 1) {
+      if (missing.first == 'minimal 8 karakter') {
+        return 'Kata sandi minimal 8 karakter';
+      }
+      return 'Kata sandi harus menyertakan ${missing.first}';
+    }
+
+    final String formatted;
+    if (missing.length == 2) {
+      formatted = '${missing[0]} dan ${missing[1]}';
+    } else {
+      final allExceptLast = missing.sublist(0, missing.length - 1).join(', ');
+      formatted = '$allExceptLast, dan ${missing.last}';
+    }
+    return 'Kata sandi harus menyertakan $formatted';
+  }
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -35,7 +86,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  late final AuthRepositoryImpl _authRepository;
+  late final IAuthRepository _authRepository;
   int _currentStep = 0;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -44,7 +95,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    _authRepository = widget.authRepository ?? AuthRepositoryImpl();
+    _authRepository = widget.authRepository ?? Injector.authRepository;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _focusNodes.isNotEmpty) {
         _focusNodes[0].requestFocus();
@@ -156,7 +207,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _buildStepPage(
       stepIndex: 3,
       title: 'Buat kata sandi yang aman',
-      desc: 'Minimal 8 karakter kombinasi huruf & angka.',
+      desc: 'Minimal 8 karakter kombinasi huruf besar, kecil, angka, dan simbol.',
       inputField: CustomTextField(
         controller: _passwordController,
         focusNode: _focusNodes[3],
@@ -173,18 +224,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
-        supportingText: 'Minimal 8 karakter kombinasi huruf & angka',
+        supportingText:
+            'Kombinasi huruf besar, kecil, angka & simbol (min. 8 karakter)',
         textInputAction: TextInputAction.next,
         onSubmitted: (_) => _nextStep(),
-        validator: (v) {
-          if (v == null || v.isEmpty) {
-            return 'Kata sandi tidak boleh kosong';
-          }
-          if (v.length < 8) {
-            return 'Minimal 8 karakter kombinasi huruf & angka';
-          }
-          return null;
-        },
+        validator: RegisterScreen.validatePassword,
       ),
     ),
     _buildStepPage(

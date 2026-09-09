@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
-import 'package:plenty/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/features/auth/domain/repositories/auth_repository.dart';
 import 'package:plenty/features/auth/presentation/screens/auth_selection_screen.dart';
 import 'package:plenty/features/community/presentation/screens/community_screen.dart';
@@ -41,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _selectedTab = widget.initialTab;
-    _authRepository = widget.authRepository ?? AuthRepositoryImpl();
+    _authRepository = widget.authRepository ?? Injector.authRepository;
     _homeController = widget.homeController ?? HomeController();
     _dailyCareController = widget.dailyCareController ?? DailyCareController();
     _dailyCareController.addListener(_onDailyCareChanged);

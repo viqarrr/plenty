@@ -129,9 +129,9 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         try {
           final activeUser = await PreferenceHandler.getUser();
           if (activeUser != null &&
-              activeUser.id != null &&
-              activeUser.id != 0) {
-            effectiveUserId = activeUser.id!;
+              activeUser.numericId != null &&
+              activeUser.numericId != 0) {
+            effectiveUserId = activeUser.numericId!;
           }
         } catch (_) {}
       }
@@ -203,9 +203,9 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         try {
           final activeUser = await PreferenceHandler.getUser();
           if (activeUser != null &&
-              activeUser.id != null &&
-              activeUser.id != 0) {
-            effectiveUserId = activeUser.id!;
+              activeUser.numericId != null &&
+              activeUser.numericId != 0) {
+            effectiveUserId = activeUser.numericId!;
           }
         } catch (_) {}
       }
@@ -287,8 +287,10 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       try {
         final activeUser = await PreferenceHandler.getUser();
         if (activeUser != null) {
-          if (userId == null && activeUser.id != null && activeUser.id != 0) {
-            effectiveUserId = activeUser.id!;
+          if (userId == null &&
+              activeUser.numericId != null &&
+              activeUser.numericId != 0) {
+            effectiveUserId = activeUser.numericId!;
           }
           if (post.authorName.isEmpty ||
               post.authorName == 'Pecinta Tanaman' ||
@@ -365,9 +367,9 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         final activeUser = await PreferenceHandler.getUser();
         if (activeUser != null &&
             userId == null &&
-            activeUser.id != null &&
-            activeUser.id != 0) {
-          effectiveUserId = activeUser.id!;
+            activeUser.numericId != null &&
+            activeUser.numericId != 0) {
+          effectiveUserId = activeUser.numericId!;
         }
       } catch (_) {}
 
@@ -431,9 +433,9 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         try {
           final activeUser = await PreferenceHandler.getUser();
           if (activeUser != null &&
-              activeUser.id != null &&
-              activeUser.id != 0) {
-            effectiveUserId = activeUser.id;
+              activeUser.numericId != null &&
+              activeUser.numericId != 0) {
+            effectiveUserId = activeUser.numericId;
           }
         } catch (_) {}
       }
@@ -481,9 +483,9 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         final activeUser = await PreferenceHandler.getUser();
         if (activeUser != null &&
             userId == null &&
-            activeUser.id != null &&
-            activeUser.id != 0) {
-          effectiveUserId = activeUser.id!;
+            activeUser.numericId != null &&
+            activeUser.numericId != 0) {
+          effectiveUserId = activeUser.numericId!;
         }
       } catch (_) {}
 

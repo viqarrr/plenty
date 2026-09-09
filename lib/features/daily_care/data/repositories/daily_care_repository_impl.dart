@@ -37,7 +37,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
       final user = await PreferenceHandler.getUser();
       final userId =
           explicitUserId ??
-          ((user?.id != null && user!.id! > 0) ? user.id.toString() : '1');
+          ((user?.id != null && user!.id!.isNotEmpty) ? user.id! : '1');
 
       final plantResult = await _plantRepo.getUserPlants(userId);
       final plants = plantResult.dataOrNull ?? [];

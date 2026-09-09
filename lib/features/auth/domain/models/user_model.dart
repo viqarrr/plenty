@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 /// with progress metrics (streaks, xp, level, badges).
 @immutable
 class UserModel {
-  final int? id;
+  final String? id;
   final String email;
   final String password;
   final String displayName;
@@ -22,7 +22,7 @@ class UserModel {
   const UserModel({
     this.id,
     required this.email,
-    required this.password,
+    this.password = '',
     required this.displayName,
     required this.username,
     this.bio,
@@ -36,8 +36,15 @@ class UserModel {
     this.createdAt,
   });
 
+  /// Helper to safely retrieve an integer representation of the ID if available,
+  /// or hash code fallback for legacy local SQLite tables.
+  int? get numericId {
+    if (id == null) return null;
+    return int.tryParse(id!) ?? id.hashCode.abs();
+  }
+
   UserModel copyWith({
-    int? id,
+    String? id,
     String? email,
     String? password,
     String? displayName,
@@ -72,32 +79,44 @@ class UserModel {
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
-      id: map['id'] != null
-          ? (map['id'] is int
-              ? map['id'] as int
-              : int.tryParse(map['id'].toString()))
-          : null,
+      id: map['id']?.toString(),
       email: (map['email'] as String?) ?? '',
       password: (map['password'] as String?) ?? '',
-      displayName: (map['display_name'] as String?) ?? '',
+      displayName: (map['display_name'] as String?) ??
+          (map['displayName'] as String?) ??
+          '',
       username: (map['username'] as String?) ?? '',
       bio: map['bio'] as String?,
-      avatarUrl: map['avatar_url'] as String?,
-      streakCount: (map['streak_count'] as int?) ?? 0,
-      longestStreak: (map['longest_streak'] as int?) ?? 0,
-      totalXp: (map['total_xp'] as int?) ?? 0,
-      level: (map['level'] as int?) ?? 1,
-      unlockedBadgesCount: (map['unlocked_badges_count'] as int?) ?? 0,
-      lastStreakDate: map['last_streak_date'] as String?,
-      createdAt: (map['created_at'] as String?) ?? '',
+      avatarUrl: (map['avatar_url'] as String?) ??
+          (map['avatarUrl'] as String?),
+      streakCount: (map['streak_count'] as num?)?.toInt() ??
+          (map['streakCount'] as num?)?.toInt() ??
+          0,
+      longestStreak: (map['longest_streak'] as num?)?.toInt() ??
+          (map['longestStreak'] as num?)?.toInt() ??
+          0,
+      totalXp: (map['total_xp'] as num?)?.toInt() ??
+          (map['totalXp'] as num?)?.toInt() ??
+          0,
+      level: (map['level'] as num?)?.toInt() ??
+          (map['level'] as num?)?.toInt() ??
+          1,
+      unlockedBadgesCount: (map['unlocked_badges_count'] as num?)?.toInt() ??
+          (map['unlockedBadgesCount'] as num?)?.toInt() ??
+          0,
+      lastStreakDate: (map['last_streak_date'] as String?) ??
+          (map['lastStreakDate'] as String?),
+      createdAt: (map['created_at'] as String?) ??
+          (map['createdAt'] as String?) ??
+          '',
     );
   }
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toMap({bool includePassword = false}) {
     return <String, dynamic>{
       if (id != null) 'id': id,
       'email': email,
-      'password': password,
+      if (includePassword && password.isNotEmpty) 'password': password,
       'display_name': displayName,
       'username': username,
       'bio': bio,
@@ -110,6 +129,14 @@ class UserModel {
       'last_streak_date': lastStreakDate,
       'created_at': createdAt,
     };
+  }
+
+  /// Generates a Map representation specifically tailored for Cloud Firestore storage.
+  /// Omits sensitive fields like [password] and excludes null values to keep documents clean.
+  Map<String, dynamic> toFirestoreMap() {
+    final map = toMap(includePassword: false);
+    map.removeWhere((key, value) => value == null);
+    return map;
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) =>

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/constants/app_images.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
+import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/auth/presentation/screens/auth_selection_screen.dart';
 import 'package:plenty/features/garden/presentation/screens/home_screen.dart';
@@ -27,7 +28,8 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (PreferenceHandler.isOnboard) {
-      if (PreferenceHandler.isLogin) {
+      final isFirebaseLoggedIn = Injector.authRepository.currentUser != null;
+      if (PreferenceHandler.isLogin || isFirebaseLoggedIn) {
         context.pushReplacement(const HomeScreen());
       } else {
         context.pushReplacement(const AuthSelectionScreen());
