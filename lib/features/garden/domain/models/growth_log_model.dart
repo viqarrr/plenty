@@ -28,13 +28,25 @@ class GrowthLogModel {
         userPlantId: map['user_plant_id'] as String,
         photoPath: map['photo_path'] as String?,
         heightCm: (map['height_cm'] as num?)?.toDouble(),
-        leafCount: map['leaf_count'] as int?,
+        leafCount: (map['leaf_count'] as num?)?.toInt(),
         note: map['note'] as String?,
         source: map['source'] as String? ?? 'manual',
-        loggedAt: DateTime.parse(map['logged_at'] as String),
+        loggedAt:
+            DateTime.tryParse(map['logged_at'].toString()) ?? DateTime.now(),
       );
 
   Map<String, dynamic> toMap() => {
+        'id': id,
+        'user_plant_id': userPlantId,
+        'photo_path': photoPath,
+        'height_cm': heightCm,
+        'leaf_count': leafCount,
+        'note': note,
+        'source': source,
+        'logged_at': loggedAt.toIso8601String(),
+      };
+
+  Map<String, dynamic> toFirestoreMap() => {
         'id': id,
         'user_plant_id': userPlantId,
         'photo_path': photoPath,

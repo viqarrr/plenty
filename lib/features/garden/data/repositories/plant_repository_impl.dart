@@ -14,7 +14,9 @@ import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/auth/domain/models/user_model.dart';
+import 'package:plenty/features/daily_care/data/datasources/care_remote_datasource.dart';
 import 'package:plenty/features/garden/data/datasources/garden_remote_datasource.dart';
+import 'package:plenty/features/garden/data/datasources/growth_remote_datasource.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -25,6 +27,8 @@ class PlantRepositoryImpl implements IPlantRepository {
   final PlantRemoteDataSource _remoteDataSource;
   final GardenRemoteDataSource? _gardenRemoteDataSource;
   final IBadgeRepository? _badgeRepo;
+  final CareRemoteDataSource? _careRemoteDataSource;
+  final GrowthRemoteDataSource? _growthRemoteDataSource;
 
   // In-Memory Session Caches (zero SQLite disk hoarding)
   final Map<String, List<PlantCatalogModel>> _sessionCatalogCache = {};
@@ -36,10 +40,14 @@ class PlantRepositoryImpl implements IPlantRepository {
     PlantRemoteDataSource? remoteDataSource,
     GardenRemoteDataSource? gardenRemoteDataSource,
     IBadgeRepository? badgeRepo,
+    CareRemoteDataSource? careRemoteDataSource,
+    GrowthRemoteDataSource? growthRemoteDataSource,
   }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
        _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl(),
        _gardenRemoteDataSource = gardenRemoteDataSource,
-       _badgeRepo = badgeRepo;
+       _badgeRepo = badgeRepo,
+       _careRemoteDataSource = careRemoteDataSource,
+       _growthRemoteDataSource = growthRemoteDataSource;
 
   /// Clears in-memory session cache.
   void clearSessionCache() {
@@ -213,6 +221,10 @@ class PlantRepositoryImpl implements IPlantRepository {
       final int rawParsed = int.tryParse(effectiveUserId.toString()) ?? (activeUser?.numericId ?? 1);
       final int parsedUserId = rawParsed > 0 ? rawParsed : 1;
 
+      GrowthLogModel? createdInitialLog;
+      List<CareScheduleModel>? createdSchedules;
+      TimeCapsuleModel? createdTimeCapsule;
+
       final result = await db.transaction<AddPlantResult>((txn) async {
         // 1. Ensure user row exists for relational integrity
         final userRows = await txn.query(
@@ -326,6 +338,7 @@ class PlantRepositoryImpl implements IPlantRepository {
           note: 'Adopsi pertama $nickname',
         );
         await txn.insert(DatabaseHelper.tableGrowthLogs, initialLog.toMap());
+        createdInitialLog = initialLog;
 
         // 4. Insert care schedules
         final now = DateTime.now();
@@ -359,6 +372,7 @@ class PlantRepositoryImpl implements IPlantRepository {
         for (final s in schedules) {
           await txn.insert(DatabaseHelper.tableCareSchedules, s.toMap());
         }
+        createdSchedules = schedules;
 
         // 5. Check first plant badge
         if (isFirstPlant) {
@@ -424,6 +438,7 @@ class PlantRepositoryImpl implements IPlantRepository {
             DatabaseHelper.tableTimeCapsules,
             capsuleModel.toMap(),
           );
+          createdTimeCapsule = capsuleModel;
 
           // Check if time_capsule badge is already unlocked
           final tcBadgeRows = await txn.query(
@@ -532,6 +547,25 @@ class PlantRepositoryImpl implements IPlantRepository {
         } catch (_) {
           // Offline resilience: SQLite persistence completed successfully
         }
+      }
+
+      if (_growthRemoteDataSource != null) {
+        try {
+          if (createdInitialLog != null) {
+            await _growthRemoteDataSource.saveGrowthLog(createdInitialLog!);
+          }
+          if (createdTimeCapsule != null) {
+            await _growthRemoteDataSource.saveTimeCapsule(createdTimeCapsule!);
+          }
+        } catch (_) {}
+      }
+
+      if (_careRemoteDataSource != null && createdSchedules != null) {
+        try {
+          for (final s in createdSchedules!) {
+            await _careRemoteDataSource.saveSchedule(s);
+          }
+        } catch (_) {}
       }
 
       return Success(result);

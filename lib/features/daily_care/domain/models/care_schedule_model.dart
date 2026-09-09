@@ -21,18 +21,21 @@ class CareScheduleModel {
     this.isActive = true,
   });
 
-  factory CareScheduleModel.fromMap(Map<String, dynamic> map) => CareScheduleModel(
+  factory CareScheduleModel.fromMap(Map<String, dynamic> map) =>
+      CareScheduleModel(
         id: map['id'] as String,
         userPlantId: map['user_plant_id'] as String,
         taskType: map['task_type'] as String,
-        intervalDays: map['interval_days'] as int?,
+        intervalDays: (map['interval_days'] as num?)?.toInt(),
         lastPerformedAt: map['last_performed_at'] != null
-            ? DateTime.tryParse(map['last_performed_at'] as String)
+            ? DateTime.tryParse(map['last_performed_at'].toString())
             : null,
         nextDueDate: map['next_due_date'] != null
-            ? DateTime.tryParse(map['next_due_date'] as String)
+            ? DateTime.tryParse(map['next_due_date'].toString())
             : null,
-        isActive: (map['is_active'] as int? ?? 1) == 1,
+        isActive: map['is_active'] is bool
+            ? (map['is_active'] as bool)
+            : ((map['is_active'] as int? ?? 1) == 1),
       );
 
   Map<String, dynamic> toMap() => {
@@ -43,6 +46,16 @@ class CareScheduleModel {
         'last_performed_at': lastPerformedAt?.toIso8601String(),
         'next_due_date': nextDueDate?.toIso8601String(),
         'is_active': isActive ? 1 : 0,
+      };
+
+  Map<String, dynamic> toFirestoreMap() => {
+        'id': id,
+        'user_plant_id': userPlantId,
+        'task_type': taskType,
+        'interval_days': intervalDays,
+        'last_performed_at': lastPerformedAt?.toIso8601String(),
+        'next_due_date': nextDueDate?.toIso8601String(),
+        'is_active': isActive,
       };
 
   factory CareScheduleModel.fromJson(Map<String, dynamic> json) =>

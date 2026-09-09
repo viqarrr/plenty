@@ -56,9 +56,13 @@ class TimeCapsuleModel {
         userPlantId: map['user_plant_id'] as String,
         photoPath: (map['photo_path'] as String?) ?? '',
         note: map['note'] as String?,
-        createdAt: DateTime.parse(map['created_at'] as String),
-        unlockAt: DateTime.parse(map['unlock_at'] as String),
-        isUnlocked: (map['is_unlocked'] as int? ?? 0) == 1,
+        createdAt:
+            DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now(),
+        unlockAt:
+            DateTime.tryParse(map['unlock_at'].toString()) ?? DateTime.now(),
+        isUnlocked: map['is_unlocked'] is bool
+            ? (map['is_unlocked'] as bool)
+            : ((map['is_unlocked'] as int? ?? 0) == 1),
       );
 
   Map<String, dynamic> toMap() => {
@@ -69,6 +73,16 @@ class TimeCapsuleModel {
         'created_at': createdAt.toIso8601String(),
         'unlock_at': unlockAt.toIso8601String(),
         'is_unlocked': isUnlocked ? 1 : 0,
+      };
+
+  Map<String, dynamic> toFirestoreMap() => {
+        'id': id,
+        'user_plant_id': userPlantId,
+        'photo_path': photoPath,
+        'note': note,
+        'created_at': createdAt.toIso8601String(),
+        'unlock_at': unlockAt.toIso8601String(),
+        'is_unlocked': isUnlocked,
       };
 
   factory TimeCapsuleModel.fromJson(Map<String, dynamic> json) =>

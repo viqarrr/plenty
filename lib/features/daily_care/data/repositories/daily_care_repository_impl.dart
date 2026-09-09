@@ -3,10 +3,13 @@ import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/daily_care/data/datasources/care_remote_datasource.dart';
 import 'package:plenty/features/daily_care/domain/models/care_action_log_model.dart';
 import 'package:plenty/features/daily_care/domain/models/care_history_item.dart';
+import 'package:plenty/features/daily_care/domain/models/care_schedule_model.dart';
 import 'package:plenty/features/daily_care/domain/models/daily_care_state.dart';
 import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
+import 'package:plenty/features/garden/data/datasources/growth_remote_datasource.dart';
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
 import 'package:plenty/features/garden/data/repositories/streak_repository_impl.dart';
 import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
@@ -24,6 +27,8 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
   final IStreakRepository _streakRepo;
   final IBadgeRepository? _badgeRepo;
   final ProfileRemoteDataSource? _remoteDataSource;
+  final CareRemoteDataSource? _careRemoteDataSource;
+  final GrowthRemoteDataSource? _growthRemoteDataSource;
 
   DailyCareRepositoryImpl({
     DatabaseHelper? dbHelper,
@@ -31,11 +36,15 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
     IStreakRepository? streakRepo,
     IBadgeRepository? badgeRepo,
     ProfileRemoteDataSource? remoteDataSource,
+    CareRemoteDataSource? careRemoteDataSource,
+    GrowthRemoteDataSource? growthRemoteDataSource,
   }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
        _plantRepo = plantRepo ?? PlantRepositoryImpl(dbHelper: dbHelper),
        _streakRepo = streakRepo ?? StreakRepositoryImpl(dbHelper: dbHelper),
        _badgeRepo = badgeRepo,
-       _remoteDataSource = remoteDataSource;
+       _remoteDataSource = remoteDataSource,
+       _careRemoteDataSource = careRemoteDataSource,
+       _growthRemoteDataSource = growthRemoteDataSource;
 
   @override
   Future<Result<DailyCareState>> loadDailyCareData({
@@ -49,6 +58,23 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
 
       final plantResult = await _plantRepo.getUserPlants(userId);
       final plants = plantResult.dataOrNull ?? [];
+
+      if (_careRemoteDataSource != null) {
+        for (final plant in plants) {
+          try {
+            final remoteSchedules =
+                await _careRemoteDataSource.getSchedulesForPlant(plant.id);
+            final db = await _dbHelper.database;
+            for (final sched in remoteSchedules) {
+              await db.insert(
+                DatabaseHelper.tableCareSchedules,
+                sched.toMap(),
+                conflictAlgorithm: ConflictAlgorithm.replace,
+              );
+            }
+          } catch (_) {}
+        }
+      }
 
       final streakResult = await _streakRepo.getStreak(userId);
       final streak = streakResult.dataOrNull;
@@ -148,6 +174,9 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         return const Success(null);
       }
 
+      GrowthLogModel? createdGrowthLog;
+      CareActionLogModel? createdCareLog;
+
       await db.transaction((txn) async {
         final growthLog = GrowthLogModel(
           id: 'growth_${now.millisecondsSinceEpoch}',
@@ -159,6 +188,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           source: 'daily_task',
           loggedAt: now,
         );
+        createdGrowthLog = growthLog;
         await txn.insert(DatabaseHelper.tableGrowthLogs, growthLog.toMap());
 
         final careLog = CareActionLogModel(
@@ -170,6 +200,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           xpAwarded: xpAwarded,
           notes: note,
         );
+        createdCareLog = careLog;
         await txn.insert(DatabaseHelper.tableCareActionLogs, careLog.toMap());
 
         final plantRows = await txn.query(
@@ -250,6 +281,28 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
       });
 
       await _syncUserXpAndBadges(rawUserId: plant.userId);
+
+      // Dual-write to Cloud Firestore
+      if (_growthRemoteDataSource != null && createdGrowthLog != null) {
+        try {
+          await _growthRemoteDataSource.saveGrowthLog(createdGrowthLog!);
+        } catch (_) {}
+      }
+      if (_careRemoteDataSource != null && createdCareLog != null) {
+        try {
+          await _careRemoteDataSource.saveCareActionLog(createdCareLog!);
+          await _careRemoteDataSource.updateSchedule(CareScheduleModel(
+            id: 'sched_${plant.id}_monitor',
+            userPlantId: plant.id,
+            taskType: 'monitor',
+            intervalDays: 1,
+            lastPerformedAt: now,
+            nextDueDate: now.add(const Duration(days: 1)),
+            isActive: true,
+          ));
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -269,6 +322,9 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
       final logDate =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
+      String? updatedLogId;
+      Map<String, dynamic>? updatedGrowthValues;
+
       await db.transaction((txn) async {
         final existingLogs = await txn.query(
           DatabaseHelper.tableGrowthLogs,
@@ -287,6 +343,8 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           if (photoPath != null && photoPath.isNotEmpty) {
             growthValues['photo_path'] = photoPath;
           }
+          updatedLogId = logId;
+          updatedGrowthValues = growthValues;
           await txn.update(
             DatabaseHelper.tableGrowthLogs,
             growthValues,
@@ -317,6 +375,18 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           whereArgs: [plant.id],
         );
       });
+
+      if (_growthRemoteDataSource != null &&
+          updatedLogId != null &&
+          updatedGrowthValues != null) {
+        try {
+          await _growthRemoteDataSource.updateGrowthLog(
+            updatedLogId!,
+            updatedGrowthValues!,
+          );
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -345,6 +415,9 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         return const Success(null);
       }
 
+      CareActionLogModel? createdLog;
+      CareScheduleModel? updatedSchedule;
+
       await db.transaction((txn) async {
         final careLog = CareActionLogModel(
           id: 'care_log_${now.millisecondsSinceEpoch}_$taskType',
@@ -356,6 +429,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           notes: notes,
         );
         await txn.insert(DatabaseHelper.tableCareActionLogs, careLog.toMap());
+        createdLog = careLog;
 
         final plantRows = await txn.query(
           DatabaseHelper.tableUserPlants,
@@ -423,18 +497,43 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
                   (taskType == 'bersih' ? 7 : (taskType == 'siram' ? 3 : 1)))
             : (taskType == 'bersih' ? 7 : (taskType == 'siram' ? 3 : 1));
 
+        final nextDue = now.add(Duration(days: intervalDays));
         await txn.update(
           DatabaseHelper.tableCareSchedules,
           {
             'last_performed_at': now.toIso8601String(),
-            'next_due_date': now
-                .add(Duration(days: intervalDays))
-                .toIso8601String(),
+            'next_due_date': nextDue.toIso8601String(),
           },
           where: 'user_plant_id = ? AND task_type = ?',
           whereArgs: [plant.id, taskType],
         );
+
+        if (schedRows.isNotEmpty) {
+          final sMap = Map<String, dynamic>.from(schedRows.first);
+          sMap['last_performed_at'] = now.toIso8601String();
+          sMap['next_due_date'] = nextDue.toIso8601String();
+          updatedSchedule = CareScheduleModel.fromMap(sMap);
+        } else {
+          updatedSchedule = CareScheduleModel(
+            id: 'sched_${plant.id}_$taskType',
+            userPlantId: plant.id,
+            taskType: taskType,
+            intervalDays: intervalDays,
+            lastPerformedAt: now,
+            nextDueDate: nextDue,
+            isActive: true,
+          );
+        }
       });
+
+      if (_careRemoteDataSource != null && createdLog != null) {
+        try {
+          await _careRemoteDataSource.saveCareActionLog(createdLog!);
+          if (updatedSchedule != null) {
+            await _careRemoteDataSource.updateSchedule(updatedSchedule!);
+          }
+        } catch (_) {}
+      }
 
       await _syncUserXpAndBadges(rawUserId: plant.userId);
       return const Success(null);
@@ -455,6 +554,45 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
   }) async {
     try {
       final db = await _dbHelper.database;
+
+      if (_careRemoteDataSource != null) {
+        try {
+          if (userPlantId != null && userPlantId.isNotEmpty) {
+            final remoteLogs = await _careRemoteDataSource.getCareActionLogs(
+              userPlantId: userPlantId,
+            );
+            for (final log in remoteLogs) {
+              await db.insert(
+                DatabaseHelper.tableCareActionLogs,
+                log.toMap(),
+                conflictAlgorithm: ConflictAlgorithm.ignore,
+              );
+            }
+          } else if (userId != null && userId.isNotEmpty) {
+            final parsed = int.tryParse(userId);
+            final userPlants = await db.query(
+              DatabaseHelper.tableUserPlants,
+              columns: ['id'],
+              where: 'user_id = ? OR CAST(user_id AS TEXT) = ?',
+              whereArgs: [parsed ?? userId, userId],
+            );
+            for (final p in userPlants) {
+              final pid = p['id'] as String;
+              final remoteLogs = await _careRemoteDataSource.getCareActionLogs(
+                userPlantId: pid,
+              );
+              for (final log in remoteLogs) {
+                await db.insert(
+                  DatabaseHelper.tableCareActionLogs,
+                  log.toMap(),
+                  conflictAlgorithm: ConflictAlgorithm.ignore,
+                );
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
       String query =
           '''
         SELECT 
@@ -808,14 +946,15 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
   }) async {
     try {
       final db = await _dbHelper.database;
+      final updateValues = <String, dynamic>{
+        'height_cm': heightCm,
+        'note': note,
+      };
+      if (photoPath != null && photoPath.isNotEmpty) {
+        updateValues['photo_path'] = photoPath;
+      }
+
       await db.transaction((txn) async {
-        final updateValues = <String, dynamic>{
-          'height_cm': heightCm,
-          'note': note,
-        };
-        if (photoPath != null && photoPath.isNotEmpty) {
-          updateValues['photo_path'] = photoPath;
-        }
         await txn.update(
           DatabaseHelper.tableGrowthLogs,
           updateValues,
@@ -848,6 +987,13 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           );
         }
       });
+
+      if (_growthRemoteDataSource != null) {
+        try {
+          await _growthRemoteDataSource.updateGrowthLog(logId, updateValues);
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));

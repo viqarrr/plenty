@@ -5,10 +5,12 @@ import 'package:plenty/features/auth/data/repositories/auth_repository_impl.dart
 import 'package:plenty/features/auth/domain/repositories/auth_repository.dart';
 import 'package:plenty/features/community/data/repositories/community_repository_impl.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
+import 'package:plenty/features/daily_care/data/datasources/care_remote_datasource.dart';
 import 'package:plenty/features/daily_care/data/repositories/daily_care_repository_impl.dart';
 import 'package:plenty/features/daily_care/domain/repositories/daily_care_repository.dart';
 import 'package:plenty/features/garden/data/data_sources/plant_remote_data_source.dart';
 import 'package:plenty/features/garden/data/datasources/garden_remote_datasource.dart';
+import 'package:plenty/features/garden/data/datasources/growth_remote_datasource.dart';
 import 'package:plenty/features/garden/data/repositories/growth_repository_impl.dart';
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
 import 'package:plenty/features/garden/data/repositories/site_repository_impl.dart';
@@ -53,6 +55,14 @@ class Injector {
   static GardenRemoteDataSource get gardenRemoteDataSource =>
       _gardenRemoteDataSource ??= FirestoreGardenRemoteDataSourceImpl();
 
+  static CareRemoteDataSource? _careRemoteDataSource;
+  static CareRemoteDataSource get careRemoteDataSource =>
+      _careRemoteDataSource ??= FirestoreCareRemoteDataSourceImpl();
+
+  static GrowthRemoteDataSource? _growthRemoteDataSource;
+  static GrowthRemoteDataSource get growthRemoteDataSource =>
+      _growthRemoteDataSource ??= FirestoreGrowthRemoteDataSourceImpl();
+
   // Repositories
   static IAuthRepository? _authRepository;
   static IAuthRepository get authRepository =>
@@ -89,6 +99,8 @@ class Injector {
         remoteDataSource: plantRemoteDataSource,
         gardenRemoteDataSource: gardenRemoteDataSource,
         badgeRepo: badgeRepository,
+        careRemoteDataSource: careRemoteDataSource,
+        growthRemoteDataSource: growthRemoteDataSource,
       );
 
   static IStreakRepository? _streakRepository;
@@ -107,6 +119,8 @@ class Injector {
         streakRepo: streakRepository,
         badgeRepo: badgeRepository,
         remoteDataSource: profileRemoteDataSource,
+        careRemoteDataSource: careRemoteDataSource,
+        growthRemoteDataSource: growthRemoteDataSource,
       );
 
   static ICommunityRepository? _communityRepository;
@@ -117,7 +131,11 @@ class Injector {
 
   static IGrowthRepository? _growthRepository;
   static IGrowthRepository get growthRepository =>
-      _growthRepository ??= GrowthRepositoryImpl(dbHelper: databaseHelper);
+      _growthRepository ??= GrowthRepositoryImpl(
+        dbHelper: databaseHelper,
+        remoteDataSource: growthRemoteDataSource,
+        badgeRepo: badgeRepository,
+      );
 
   // Setters for testing and mock injection
   static set databaseHelper(DatabaseHelper? helper) => _databaseHelper = helper;
@@ -131,6 +149,10 @@ class Injector {
       _profileRemoteDataSource = ds;
   static set gardenRemoteDataSource(GardenRemoteDataSource? ds) =>
       _gardenRemoteDataSource = ds;
+  static set careRemoteDataSource(CareRemoteDataSource? ds) =>
+      _careRemoteDataSource = ds;
+  static set growthRemoteDataSource(GrowthRemoteDataSource? ds) =>
+      _growthRemoteDataSource = ds;
   static set authRepository(IAuthRepository? repo) => _authRepository = repo;
   static set badgeRepository(IBadgeRepository? repo) => _badgeRepository = repo;
   static set userRepository(IUserRepository? repo) => _userRepository = repo;
@@ -153,6 +175,8 @@ class Injector {
     _authLocalDataSource = null;
     _profileRemoteDataSource = null;
     _gardenRemoteDataSource = null;
+    _careRemoteDataSource = null;
+    _growthRemoteDataSource = null;
     _authRepository = null;
     _badgeRepository = null;
     _userRepository = null;
