@@ -7,11 +7,14 @@ import 'package:plenty/features/garden/data/datasources/garden_remote_datasource
 import 'package:plenty/features/garden/data/repositories/plant_repository_impl.dart';
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class MockPlantRemoteDataSource extends Mock implements PlantRemoteDataSource {}
 class MockGardenRemoteDataSource extends Mock
     implements GardenRemoteDataSource {}
+class MockStorageRemoteDataSource extends Mock
+    implements StorageRemoteDataSource {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -204,6 +207,40 @@ void main() {
       final getResult = await repository.getUserPlants('user_cloud_123');
       expect(getResult, isA<Success<List<PlantModel>>>());
       expect(getResult.dataOrNull!.any((p) => p.nickname == 'Tanaman Offline'), isTrue);
+    });
+
+    test('addPlant with customPhotoPath uploads photo to StorageRemoteDataSource and persists storage URL', () async {
+      final mockStorage = MockStorageRemoteDataSource();
+      when(() => mockStorage.uploadFile(
+            filePath: any(named: 'filePath'),
+            destinationPath: any(named: 'destinationPath'),
+          )).thenAnswer((_) async => 'https://storage.googleapis.com/plant_custom.jpg');
+      when(() => mockGardenRemoteDataSource.savePlant(any()))
+          .thenAnswer((_) async {});
+
+      final repoWithStorage = PlantRepositoryImpl(
+        dbHelper: dbHelper,
+        remoteDataSource: mockPerenualDataSource,
+        gardenRemoteDataSource: mockGardenRemoteDataSource,
+        storageRemoteDataSource: mockStorage,
+      );
+
+      final addResult = await repoWithStorage.addPlant(
+        userId: 'user_cloud_123',
+        nickname: 'Monstera Albo',
+        isIndoor: true,
+        customPhotoPath: '/local/cache/plant.jpg',
+      );
+
+      expect(addResult, isA<Success<AddPlantResult>>());
+      verify(() => mockStorage.uploadFile(
+            filePath: '/local/cache/plant.jpg',
+            destinationPath: any(named: 'destinationPath'),
+          )).called(1);
+
+      final savedPlants = await repoWithStorage.getUserPlants('user_cloud_123');
+      expect(savedPlants.dataOrNull!.first.coverPhotoPath,
+          'https://storage.googleapis.com/plant_custom.jpg');
     });
   });
 }

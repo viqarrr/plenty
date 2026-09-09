@@ -536,12 +536,79 @@ class PlantRepositoryImpl implements IPlantRepository {
         } catch (_) {}
       }
 
+      // Dual-write to Firebase Cloud Storage
+      final initialLogSnapshot = createdInitialLog;
+      String remoteCoverPhoto = result.plant.coverPhotoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          result.plant.coverPhotoPath != null &&
+          result.plant.coverPhotoPath!.isNotEmpty &&
+          !result.plant.coverPhotoPath!.startsWith('http://') &&
+          !result.plant.coverPhotoPath!.startsWith('https://') &&
+          !result.plant.coverPhotoPath!.startsWith('assets/')) {
+        try {
+          final uploaded = await _storageRemoteDataSource.uploadFile(
+            filePath: result.plant.coverPhotoPath!,
+            destinationPath:
+                'plants/${result.plant.id}/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploaded.startsWith('http://') || uploaded.startsWith('https://')) {
+            remoteCoverPhoto = uploaded;
+            await db.update(
+              DatabaseHelper.tableUserPlants,
+              {'cover_photo_path': remoteCoverPhoto, 'image_path': remoteCoverPhoto},
+              where: 'id = ?',
+              whereArgs: [result.plant.id],
+            );
+            if (initialLogSnapshot != null) {
+              await db.update(
+                DatabaseHelper.tableGrowthLogs,
+                {'photo_path': remoteCoverPhoto},
+                where: 'id = ?',
+                whereArgs: [initialLogSnapshot.id],
+              );
+            }
+          }
+        } catch (_) {}
+      }
+
+      final capsuleSnapshot = createdTimeCapsule;
+      String remoteCapsulePhoto = capsuleSnapshot?.photoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          capsuleSnapshot != null &&
+          capsuleSnapshot.photoPath.isNotEmpty &&
+          !capsuleSnapshot.photoPath.startsWith('http://') &&
+          !capsuleSnapshot.photoPath.startsWith('https://') &&
+          !capsuleSnapshot.photoPath.startsWith('assets/')) {
+        try {
+          final uploaded = await _storageRemoteDataSource.uploadFile(
+            filePath: capsuleSnapshot.photoPath,
+            destinationPath:
+                'time_capsules/${result.plant.id}/capsule_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploaded.startsWith('http://') || uploaded.startsWith('https://')) {
+            remoteCapsulePhoto = uploaded;
+            await db.update(
+              DatabaseHelper.tableTimeCapsules,
+              {'photo_path': remoteCapsulePhoto},
+              where: 'id = ?',
+              whereArgs: [capsuleSnapshot.id],
+            );
+          }
+        } catch (_) {}
+      }
+
       // Dual-write to Cloud Firestore
       if (_gardenRemoteDataSource != null &&
           effectiveUserId.isNotEmpty &&
           effectiveUserId != 'usr_default') {
         try {
-          await _gardenRemoteDataSource.savePlant(result.plant);
+          final plantToSave = remoteCoverPhoto.isNotEmpty
+              ? result.plant.copyWith(
+                  coverPhotoPath: remoteCoverPhoto,
+                  imagePath: remoteCoverPhoto,
+                )
+              : result.plant;
+          await _gardenRemoteDataSource.savePlant(plantToSave);
         } catch (_) {
           // Offline resilience: SQLite persistence completed successfully
         }
@@ -549,11 +616,17 @@ class PlantRepositoryImpl implements IPlantRepository {
 
       if (_growthRemoteDataSource != null) {
         try {
-          if (createdInitialLog != null) {
-            await _growthRemoteDataSource.saveGrowthLog(createdInitialLog!);
+          if (initialLogSnapshot != null) {
+            final logToSave = remoteCoverPhoto.isNotEmpty
+                ? initialLogSnapshot.copyWith(photoPath: remoteCoverPhoto)
+                : initialLogSnapshot;
+            await _growthRemoteDataSource.saveGrowthLog(logToSave);
           }
-          if (createdTimeCapsule != null) {
-            await _growthRemoteDataSource.saveTimeCapsule(createdTimeCapsule!);
+          if (capsuleSnapshot != null) {
+            final capToSave = remoteCapsulePhoto.isNotEmpty
+                ? capsuleSnapshot.copyWith(photoPath: remoteCapsulePhoto)
+                : capsuleSnapshot;
+            await _growthRemoteDataSource.saveTimeCapsule(capToSave);
           }
         } catch (_) {}
       }
