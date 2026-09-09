@@ -85,6 +85,26 @@ class TimeCapsuleModel {
         'is_unlocked': isUnlocked,
       };
 
+  TimeCapsuleModel copyWith({
+    String? id,
+    String? userPlantId,
+    String? photoPath,
+    String? note,
+    DateTime? createdAt,
+    DateTime? unlockAt,
+    bool? isUnlocked,
+  }) {
+    return TimeCapsuleModel(
+      id: id ?? this.id,
+      userPlantId: userPlantId ?? this.userPlantId,
+      photoPath: photoPath ?? this.photoPath,
+      note: note ?? this.note,
+      createdAt: createdAt ?? this.createdAt,
+      unlockAt: unlockAt ?? this.unlockAt,
+      isUnlocked: isUnlocked ?? this.isUnlocked,
+    );
+  }
+
   factory TimeCapsuleModel.fromJson(Map<String, dynamic> json) =>
       TimeCapsuleModel.fromMap(json);
 

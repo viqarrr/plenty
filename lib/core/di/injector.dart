@@ -1,4 +1,5 @@
 import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
 import 'package:plenty/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:plenty/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:plenty/features/auth/data/repositories/auth_repository_impl.dart';
@@ -68,6 +69,10 @@ class Injector {
   static CommunityRemoteDataSource get communityRemoteDataSource =>
       _communityRemoteDataSource ??= FirestoreCommunityRemoteDataSourceImpl();
 
+  static StorageRemoteDataSource? _storageRemoteDataSource;
+  static StorageRemoteDataSource get storageRemoteDataSource =>
+      _storageRemoteDataSource ??= FirebaseStorageRemoteDataSourceImpl();
+
   // Repositories
   static IAuthRepository? _authRepository;
   static IAuthRepository get authRepository =>
@@ -106,6 +111,7 @@ class Injector {
         badgeRepo: badgeRepository,
         careRemoteDataSource: careRemoteDataSource,
         growthRemoteDataSource: growthRemoteDataSource,
+        storageRemoteDataSource: storageRemoteDataSource,
       );
 
   static IStreakRepository? _streakRepository;
@@ -126,6 +132,7 @@ class Injector {
         remoteDataSource: profileRemoteDataSource,
         careRemoteDataSource: careRemoteDataSource,
         growthRemoteDataSource: growthRemoteDataSource,
+        storageRemoteDataSource: storageRemoteDataSource,
       );
 
   static ICommunityRepository? _communityRepository;
@@ -141,6 +148,7 @@ class Injector {
         dbHelper: databaseHelper,
         remoteDataSource: growthRemoteDataSource,
         badgeRepo: badgeRepository,
+        storageRemoteDataSource: storageRemoteDataSource,
       );
 
   // Setters for testing and mock injection
@@ -159,6 +167,8 @@ class Injector {
       _careRemoteDataSource = ds;
   static set growthRemoteDataSource(GrowthRemoteDataSource? ds) =>
       _growthRemoteDataSource = ds;
+  static set storageRemoteDataSource(StorageRemoteDataSource? ds) =>
+      _storageRemoteDataSource = ds;
   static set authRepository(IAuthRepository? repo) => _authRepository = repo;
   static set badgeRepository(IBadgeRepository? repo) => _badgeRepository = repo;
   static set userRepository(IUserRepository? repo) => _userRepository = repo;
@@ -185,6 +195,7 @@ class Injector {
     _gardenRemoteDataSource = null;
     _careRemoteDataSource = null;
     _growthRemoteDataSource = null;
+    _storageRemoteDataSource = null;
     _communityRemoteDataSource = null;
     _authRepository = null;
     _badgeRepository = null;

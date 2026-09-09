@@ -3,6 +3,7 @@ import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
 import 'package:plenty/features/daily_care/data/datasources/care_remote_datasource.dart';
 import 'package:plenty/features/daily_care/domain/models/care_action_log_model.dart';
 import 'package:plenty/features/daily_care/domain/models/care_history_item.dart';
@@ -28,6 +29,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
   final ProfileRemoteDataSource? _remoteDataSource;
   final CareRemoteDataSource? _careRemoteDataSource;
   final GrowthRemoteDataSource? _growthRemoteDataSource;
+  final StorageRemoteDataSource? _storageRemoteDataSource;
 
   DailyCareRepositoryImpl({
     DatabaseHelper? dbHelper,
@@ -37,12 +39,14 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
     ProfileRemoteDataSource? remoteDataSource,
     CareRemoteDataSource? careRemoteDataSource,
     GrowthRemoteDataSource? growthRemoteDataSource,
+    StorageRemoteDataSource? storageRemoteDataSource,
   }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
        _plantRepo = plantRepo ?? PlantRepositoryImpl(dbHelper: dbHelper),
        _streakRepo = streakRepo ?? StreakRepositoryImpl(dbHelper: dbHelper),
        _remoteDataSource = remoteDataSource,
        _careRemoteDataSource = careRemoteDataSource,
-       _growthRemoteDataSource = growthRemoteDataSource;
+       _growthRemoteDataSource = growthRemoteDataSource,
+       _storageRemoteDataSource = storageRemoteDataSource;
 
   @override
   Future<Result<DailyCareState>> loadDailyCareData({
@@ -314,10 +318,47 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
 
       await _syncUserXpAndBadges(rawUserId: plant.userId);
 
-      // Dual-write to Cloud Firestore
+      // Dual-write to Firebase Cloud Storage & Cloud Firestore
+      String remotePhotoUrl = photoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          photoPath != null &&
+          photoPath.isNotEmpty &&
+          !photoPath.startsWith('http://') &&
+          !photoPath.startsWith('https://')) {
+        try {
+          final uploadedUrl = await _storageRemoteDataSource.uploadFile(
+            filePath: photoPath,
+            destinationPath:
+                'growth_logs/${plant.id}/growth_${now.millisecondsSinceEpoch}.jpg',
+          );
+          if (uploadedUrl.isNotEmpty &&
+              (uploadedUrl.startsWith('http://') ||
+                  uploadedUrl.startsWith('https://'))) {
+            remotePhotoUrl = uploadedUrl;
+            if (createdGrowthLog != null) {
+              await db.update(
+                DatabaseHelper.tableGrowthLogs,
+                {'photo_path': remotePhotoUrl},
+                where: 'id = ?',
+                whereArgs: [createdGrowthLog!.id],
+              );
+            }
+            await db.update(
+              DatabaseHelper.tableUserPlants,
+              {'cover_photo_path': remotePhotoUrl},
+              where: 'id = ?',
+              whereArgs: [plant.id],
+            );
+          }
+        } catch (_) {}
+      }
+
       if (_growthRemoteDataSource != null && createdGrowthLog != null) {
         try {
-          await _growthRemoteDataSource.saveGrowthLog(createdGrowthLog!);
+          final logToSave = remotePhotoUrl.isNotEmpty
+              ? createdGrowthLog!.copyWith(photoPath: remotePhotoUrl)
+              : createdGrowthLog!;
+          await _growthRemoteDataSource.saveGrowthLog(logToSave);
         } catch (_) {}
       }
       if (_careRemoteDataSource != null && createdCareLog != null) {
@@ -408,13 +449,51 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         );
       });
 
+      String remotePhotoUrl = photoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          photoPath != null &&
+          photoPath.isNotEmpty &&
+          !photoPath.startsWith('http://') &&
+          !photoPath.startsWith('https://')) {
+        try {
+          final uploadedUrl = await _storageRemoteDataSource.uploadFile(
+            filePath: photoPath,
+            destinationPath:
+                'growth_logs/${plant.id}/growth_${now.millisecondsSinceEpoch}.jpg',
+          );
+          if (uploadedUrl.isNotEmpty &&
+              (uploadedUrl.startsWith('http://') ||
+                  uploadedUrl.startsWith('https://'))) {
+            remotePhotoUrl = uploadedUrl;
+            if (updatedLogId != null) {
+              await db.update(
+                DatabaseHelper.tableGrowthLogs,
+                {'photo_path': remotePhotoUrl},
+                where: 'id = ?',
+                whereArgs: [updatedLogId],
+              );
+            }
+            await db.update(
+              DatabaseHelper.tableUserPlants,
+              {'cover_photo_path': remotePhotoUrl},
+              where: 'id = ?',
+              whereArgs: [plant.id],
+            );
+          }
+        } catch (_) {}
+      }
+
       if (_growthRemoteDataSource != null &&
           updatedLogId != null &&
           updatedGrowthValues != null) {
         try {
+          final valuesToUpdate = Map<String, dynamic>.from(updatedGrowthValues!);
+          if (remotePhotoUrl.isNotEmpty) {
+            valuesToUpdate['photo_path'] = remotePhotoUrl;
+          }
           await _growthRemoteDataSource.updateGrowthLog(
             updatedLogId!,
-            updatedGrowthValues!,
+            valuesToUpdate,
           );
         } catch (_) {}
       }
@@ -1061,9 +1140,45 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         }
       });
 
+      String remotePhotoUrl = photoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          photoPath != null &&
+          photoPath.isNotEmpty &&
+          !photoPath.startsWith('http://') &&
+          !photoPath.startsWith('https://')) {
+        try {
+          final uploadedUrl = await _storageRemoteDataSource.uploadFile(
+            filePath: photoPath,
+            destinationPath:
+                'growth_logs/$userPlantId/growth_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploadedUrl.isNotEmpty &&
+              (uploadedUrl.startsWith('http://') ||
+                  uploadedUrl.startsWith('https://'))) {
+            remotePhotoUrl = uploadedUrl;
+            await db.update(
+              DatabaseHelper.tableGrowthLogs,
+              {'photo_path': remotePhotoUrl},
+              where: 'id = ?',
+              whereArgs: [logId],
+            );
+            await db.update(
+              DatabaseHelper.tableUserPlants,
+              {'cover_photo_path': remotePhotoUrl},
+              where: 'id = ?',
+              whereArgs: [userPlantId],
+            );
+          }
+        } catch (_) {}
+      }
+
       if (_growthRemoteDataSource != null) {
         try {
-          await _growthRemoteDataSource.updateGrowthLog(logId, updateValues);
+          final valuesToUpdate = Map<String, dynamic>.from(updateValues);
+          if (remotePhotoUrl.isNotEmpty) {
+            valuesToUpdate['photo_path'] = remotePhotoUrl;
+          }
+          await _growthRemoteDataSource.updateGrowthLog(logId, valuesToUpdate);
         } catch (_) {}
       }
 

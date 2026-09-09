@@ -1,6 +1,7 @@
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
 import 'package:plenty/features/garden/data/datasources/growth_remote_datasource.dart';
 import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
@@ -13,14 +14,17 @@ class GrowthRepositoryImpl implements IGrowthRepository {
   final DatabaseHelper _dbHelper;
   final GrowthRemoteDataSource? _remoteDataSource;
   final IBadgeRepository? _badgeRepo;
+  final StorageRemoteDataSource? _storageRemoteDataSource;
 
   GrowthRepositoryImpl({
     DatabaseHelper? dbHelper,
     GrowthRemoteDataSource? remoteDataSource,
     IBadgeRepository? badgeRepo,
+    StorageRemoteDataSource? storageRemoteDataSource,
   })  : _dbHelper = dbHelper ?? DatabaseHelper.instance,
         _remoteDataSource = remoteDataSource,
-        _badgeRepo = badgeRepo;
+        _badgeRepo = badgeRepo,
+        _storageRemoteDataSource = storageRemoteDataSource;
 
   @override
   Future<Result<List<GrowthLogModel>>> getHeightSeries(
@@ -247,10 +251,38 @@ class GrowthRepositoryImpl implements IGrowthRepository {
         }
       });
 
-      // Dual-write to Cloud Firestore
+      // Dual-write to Cloud Storage & Cloud Firestore
+      String remotePhotoUrl = capsule.photoPath;
+      if (_storageRemoteDataSource != null &&
+          capsule.photoPath.isNotEmpty &&
+          !capsule.photoPath.startsWith('http://') &&
+          !capsule.photoPath.startsWith('https://')) {
+        try {
+          final uploadedUrl = await _storageRemoteDataSource.uploadFile(
+            filePath: capsule.photoPath,
+            destinationPath:
+                'time_capsules/${capsule.userPlantId}/capsule_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploadedUrl.isNotEmpty &&
+              (uploadedUrl.startsWith('http://') ||
+                  uploadedUrl.startsWith('https://'))) {
+            remotePhotoUrl = uploadedUrl;
+            await db.update(
+              DatabaseHelper.tableTimeCapsules,
+              {'photo_path': remotePhotoUrl},
+              where: 'id = ?',
+              whereArgs: [capsule.id],
+            );
+          }
+        } catch (_) {}
+      }
+
       if (_remoteDataSource != null) {
         try {
-          await _remoteDataSource.saveTimeCapsule(capsule);
+          final capsuleToSave = remotePhotoUrl.isNotEmpty
+              ? capsule.copyWith(photoPath: remotePhotoUrl)
+              : capsule;
+          await _remoteDataSource.saveTimeCapsule(capsuleToSave);
         } catch (_) {}
       }
 
@@ -303,9 +335,38 @@ class GrowthRepositoryImpl implements IGrowthRepository {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
 
+      String remotePhotoUrl = log.photoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          log.photoPath != null &&
+          log.photoPath!.isNotEmpty &&
+          !log.photoPath!.startsWith('http://') &&
+          !log.photoPath!.startsWith('https://')) {
+        try {
+          final uploadedUrl = await _storageRemoteDataSource.uploadFile(
+            filePath: log.photoPath!,
+            destinationPath:
+                'growth_logs/${log.userPlantId}/growth_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploadedUrl.isNotEmpty &&
+              (uploadedUrl.startsWith('http://') ||
+                  uploadedUrl.startsWith('https://'))) {
+            remotePhotoUrl = uploadedUrl;
+            await db.update(
+              DatabaseHelper.tableGrowthLogs,
+              {'photo_path': remotePhotoUrl},
+              where: 'id = ?',
+              whereArgs: [log.id],
+            );
+          }
+        } catch (_) {}
+      }
+
       if (_remoteDataSource != null) {
         try {
-          await _remoteDataSource.saveGrowthLog(log);
+          final logToSave = remotePhotoUrl.isNotEmpty
+              ? log.copyWith(photoPath: remotePhotoUrl)
+              : log;
+          await _remoteDataSource.saveGrowthLog(logToSave);
         } catch (_) {}
       }
 

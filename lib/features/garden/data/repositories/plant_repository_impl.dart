@@ -13,6 +13,7 @@ import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
 import 'package:plenty/features/auth/domain/models/user_model.dart';
 import 'package:plenty/features/daily_care/data/datasources/care_remote_datasource.dart';
 import 'package:plenty/features/garden/data/datasources/garden_remote_datasource.dart';
@@ -29,6 +30,7 @@ class PlantRepositoryImpl implements IPlantRepository {
   final IBadgeRepository? _badgeRepo;
   final CareRemoteDataSource? _careRemoteDataSource;
   final GrowthRemoteDataSource? _growthRemoteDataSource;
+  final StorageRemoteDataSource? _storageRemoteDataSource;
 
   // In-Memory Session Caches (zero SQLite disk hoarding)
   final Map<String, List<PlantCatalogModel>> _sessionCatalogCache = {};
@@ -42,12 +44,14 @@ class PlantRepositoryImpl implements IPlantRepository {
     IBadgeRepository? badgeRepo,
     CareRemoteDataSource? careRemoteDataSource,
     GrowthRemoteDataSource? growthRemoteDataSource,
+    StorageRemoteDataSource? storageRemoteDataSource,
   }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
        _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl(),
        _gardenRemoteDataSource = gardenRemoteDataSource,
        _badgeRepo = badgeRepo,
        _careRemoteDataSource = careRemoteDataSource,
-       _growthRemoteDataSource = growthRemoteDataSource;
+       _growthRemoteDataSource = growthRemoteDataSource,
+       _storageRemoteDataSource = storageRemoteDataSource;
 
   /// Clears in-memory session cache.
   void clearSessionCache() {
@@ -749,11 +753,37 @@ class PlantRepositoryImpl implements IPlantRepository {
         whereArgs: [plantId],
       );
 
+      String effectivePhoto = photoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          photoPath != null &&
+          photoPath.isNotEmpty &&
+          !photoPath.startsWith('http://') &&
+          !photoPath.startsWith('https://')) {
+        try {
+          final uploadedUrl = await _storageRemoteDataSource.uploadFile(
+            filePath: photoPath,
+            destinationPath:
+                'plants/$plantId/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploadedUrl.isNotEmpty &&
+              (uploadedUrl.startsWith('http://') ||
+                  uploadedUrl.startsWith('https://'))) {
+            effectivePhoto = uploadedUrl;
+            await db.update(
+              DatabaseHelper.tableUserPlants,
+              {'cover_photo_path': effectivePhoto, 'image_path': effectivePhoto},
+              where: 'id = ?',
+              whereArgs: [plantId],
+            );
+          }
+        } catch (_) {}
+      }
+
       if (_gardenRemoteDataSource != null) {
         try {
           await _gardenRemoteDataSource.updatePlant(plantId, {
-            'cover_photo_path': photoPath,
-            'image_path': photoPath,
+            'cover_photo_path': effectivePhoto,
+            'image_path': effectivePhoto,
           });
         } catch (_) {}
       }

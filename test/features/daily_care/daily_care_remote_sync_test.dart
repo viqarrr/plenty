@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
 import 'package:plenty/features/daily_care/data/datasources/care_remote_datasource.dart';
 import 'package:plenty/features/daily_care/data/repositories/daily_care_repository_impl.dart';
 import 'package:plenty/features/daily_care/domain/models/care_action_log_model.dart';
@@ -18,6 +19,8 @@ class MockGrowthRemoteDataSource extends Mock
 class MockProfileRemoteDataSource extends Mock
     implements ProfileRemoteDataSource {}
 class MockBadgeRepository extends Mock implements IBadgeRepository {}
+class MockStorageRemoteDataSource extends Mock
+    implements StorageRemoteDataSource {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -251,6 +254,101 @@ void main() {
       );
 
       expect(result.isSuccess, isTrue);
+    });
+
+    test('completeHeightTask with photo uploads to StorageRemoteDataSource and persists storage download URL', () async {
+      final mockStorage = MockStorageRemoteDataSource();
+      final repoWithStorage = DailyCareRepositoryImpl(
+        dbHelper: dbHelper,
+        badgeRepo: mockBadgeRepo,
+        remoteDataSource: mockProfileRemote,
+        careRemoteDataSource: mockCareRemote,
+        growthRemoteDataSource: mockGrowthRemote,
+        storageRemoteDataSource: mockStorage,
+      );
+
+      when(() => mockGrowthRemote.saveGrowthLog(any())).thenAnswer((_) async {});
+      when(() => mockCareRemote.saveCareActionLog(any())).thenAnswer((_) async {});
+      when(() => mockCareRemote.updateSchedule(any())).thenAnswer((_) async {});
+      when(() => mockProfileRemote.updateUserXpAndLevel(any(),
+              totalXp: any(named: 'totalXp'), level: any(named: 'level')))
+          .thenAnswer((_) async {});
+
+      when(() => mockStorage.uploadFile(
+            filePath: any(named: 'filePath'),
+            destinationPath: any(named: 'destinationPath'),
+          )).thenAnswer((_) async => 'https://firebasestorage.googleapis.com/growth_photo.jpg');
+
+      final plant = PlantModel(
+        id: 'plant_1',
+        userId: '1',
+        nickname: 'Aglaonema',
+      );
+
+      final result = await repoWithStorage.completeHeightTask(
+        plant: plant,
+        heightCm: 30.0,
+        photoPath: '/local/cache/plant_snap.jpg',
+        note: 'Ada daun baru',
+      );
+
+      expect(result.isSuccess, isTrue);
+      verify(() => mockStorage.uploadFile(
+            filePath: '/local/cache/plant_snap.jpg',
+            destinationPath: any(named: 'destinationPath'),
+          )).called(1);
+
+      // Verify that Firestore growth log was passed the storage download URL
+      final capturedLog = verify(() => mockGrowthRemote.saveGrowthLog(captureAny())).captured.first as GrowthLogModel;
+      expect(capturedLog.photoPath, 'https://firebasestorage.googleapis.com/growth_photo.jpg');
+
+      // Verify that SQLite plant and growth_logs also updated with the storage download URL
+      final db = await dbHelper.database;
+      final plantRow = await db.query(DatabaseHelper.tableUserPlants, where: 'id = ?', whereArgs: ['plant_1']);
+      expect(plantRow.first['cover_photo_path'], 'https://firebasestorage.googleapis.com/growth_photo.jpg');
+    });
+
+    test('updateGrowthLog with photo uploads to StorageRemoteDataSource and updates SQLite and Firestore', () async {
+      final mockStorage = MockStorageRemoteDataSource();
+      final repoWithStorage = DailyCareRepositoryImpl(
+        dbHelper: dbHelper,
+        growthRemoteDataSource: mockGrowthRemote,
+        storageRemoteDataSource: mockStorage,
+      );
+
+      final db = await dbHelper.database;
+      await db.insert(DatabaseHelper.tableGrowthLogs, {
+        'id': 'log_storage_update',
+        'user_plant_id': 'plant_1',
+        'height_cm': 25.0,
+        'photo_path': '/old/photo.jpg',
+        'logged_at': DateTime.now().toIso8601String(),
+        'source': 'manual',
+      });
+
+      when(() => mockStorage.uploadFile(
+            filePath: any(named: 'filePath'),
+            destinationPath: any(named: 'destinationPath'),
+          )).thenAnswer((_) async => 'https://firebasestorage.googleapis.com/new_growth_photo.jpg');
+
+      when(() => mockGrowthRemote.updateGrowthLog(any(), any())).thenAnswer((_) async {});
+
+      final result = await repoWithStorage.updateGrowthLog(
+        logId: 'log_storage_update',
+        userPlantId: 'plant_1',
+        heightCm: 32.0,
+        photoPath: '/local/cache/new_snap.jpg',
+        note: 'Foto baru diupload',
+      );
+
+      expect(result.isSuccess, isTrue);
+      verify(() => mockStorage.uploadFile(
+            filePath: '/local/cache/new_snap.jpg',
+            destinationPath: any(named: 'destinationPath'),
+          )).called(1);
+
+      final rows = await db.query(DatabaseHelper.tableGrowthLogs, where: 'id = ?', whereArgs: ['log_storage_update']);
+      expect(rows.first['photo_path'], 'https://firebasestorage.googleapis.com/new_growth_photo.jpg');
     });
   });
 }
