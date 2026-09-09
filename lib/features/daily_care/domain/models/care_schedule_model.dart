@@ -23,9 +23,9 @@ class CareScheduleModel {
 
   factory CareScheduleModel.fromMap(Map<String, dynamic> map) =>
       CareScheduleModel(
-        id: map['id'] as String,
-        userPlantId: map['user_plant_id'] as String,
-        taskType: map['task_type'] as String,
+        id: map['id']?.toString() ?? '',
+        userPlantId: map['user_plant_id']?.toString() ?? '',
+        taskType: map['task_type']?.toString() ?? 'siram',
         intervalDays: (map['interval_days'] as num?)?.toInt(),
         lastPerformedAt: map['last_performed_at'] != null
             ? DateTime.tryParse(map['last_performed_at'].toString())

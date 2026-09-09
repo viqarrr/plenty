@@ -123,5 +123,62 @@ void main() {
       expect(controller.state.heightLogs.first.loggedHeightToday, 16.5);
       expect(controller.state.heightLogs.first.loggedNoteToday, 'Grew 1.5 cm!');
     });
+
+    test('Completing cyclic routine task keeps item in dueSchedules with isCompletedToday: true', () async {
+      await plantRepo.addPlant(
+        userId: '1',
+        species: PlantCatalogModel(
+          id: 'cat_monstera',
+          commonName: 'Monstera Deliciosa',
+          defaultWateringInterval: 7,
+          cachedAt: DateTime.now(),
+        ),
+        nickname: 'My Monstera',
+        isIndoor: true,
+        initialHeightCm: 30.0,
+      );
+
+      await controller.loadTodayCare();
+      final targetPlant = controller.state.heightLogs.first.plant;
+      expect(controller.state.dueSchedules.length, 2);
+      expect(controller.state.dueSchedules.every((s) => !s.isCompletedToday), true);
+      expect(controller.state.completedTasksCount, 0);
+
+      await controller.completeRoutineTask(
+        plant: targetPlant,
+        taskType: 'siram',
+      );
+
+      expect(controller.state.dueSchedules.length, 2);
+      final siramSchedule = controller.state.dueSchedules.firstWhere(
+        (s) => s.taskType == 'siram',
+      );
+      expect(siramSchedule.isCompletedToday, true);
+      expect(controller.state.completedTasksCount, 1);
+    });
+
+    test('Plant without schedules auto-repairs and displays in dueSchedules', () async {
+      final db = await dbHelper.database;
+      await db.insert(DatabaseHelper.tableUserPlants, {
+        'id': 'orphan_plant_1',
+        'user_id': 1,
+        'nickname': 'Orphan Plant',
+        'initial_height_cm': 20.0,
+        'current_height': 20.0,
+        'default_watering_interval': 3,
+        'is_archived': 0,
+        'adopted_at': DateTime.now().toIso8601String(),
+      });
+
+      final taskTypesRes = await dailyCareRepo.getTodaysTaskTypes('orphan_plant_1');
+      final taskTypes = taskTypesRes.dataOrNull!;
+      expect(taskTypes.contains('siram'), true);
+      expect(taskTypes.contains('bersih'), true);
+
+      final stateRes = await dailyCareRepo.loadDailyCareData();
+      final state = stateRes.dataOrNull!;
+      expect(state.dueSchedules.any((s) => s.plant.id == 'orphan_plant_1' && s.taskType == 'siram'), true);
+      expect(state.dueSchedules.any((s) => s.plant.id == 'orphan_plant_1' && s.taskType == 'bersih'), true);
+    });
   });
 }

@@ -106,33 +106,40 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           ),
         );
 
+        final db = await _dbHelper.database;
+        final now = DateTime.now();
+        final today = now.toIso8601String().substring(0, 10);
+        final completedRows = await db.query(
+          DatabaseHelper.tableCareActionLogs,
+          columns: ['task_type'],
+          where: 'user_plant_id = ? AND log_date = ?',
+          whereArgs: [plant.id, today],
+        );
+        final completedTypes = completedRows
+            .map((r) => r['task_type'] as String)
+            .toSet();
+
         final dueTaskTypesRes = await getTodaysTaskTypes(plant.id);
         final dueTaskTypes = dueTaskTypesRes.dataOrNull ?? [];
 
-        if (dueTaskTypes.contains('siram')) {
-          dueSchedules.add(
-            DueScheduleItem(
-              plant: plant,
-              taskType: 'siram',
-              title: 'Penyiraman',
-              subtitle: 'Siram 250ml air',
-              isCompletedToday: false,
-              xpAward: 10,
-            ),
-          );
-        }
+        for (final taskType in ['siram', 'bersih']) {
+          final isDone = completedTypes.contains(taskType);
+          final isDue = dueTaskTypes.contains(taskType);
 
-        if (dueTaskTypes.contains('bersih')) {
-          dueSchedules.add(
-            DueScheduleItem(
-              plant: plant,
-              taskType: 'bersih',
-              title: 'Bersihkan Daun',
-              subtitle: 'Bersihkan debu daun',
-              isCompletedToday: false,
-              xpAward: 10,
-            ),
-          );
+          if (isDone || isDue) {
+            dueSchedules.add(
+              DueScheduleItem(
+                plant: plant,
+                taskType: taskType,
+                title: taskType == 'siram' ? 'Penyiraman' : 'Bersihkan Daun',
+                subtitle: taskType == 'siram'
+                    ? 'Siram 250ml air'
+                    : 'Bersihkan debu daun',
+                isCompletedToday: isDone,
+                xpAward: 10,
+              ),
+            );
+          }
         }
       }
 
@@ -508,7 +515,7 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           sMap['next_due_date'] = nextDue.toIso8601String();
           updatedSchedule = CareScheduleModel.fromMap(sMap);
         } else {
-          updatedSchedule = CareScheduleModel(
+          final newSched = CareScheduleModel(
             id: 'sched_${plant.id}_$taskType',
             userPlantId: plant.id,
             taskType: taskType,
@@ -517,6 +524,12 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
             nextDueDate: nextDue,
             isActive: true,
           );
+          await txn.insert(
+            DatabaseHelper.tableCareSchedules,
+            newSched.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          updatedSchedule = newSched;
         }
       });
 
@@ -668,21 +681,58 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
           whereArgs: [userPlantId, taskType],
         );
 
-        if (scheduleRows.isNotEmpty) {
+        if (scheduleRows.isEmpty) {
+          final pRows = await db.query(
+            DatabaseHelper.tableUserPlants,
+            columns: ['default_watering_interval', 'watering_interval_days'],
+            where: 'id = ?',
+            whereArgs: [userPlantId],
+            limit: 1,
+          );
+          final interval = taskType == 'bersih'
+              ? 7
+              : (pRows.isNotEmpty
+                  ? ((pRows.first['watering_interval_days'] as num?)?.toInt() ??
+                     (pRows.first['default_watering_interval'] as num?)?.toInt() ?? 3)
+                  : 3);
+          final newSchedule = CareScheduleModel(
+            id: 'sched_${userPlantId}_$taskType',
+            userPlantId: userPlantId,
+            taskType: taskType,
+            intervalDays: interval,
+            nextDueDate: now,
+            isActive: true,
+          );
+          await db.insert(
+            DatabaseHelper.tableCareSchedules,
+            newSchedule.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          if (_careRemoteDataSource != null) {
+            try {
+              await _careRemoteDataSource.saveSchedule(newSchedule);
+            } catch (_) {}
+          }
+          tasks.add(taskType);
+        } else {
           final nextDueStr = scheduleRows.first['next_due_date'] as String?;
           if (nextDueStr == null) {
             tasks.add(taskType);
           } else {
             final nextDue = DateTime.tryParse(nextDueStr);
             if (nextDue != null) {
+              final localNextDue = nextDue.toLocal();
+              final localNow = now.toLocal();
               final isDueOrPast =
-                  nextDue.isBefore(now) ||
-                  (nextDue.year == now.year &&
-                      nextDue.month == now.month &&
-                      nextDue.day == now.day);
+                  localNextDue.isBefore(localNow) ||
+                  (localNextDue.year == localNow.year &&
+                      localNextDue.month == localNow.month &&
+                      localNextDue.day == localNow.day);
               if (isDueOrPast) {
                 tasks.add(taskType);
               }
+            } else {
+              tasks.add(taskType);
             }
           }
         }

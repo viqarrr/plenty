@@ -44,9 +44,13 @@ class FirestoreCareRemoteDataSourceImpl implements CareRemoteDataSource {
         .where('user_plant_id', isEqualTo: userPlantId)
         .get();
 
-    return querySnap.docs
-        .map((doc) => CareScheduleModel.fromMap(doc.data()))
-        .toList();
+    return querySnap.docs.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data());
+      if (!data.containsKey('id') || data['id'] == null || data['id'].toString().isEmpty) {
+        data['id'] = doc.id;
+      }
+      return CareScheduleModel.fromMap(data);
+    }).toList();
   }
 
   @override
