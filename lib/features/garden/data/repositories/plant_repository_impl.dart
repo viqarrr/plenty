@@ -591,11 +591,19 @@ class PlantRepositoryImpl implements IPlantRepository {
           final remotePlants =
               await _gardenRemoteDataSource.getUserPlants(effectiveUserId);
           for (final plant in remotePlants) {
-            await db.insert(
+            final count = await db.update(
               DatabaseHelper.tableUserPlants,
               plant.toMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace,
+              where: 'id = ?',
+              whereArgs: [plant.id],
             );
+            if (count == 0) {
+              await db.insert(
+                DatabaseHelper.tableUserPlants,
+                plant.toMap(),
+                conflictAlgorithm: ConflictAlgorithm.ignore,
+              );
+            }
           }
         } catch (_) {
           // Graceful fallback to SQLite local cache
@@ -643,11 +651,19 @@ class PlantRepositoryImpl implements IPlantRepository {
           final remotePlant =
               await _gardenRemoteDataSource.getPlantById(plantId);
           if (remotePlant != null) {
-            await db.insert(
+            final count = await db.update(
               DatabaseHelper.tableUserPlants,
               remotePlant.toMap(),
-              conflictAlgorithm: ConflictAlgorithm.replace,
+              where: 'id = ?',
+              whereArgs: [remotePlant.id],
             );
+            if (count == 0) {
+              await db.insert(
+                DatabaseHelper.tableUserPlants,
+                remotePlant.toMap(),
+                conflictAlgorithm: ConflictAlgorithm.ignore,
+              );
+            }
             return Success(remotePlant);
           }
         } catch (_) {}

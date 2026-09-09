@@ -64,10 +64,31 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
                 await _careRemoteDataSource.getSchedulesForPlant(plant.id);
             final db = await _dbHelper.database;
             for (final sched in remoteSchedules) {
-              await db.insert(
+              final count = await db.update(
                 DatabaseHelper.tableCareSchedules,
                 sched.toMap(),
-                conflictAlgorithm: ConflictAlgorithm.replace,
+                where: 'id = ?',
+                whereArgs: [sched.id],
+              );
+              if (count == 0) {
+                await db.insert(
+                  DatabaseHelper.tableCareSchedules,
+                  sched.toMap(),
+                  conflictAlgorithm: ConflictAlgorithm.ignore,
+                );
+              }
+            }
+
+            final today = DateTime.now().toIso8601String().substring(0, 10);
+            final remoteLogs = await _careRemoteDataSource.getCareActionLogs(
+              userPlantId: plant.id,
+              logDate: today,
+            );
+            for (final log in remoteLogs) {
+              await db.insert(
+                DatabaseHelper.tableCareActionLogs,
+                log.toMap(),
+                conflictAlgorithm: ConflictAlgorithm.ignore,
               );
             }
           } catch (_) {}
@@ -94,21 +115,29 @@ class DailyCareRepositoryImpl implements IDailyCareRepository {
         final loggedNoteTodayRes = await getLoggedNoteToday(plant.id);
         final loggedNoteToday = loggedNoteTodayRes.dataOrNull;
 
+        final db = await _dbHelper.database;
+        final now = DateTime.now();
+        final today = now.toIso8601String().substring(0, 10);
+
+        final careMonitorRows = await db.query(
+          DatabaseHelper.tableCareActionLogs,
+          where: 'user_plant_id = ? AND task_type = ? AND log_date = ?',
+          whereArgs: [plant.id, 'monitor', today],
+          limit: 1,
+        );
+        final isHeightDone = loggedToday != null || careMonitorRows.isNotEmpty;
+
         heightLogs.add(
           DailyHeightLogItem(
             plant: plant,
             lastRecordedHeight: lastHeight,
-            isCompletedToday: loggedToday != null,
+            isCompletedToday: isHeightDone,
             loggedHeightToday: loggedToday,
             isPhotoDue: isPhotoDue,
             loggedPhotoPathToday: loggedPhotoToday,
             loggedNoteToday: loggedNoteToday,
           ),
         );
-
-        final db = await _dbHelper.database;
-        final now = DateTime.now();
-        final today = now.toIso8601String().substring(0, 10);
         final completedRows = await db.query(
           DatabaseHelper.tableCareActionLogs,
           columns: ['task_type'],

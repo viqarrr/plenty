@@ -180,5 +180,47 @@ void main() {
       expect(state.dueSchedules.any((s) => s.plant.id == 'orphan_plant_1' && s.taskType == 'siram'), true);
       expect(state.dueSchedules.any((s) => s.plant.id == 'orphan_plant_1' && s.taskType == 'bersih'), true);
     });
+
+    test('Completed task persists and never reverts to uncompleted on subsequent loads', () async {
+      await plantRepo.addPlant(
+        userId: '1',
+        species: PlantCatalogModel(
+          id: 'cat_sansevieria',
+          commonName: 'Snake Plant',
+          defaultWateringInterval: 14,
+          cachedAt: DateTime.now(),
+        ),
+        nickname: 'My Sansevieria',
+        isIndoor: true,
+        initialHeightCm: 25.0,
+      );
+
+      await controller.loadTodayCare();
+      final targetPlant = controller.state.heightLogs.first.plant;
+
+      await controller.completeRoutineTask(
+        plant: targetPlant,
+        taskType: 'siram',
+      );
+
+      // Verify it is completed
+      var siramSchedule = controller.state.dueSchedules.firstWhere(
+        (s) => s.plant.id == targetPlant.id && s.taskType == 'siram',
+      );
+      expect(siramSchedule.isCompletedToday, true);
+
+      // Re-load care data multiple times (simulating pull-to-refresh or tab switching)
+      await controller.loadTodayCare();
+      siramSchedule = controller.state.dueSchedules.firstWhere(
+        (s) => s.plant.id == targetPlant.id && s.taskType == 'siram',
+      );
+      expect(siramSchedule.isCompletedToday, true);
+
+      await controller.loadTodayCare(silent: true);
+      siramSchedule = controller.state.dueSchedules.firstWhere(
+        (s) => s.plant.id == targetPlant.id && s.taskType == 'siram',
+      );
+      expect(siramSchedule.isCompletedToday, true);
+    });
   });
 }

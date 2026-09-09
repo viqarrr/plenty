@@ -304,10 +304,14 @@ class HomeController extends ChangeNotifier {
         final taskTypes = taskTypesResult.dataOrNull ?? [];
         for (final typeStr in taskTypes) {
           final type = TaskType.fromDbString(typeStr);
+          final alreadyCompleted = _state.dailyTasks.any(
+            (t) => t.plant.id == plant.id && t.type == type && t.isCompleted,
+          );
           tasks.add(
             CareTaskModel(
               plant: plant,
               type: type,
+              isCompleted: alreadyCompleted,
               description: switch (type) {
                 TaskType.siram => 'Siram tanah sampai lembap merata',
                 TaskType.bersih => 'Bersihkan debu dari permukaan daun',

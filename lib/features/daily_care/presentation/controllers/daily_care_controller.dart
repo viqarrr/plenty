@@ -46,7 +46,41 @@ class DailyCareController extends ChangeNotifier {
     final result = await _repository.loadDailyCareData();
     switch (result) {
       case Success(:final data):
-        _update(data);
+        // Merge with any completed tasks in current state so completed items NEVER revert
+        final mergedSchedules = data.dueSchedules.map((remoteItem) {
+          final existing = _state.dueSchedules.cast<DueScheduleItem?>().firstWhere(
+            (s) =>
+                s?.plant.id == remoteItem.plant.id &&
+                s?.taskType == remoteItem.taskType,
+            orElse: () => null,
+          );
+          if (existing != null && existing.isCompletedToday) {
+            return remoteItem.copyWith(isCompletedToday: true);
+          }
+          return remoteItem;
+        }).toList();
+
+        final mergedHeightLogs = data.heightLogs.map((remoteLog) {
+          final existing = _state.heightLogs.cast<DailyHeightLogItem?>().firstWhere(
+            (h) => h?.plant.id == remoteLog.plant.id,
+            orElse: () => null,
+          );
+          if (existing != null && existing.isCompletedToday) {
+            return remoteLog.copyWith(
+              isCompletedToday: true,
+              loggedHeightToday:
+                  existing.loggedHeightToday ?? remoteLog.loggedHeightToday,
+            );
+          }
+          return remoteLog;
+        }).toList();
+
+        _update(
+          data.copyWith(
+            dueSchedules: mergedSchedules,
+            heightLogs: mergedHeightLogs,
+          ),
+        );
       case Error(:final failure):
         _update(
           _state.copyWith(isLoading: false, errorMessage: failure.message),
