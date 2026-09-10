@@ -101,6 +101,7 @@ class PreferenceHandler {
   static Future<void> setLoginSession(UserModel user) async {
     final prefs = await _getPrefs();
     await prefs.setBool(_keyIsLoggedIn, true);
+    await prefs.setBool(_keyIsOnboard, true);
     await setUser(user);
   }
 

@@ -27,13 +27,16 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
-    if (PreferenceHandler.isOnboard) {
-      final isFirebaseLoggedIn = Injector.authRepository.currentUser != null;
-      if (PreferenceHandler.isLogin || isFirebaseLoggedIn) {
-        context.pushReplacement(const HomeScreen());
-      } else {
-        context.pushReplacement(const AuthSelectionScreen());
-      }
+    bool isFirebaseLoggedIn = false;
+    try {
+      isFirebaseLoggedIn = Injector.authRepository.currentUser != null;
+    } catch (_) {}
+    final isLoggedIn = PreferenceHandler.isLogin || isFirebaseLoggedIn;
+
+    if (isLoggedIn) {
+      context.pushReplacement(const HomeScreen());
+    } else if (PreferenceHandler.isOnboard) {
+      context.pushReplacement(const AuthSelectionScreen());
     } else {
       context.pushReplacement(const WelcomeScreen());
     }
