@@ -79,6 +79,17 @@ class CommunityPost {
         'caption': content,
         'image_url': imagePath,
         'badge_id': attachedBadge?.id,
+        'badge_title': attachedBadge?.title,
+        'badge_desc': attachedBadge?.desc,
+        'badge_icon': attachedBadge?.iconName,
+        'badge_tier': attachedBadge?.tierName,
+        'badge_level': attachedBadge?.level,
+        'badge_progress': attachedBadge?.progress,
+        'badge_total': attachedBadge?.total,
+        'badge_bg_hex': attachedBadge?.bgColorHex,
+        'badge_accent_hex': attachedBadge?.accentColorHex,
+        'badge_is_unlocked': attachedBadge?.isUnlocked == true ? 1 : 0,
+        'badge_unlocked_at': attachedBadge?.unlockedDate,
         'kudos_count': likesCount,
         'comment_count': commentsCount,
         'created_at': createdAt.toIso8601String(),
@@ -98,6 +109,26 @@ class CommunityPost {
         map['created_at']?.toString() ?? DateTime.now().toIso8601String();
     final createdAt = DateTime.tryParse(createdAtStr) ?? DateTime.now();
 
+    BadgeItem? attachedBadge;
+    final badgeId = map['badge_id']?.toString();
+    if (badgeId != null && badgeId.isNotEmpty) {
+      attachedBadge = BadgeItem(
+        id: badgeId,
+        title: map['badge_title']?.toString() ?? '',
+        desc: map['badge_desc']?.toString() ?? '',
+        iconName: map['badge_icon']?.toString() ?? 'sprout',
+        isUnlocked: map['badge_is_unlocked'] == 1 ||
+            map['badge_is_unlocked'] == true,
+        unlockedDate: map['badge_unlocked_at']?.toString(),
+        level: (map['badge_level'] as num?)?.toInt() ?? 1,
+        progress: (map['badge_progress'] as num?)?.toInt() ?? 1,
+        total: (map['badge_total'] as num?)?.toInt() ?? 1,
+        bgColorHex: map['badge_bg_hex']?.toString() ?? '#EBF7F1',
+        accentColorHex: map['badge_accent_hex']?.toString() ?? '#2D6A4F',
+        tierName: map['badge_tier']?.toString() ?? '',
+      );
+    }
+
     return CommunityPost(
       id: map['id']?.toString() ?? '',
       userId: parsedIntId ?? 1,
@@ -110,6 +141,7 @@ class CommunityPost {
       category: map['category'] as String? ?? 'pertanyaan',
       content: (map['caption'] as String?) ?? (map['content'] as String?) ?? '',
       imagePath: (map['image_url'] as String?) ?? (map['image_path'] as String?),
+      attachedBadge: attachedBadge,
       likesCount: (map['kudos_count'] as num?)?.toInt() ??
           (map['likes_count'] as num?)?.toInt() ??
           0,

@@ -11,6 +11,7 @@ import 'package:plenty/features/community/presentation/widgets/community_post_ca
 import 'package:plenty/features/community/presentation/widgets/post_comments_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'fake_community_remote_datasource.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -44,10 +45,14 @@ void main() {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
 
-    repository = CommunityRepositoryImpl(dbHelper: dbHelper);
-    await repository.seedInitialPosts();
+    final fakeRemote = FakeCommunityRemoteDataSource();
+    repository = CommunityRepositoryImpl(
+      dbHelper: dbHelper,
+      remoteDataSource: fakeRemote,
+    );
     Injector.databaseHelper = dbHelper;
     Injector.communityRepository = repository;
+    Injector.communityRemoteDataSource = fakeRemote;
     controller = CommunityController(repository: repository);
     await controller.loadPosts();
   });
@@ -159,7 +164,7 @@ void main() {
 
       expect(find.text('Komentar'), findsOneWidget);
       expect(find.text('1'), findsWidgets);
-      expect(find.text('tester_plenty'), findsOneWidget);
+      expect(find.text('Alex Green'), findsOneWidget);
       expect(
         find.text('Perhatikan drainase pot agar tidak busuk akar.'),
         findsOneWidget,

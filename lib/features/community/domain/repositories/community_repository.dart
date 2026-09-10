@@ -4,9 +4,6 @@ import 'package:plenty/features/community/domain/models/post_comment_model.dart'
 
 /// Contract interface for Community Repository.
 abstract interface class ICommunityRepository {
-  /// Seeds initial discussions and prepares database migrations.
-  Future<Result<void>> seedInitialPosts();
-
   /// Retrieves community posts optionally filtered by [category] for user [currentUserId].
   Future<Result<List<CommunityPost>>> getPosts({
     String category = 'all',
@@ -46,4 +43,10 @@ abstract interface class ICommunityRepository {
     required String commentId,
     int? userId,
   });
+
+  /// Uploads any pending offline posts stored in local storage to Firebase.
+  Future<void> syncPendingPosts();
+
+  /// Legacy helper for seeding initial mock/test posts if needed.
+  Future<void> seedInitialPosts();
 }

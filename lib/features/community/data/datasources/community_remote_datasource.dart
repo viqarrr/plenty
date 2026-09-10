@@ -11,6 +11,9 @@ abstract interface class CommunityRemoteDataSource {
     String? currentUserId,
   });
 
+  /// Retrieves a single community post by [postId].
+  Future<CommunityPost?> getPostById(String postId, {String? currentUserId});
+
   /// Saves or upserts a post document in Firestore collection `community_posts/{postId}`.
   Future<void> savePost(CommunityPost post, {String? userId});
 
@@ -99,6 +102,29 @@ class FirestoreCommunityRemoteDataSourceImpl implements CommunityRemoteDataSourc
     posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return posts;
+  }
+
+  @override
+  Future<CommunityPost?> getPostById(String postId, {String? currentUserId}) async {
+    final doc = await _firestore.collection(postsCollection).doc(postId).get();
+    if (!doc.exists || doc.data() == null) return null;
+    bool isLiked = false;
+    if (currentUserId != null && currentUserId.isNotEmpty) {
+      try {
+        final likeSnap = await _firestore
+            .collection(postsCollection)
+            .doc(postId)
+            .collection(likesSubcollection)
+            .doc(currentUserId)
+            .get();
+        isLiked = likeSnap.exists;
+      } catch (_) {}
+    }
+    return CommunityPost.fromFirestoreMap(
+      doc.data()!,
+      currentUserId: currentUserId,
+      isLiked: isLiked,
+    );
   }
 
   @override

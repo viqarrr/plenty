@@ -147,6 +147,25 @@ void main() {
       verify(() => mockPostsCollection.doc('post_to_delete')).called(1);
       verify(() => mockPostDoc.delete()).called(1);
     });
+
+    test('getPostById returns CommunityPost when document exists', () async {
+      final mockPostSnap = MockDocumentSnapshot();
+      when(() => mockPostSnap.exists).thenReturn(true);
+      when(() => mockPostSnap.data()).thenReturn({
+        'id': 'post_target',
+        'user_id': 'user_1',
+        'author_name': 'Sarah',
+        'category': 'pertanyaan',
+        'caption': 'Target post content',
+        'created_at': DateTime(2026, 1, 1).toIso8601String(),
+      });
+      when(() => mockPostDoc.get()).thenAnswer((_) async => mockPostSnap);
+
+      final post = await dataSource.getPostById('post_target');
+      expect(post, isNotNull);
+      expect(post!.id, 'post_target');
+      expect(post.authorName, 'Sarah');
+    });
   });
 
   group('FirestoreCommunityRemoteDataSourceImpl Likes', () {

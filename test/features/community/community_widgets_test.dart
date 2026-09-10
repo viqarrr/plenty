@@ -14,6 +14,7 @@ import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:plenty/features/profile/presentation/screens/badge_detail_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'fake_community_remote_datasource.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -43,10 +44,14 @@ void main() {
       'created_at': DateTime.now().toIso8601String(),
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
-    repository = CommunityRepositoryImpl(dbHelper: dbHelper);
-    await repository.seedInitialPosts();
+    final fakeRemote = FakeCommunityRemoteDataSource();
+    repository = CommunityRepositoryImpl(
+      dbHelper: dbHelper,
+      remoteDataSource: fakeRemote,
+    );
     Injector.databaseHelper = dbHelper;
     Injector.communityRepository = repository;
+    Injector.communityRemoteDataSource = fakeRemote;
     controller = CommunityController(repository: repository);
   });
 
