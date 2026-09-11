@@ -227,24 +227,18 @@ class CommunityPostCard extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              IconButton(
-                onPressed: onShareTap ??
-                    () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Tautan postingan disalin!'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                icon: const Icon(
-                  Icons.share_outlined,
-                  size: 19,
-                  color: AppColors.muted,
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
+              onShareTap != null
+                  ? IconButton(
+                      onPressed: onShareTap,
+                      icon: const Icon(
+                        Icons.share_outlined,
+                        size: 19,
+                        color: AppColors.muted,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    )
+                  : const SizedBox.shrink(),
             ],
           ),
         ],
