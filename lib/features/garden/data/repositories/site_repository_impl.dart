@@ -48,7 +48,9 @@ class SiteRepositoryImpl implements ISiteRepository {
         try {
           final remoteSites = await _remoteDataSource.getSites(effectiveUserId);
           for (final site in remoteSites) {
-            final payload = site.toMap()..['is_custom'] = 1;
+            final payload = site.toMap()
+              ..['user_id'] = 1
+              ..['is_custom'] = 1;
             await db.insert(
               DatabaseHelper.tableSites,
               payload,
@@ -62,8 +64,9 @@ class SiteRepositoryImpl implements ISiteRepository {
 
       final maps = await db.query(
         DatabaseHelper.tableSites,
-        where: 'user_id = ? OR is_custom = 0',
-        whereArgs: [intUserId],
+        where:
+            'user_id = ? OR user_id = 1 OR CAST(user_id AS TEXT) = ? OR is_custom = 0',
+        whereArgs: [intUserId, effectiveUserId],
         orderBy: 'is_custom ASC, created_at ASC',
       );
 
@@ -95,7 +98,9 @@ class SiteRepositoryImpl implements ISiteRepository {
 
       final customSite =
           site.copyWith(userId: effectiveUserId, isCustom: true);
-      final payload = customSite.toMap()..['is_custom'] = 1;
+      final payload = customSite.toMap()
+        ..['user_id'] = 1
+        ..['is_custom'] = 1;
 
       await db.insert(
         DatabaseHelper.tableSites,
@@ -126,8 +131,26 @@ class SiteRepositoryImpl implements ISiteRepository {
       if (guard != null) return Error(guard);
 
       final db = await _dbHelper.database;
-      final customSite = site.copyWith(isCustom: true);
-      final payload = customSite.toMap()..['is_custom'] = 1;
+      UserModel? activeUser;
+      try {
+        activeUser = await PreferenceHandler.getUser();
+      } catch (_) {}
+
+      final effectiveUserId = (site.userId.isNotEmpty &&
+              site.userId != '1' &&
+              site.userId != 'usr_default')
+          ? site.userId
+          : ((activeUser?.id != null &&
+                  activeUser!.id!.isNotEmpty &&
+                  activeUser.id != '0')
+              ? activeUser.id!
+              : site.userId);
+
+      final customSite =
+          site.copyWith(isCustom: true, userId: effectiveUserId);
+      final payload = customSite.toMap()
+        ..['user_id'] = 1
+        ..['is_custom'] = 1;
       await db.update(
         DatabaseHelper.tableSites,
         payload,

@@ -61,7 +61,11 @@ class WizardAreaStep extends StatefulWidget {
   State<WizardAreaStep> createState() => _WizardAreaStepState();
 }
 
-class _WizardAreaStepState extends State<WizardAreaStep> {
+class _WizardAreaStepState extends State<WizardAreaStep>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   static const List<IconData> _availableIcons = [
     Icons.weekend_outlined,
     Icons.bed_outlined,
@@ -133,7 +137,7 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
     try {
       final sitesResult = await _siteRepo.getSites();
       final sites = sitesResult.dataOrNull ?? [];
-      if (!mounted || sites.isEmpty) return;
+      if (!mounted) return;
 
       setState(() {
         final indoor = sites
@@ -158,6 +162,18 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
                 ))
             .toList();
 
+        // Preserve any custom sites already present in memory
+        for (final local in _indoorSites.where((s) => s.isCustom)) {
+          if (!indoor.any((s) => s.id == local.id || s.name == local.name)) {
+            indoor.add(local);
+          }
+        }
+        for (final local in _outdoorSites.where((s) => s.isCustom)) {
+          if (!outdoor.any((s) => s.id == local.id || s.name == local.name)) {
+            outdoor.add(local);
+          }
+        }
+
         if (indoor.isNotEmpty) _indoorSites = indoor;
         if (outdoor.isNotEmpty) _outdoorSites = outdoor;
       });
@@ -172,13 +188,11 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
     context.showAppBottomSheet(
       StatefulBuilder(
         builder: (sheetContext, setModalState) {
-          return Container(
-            padding: EdgeInsets.only(
-              top: 24,
-              left: 24,
-              right: 24,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-            ),
+          final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+          return Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
               decoration: const BoxDecoration(
                 color: AppColors.canvasDefault,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -297,26 +311,31 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
 
                         setState(() {
                           if (isIndoor) {
-                            _indoorSites.add(newSite);
+                            if (!_indoorSites.any((s) => s.id == newSite.id || s.name == newSite.name)) {
+                              _indoorSites.add(newSite);
+                            }
                           } else {
-                            _outdoorSites.add(newSite);
+                            if (!_outdoorSites.any((s) => s.id == newSite.id || s.name == newSite.name)) {
+                              _outdoorSites.add(newSite);
+                            }
                           }
                         });
 
                         widget.onRoomSelected(trimmed);
-                        if (mounted) {
-                          context.pop();
+                        if (sheetContext.mounted) {
+                          sheetContext.pop();
                         }
                       },
                     ),
                   ],
                 ),
               ),
-            );
-          },
-        ),
-      );
-    }
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   void _showCustomSiteOptions(SiteOption site) {
     context.showAppBottomSheet(
@@ -411,13 +430,11 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
     context.showAppBottomSheet(
       StatefulBuilder(
         builder: (sheetContext, setModalState) {
-          return Container(
-            padding: EdgeInsets.only(
-              top: 24,
-              left: 24,
-              right: 24,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-            ),
+          final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+          return Padding(
+            padding: EdgeInsets.only(bottom: bottomInset),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
               decoration: const BoxDecoration(
                 color: AppColors.canvasDefault,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -534,19 +551,20 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
                           widget.onRoomSelected(trimmed);
                         }
 
-                        if (mounted) {
-                          context.pop();
+                        if (sheetContext.mounted) {
+                          sheetContext.pop();
                         }
                       },
                     ),
                   ],
                 ),
               ),
-            );
-          },
-        ),
-      );
-    }
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   void _confirmDeleteCustomSite(SiteOption site) {
     context.showAppDialog(
@@ -599,8 +617,8 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
                     widget.onRoomSelected(fallback);
                   }
 
-                  if (mounted) {
-                    context.pop();
+                  if (dialogContext.mounted) {
+                    dialogContext.pop();
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -623,6 +641,7 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
   @override
   void didUpdateWidget(covariant WizardAreaStep oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _loadSavedSites();
     if (oldWidget.isIndoor != widget.isIndoor) {
       final relevantSites = widget.isIndoor ? _indoorSites : _outdoorSites;
       if (relevantSites.isNotEmpty &&
@@ -638,6 +657,7 @@ class _WizardAreaStepState extends State<WizardAreaStep> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isIndoor = widget.isIndoor;
     final relevantSites = isIndoor ? _indoorSites : _outdoorSites;
 
