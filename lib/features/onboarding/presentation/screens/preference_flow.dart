@@ -5,7 +5,6 @@ import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/features/auth/presentation/screens/auth_selection_screen.dart';
-import 'package:plenty/features/garden/presentation/screens/home_screen.dart';
 import 'package:plenty/features/onboarding/presentation/controllers/onboarding_controller.dart';
 import 'package:plenty/features/onboarding/presentation/widgets/environment_step.dart';
 import 'package:plenty/features/onboarding/presentation/widgets/experience_step.dart';
@@ -77,7 +76,7 @@ class _PreferencesFlowScreenState extends State<PreferencesFlowScreen> {
     await PreferenceHandler.setOnboard(true);
 
     if (!mounted) return;
-    context.pushAndRemoveAll(const HomeScreen());
+    context.pushAndRemoveAll(const AuthSelectionScreen());
   }
 
   @override
