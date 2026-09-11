@@ -109,6 +109,36 @@ void main() {
     });
   });
 
+  group('RegisterScreen Username Suggestions Unit Tests', () {
+    test('returns empty suggestions when display name is empty or symbols only', () {
+      expect(RegisterScreen.generateUsernameSuggestions(''), isEmpty);
+      expect(RegisterScreen.generateUsernameSuggestions('   '), isEmpty);
+      expect(RegisterScreen.generateUsernameSuggestions('!@#\$%^&*()'), isEmpty);
+    });
+
+    test('generates valid suggestions for single-word display name', () {
+      final suggestions = RegisterScreen.generateUsernameSuggestions('Budi');
+      expect(suggestions, isNotEmpty);
+      expect(suggestions.contains('budi'), isTrue);
+      expect(suggestions.any((s) => s.startsWith('budi_')), isTrue);
+      for (final s in suggestions) {
+        expect(s.length >= 3, isTrue);
+        expect(RegExp(r'^[a-z0-9_]+$').hasMatch(s), isTrue);
+      }
+    });
+
+    test('generates valid suggestions for multi-word display name', () {
+      final suggestions = RegisterScreen.generateUsernameSuggestions('Budi Hartono');
+      expect(suggestions, isNotEmpty);
+      expect(suggestions.contains('budihartono'), isTrue);
+      expect(suggestions.contains('budi_hartono'), isTrue);
+      for (final s in suggestions) {
+        expect(s.length >= 3, isTrue);
+        expect(RegExp(r'^[a-z0-9_]+$').hasMatch(s), isTrue);
+      }
+    });
+  });
+
   group('RegisterScreen Widget Tests', () {
     testWidgets('renders initial step for full name', (tester) async {
       await tester.pumpWidget(createWidgetUnderTest());
@@ -126,6 +156,29 @@ void main() {
 
       expect(find.text('Nama tidak boleh kosong'), findsOneWidget);
       expect(find.text('Beritahu kami siapa namamu'), findsOneWidget);
+    });
+
+    testWidgets('displays username suggestions based on display name and selects on tap', (tester) async {
+      await tester.pumpWidget(createWidgetUnderTest());
+
+      // Step 0: Enter Full Name
+      await tester.enterText(find.byType(TextField).first, 'Budi Hartono');
+      await tester.pump();
+
+      await tester.tap(find.text('Lanjut'));
+      await tester.pumpAndSettle();
+
+      // Step 1: Username step
+      expect(find.text('Buat username'), findsOneWidget);
+      expect(find.text('Pilihan saran username:'), findsOneWidget);
+      expect(find.text('budihartono'), findsOneWidget);
+
+      // Tap on the suggestion
+      await tester.tap(find.text('budihartono'));
+      await tester.pump();
+
+      final usernameField = tester.widget<TextField>(find.byType(TextField).first);
+      expect(usernameField.controller?.text, 'budihartono');
     });
   });
 }
