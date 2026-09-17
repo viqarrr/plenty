@@ -6,6 +6,7 @@ import 'package:plenty/features/profile/domain/models/badge_item.dart';
 class CommunityPost {
   final String id;
   final int? userId;
+  final String? authorId;
   final String authorName;
   final String? authorAvatar;
   final String timeAgo;
@@ -22,6 +23,7 @@ class CommunityPost {
   const CommunityPost({
     required this.id,
     this.userId,
+    this.authorId,
     required this.authorName,
     this.authorAvatar,
     required this.timeAgo,
@@ -39,6 +41,7 @@ class CommunityPost {
   CommunityPost copyWith({
     String? id,
     int? userId,
+    String? authorId,
     String? authorName,
     String? authorAvatar,
     String? timeAgo,
@@ -55,6 +58,7 @@ class CommunityPost {
     return CommunityPost(
       id: id ?? this.id,
       userId: userId ?? this.userId,
+      authorId: authorId ?? this.authorId,
       authorName: authorName ?? this.authorName,
       authorAvatar: authorAvatar ?? this.authorAvatar,
       timeAgo: timeAgo ?? this.timeAgo,
@@ -72,7 +76,7 @@ class CommunityPost {
 
   Map<String, dynamic> toFirestoreMap() => {
         'id': id,
-        'user_id': userId?.toString() ?? '1',
+        'user_id': authorId ?? userId?.toString() ?? '1',
         'author_name': authorName,
         'author_avatar_url': authorAvatar,
         'category': category,
@@ -129,9 +133,26 @@ class CommunityPost {
       );
     }
 
+    final rawImage = (map['image_url'] ??
+            map['image_path'] ??
+            map['imageUrl'] ??
+            map['imagePath']) as String?;
+    String? resolvedImage = rawImage?.trim();
+    if (resolvedImage != null && resolvedImage.startsWith('gs://')) {
+      final uri = Uri.tryParse(resolvedImage);
+      if (uri != null && uri.host.isNotEmpty) {
+        final bucket = uri.host;
+        final path =
+            uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+        resolvedImage =
+            'https://firebasestorage.googleapis.com/v0/b/$bucket/o/${Uri.encodeComponent(path)}?alt=media';
+      }
+    }
+
     return CommunityPost(
       id: map['id']?.toString() ?? '',
-      userId: parsedIntId ?? 1,
+      userId: parsedIntId ?? rawUserId.hashCode.abs(),
+      authorId: rawUserId,
       authorName: (map['author_name'] as String?) ??
           (map['display_name'] as String?) ??
           'Penggemar Tanaman',
@@ -139,8 +160,9 @@ class CommunityPost {
           (map['avatar_url'] as String?),
       timeAgo: formatTimeAgo(createdAt),
       category: map['category'] as String? ?? 'pertanyaan',
-      content: (map['caption'] as String?) ?? (map['content'] as String?) ?? '',
-      imagePath: (map['image_url'] as String?) ?? (map['image_path'] as String?),
+      content:
+          (map['caption'] as String?) ?? (map['content'] as String?) ?? '',
+      imagePath: resolvedImage,
       attachedBadge: attachedBadge,
       likesCount: (map['kudos_count'] as num?)?.toInt() ??
           (map['likes_count'] as num?)?.toInt() ??

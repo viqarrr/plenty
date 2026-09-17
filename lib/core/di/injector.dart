@@ -140,6 +140,7 @@ class Injector {
       _communityRepository ??= CommunityRepositoryImpl(
         dbHelper: databaseHelper,
         remoteDataSource: communityRemoteDataSource,
+        storageRemoteDataSource: storageRemoteDataSource,
       );
 
   static IGrowthRepository? _growthRepository;

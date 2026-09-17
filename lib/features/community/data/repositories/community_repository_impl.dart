@@ -2,6 +2,7 @@ import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
 import 'package:plenty/features/community/data/datasources/community_remote_datasource.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/domain/models/post_comment_model.dart';
@@ -15,13 +16,16 @@ import 'package:sqflite/sqflite.dart';
 class CommunityRepositoryImpl implements ICommunityRepository {
   final DatabaseHelper _dbHelper;
   final CommunityRemoteDataSource _remoteDataSource;
+  final StorageRemoteDataSource? _storageRemoteDataSource;
 
   CommunityRepositoryImpl({
     DatabaseHelper? dbHelper,
     CommunityRemoteDataSource? remoteDataSource,
+    StorageRemoteDataSource? storageRemoteDataSource,
   })  : _dbHelper = dbHelper ?? DatabaseHelper.instance,
         _remoteDataSource =
-            remoteDataSource ?? FirestoreCommunityRemoteDataSourceImpl();
+            remoteDataSource ?? FirestoreCommunityRemoteDataSourceImpl(),
+        _storageRemoteDataSource = storageRemoteDataSource;
 
   @override
   Future<Result<List<CommunityPost>>> getPosts({
@@ -108,11 +112,34 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         }
       }
 
+      // Upload image to Firebase Cloud Storage if present and not already a remote URL
+      String? effectiveImageUrl = post.imagePath;
+      if (_storageRemoteDataSource != null &&
+          effectiveImageUrl != null &&
+          effectiveImageUrl.trim().isNotEmpty &&
+          !effectiveImageUrl.startsWith('http://') &&
+          !effectiveImageUrl.startsWith('https://') &&
+          !effectiveImageUrl.startsWith('assets/')) {
+        try {
+          final uploaded = await _storageRemoteDataSource.uploadFile(
+            filePath: effectiveImageUrl,
+            destinationPath:
+                'community_posts/${post.id}/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploaded.startsWith('http://') ||
+              uploaded.startsWith('https://')) {
+            effectiveImageUrl = uploaded;
+          }
+        } catch (_) {}
+      }
+
       final created = post.copyWith(
         userId: user.numericId,
+        authorId: user.stringId,
         authorName: effectiveAuthorName,
         authorAvatar: effectiveAvatar,
         category: normalizedCat,
+        imagePath: effectiveImageUrl,
         likesCount: 0,
         isLiked: false,
         isAuthor: true,
@@ -143,6 +170,27 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       final user = await _getUserContext(userId);
       final normalizedCat = _normalizeCategory(post.category) ?? 'pertanyaan';
 
+      // Upload image to Firebase Cloud Storage if present and not already a remote URL
+      String? effectiveImageUrl = post.imagePath;
+      if (_storageRemoteDataSource != null &&
+          effectiveImageUrl != null &&
+          effectiveImageUrl.trim().isNotEmpty &&
+          !effectiveImageUrl.startsWith('http://') &&
+          !effectiveImageUrl.startsWith('https://') &&
+          !effectiveImageUrl.startsWith('assets/')) {
+        try {
+          final uploaded = await _storageRemoteDataSource.uploadFile(
+            filePath: effectiveImageUrl,
+            destinationPath:
+                'community_posts/${post.id}/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploaded.startsWith('http://') ||
+              uploaded.startsWith('https://')) {
+            effectiveImageUrl = uploaded;
+          }
+        } catch (_) {}
+      }
+
       // 1. Check if post is currently a pending offline upload in SQLite
       final db = await _dbHelper.database;
       final pending = await db.query(
@@ -153,7 +201,11 @@ class CommunityRepositoryImpl implements ICommunityRepository {
 
       if (pending.isNotEmpty) {
         final pendingUserId = pending.first['user_id'] as int?;
-        if (pendingUserId != null && pendingUserId != user.numericId) {
+        final pendingUserIdStr = pending.first['user_id']?.toString();
+        final isPendingOwner = (pendingUserId != null &&
+                (pendingUserId == user.numericId || pendingUserId == userId)) ||
+            (pendingUserIdStr != null && pendingUserIdStr == user.stringId);
+        if (!isPendingOwner) {
           return const Error(
             ValidationFailure(
               'Anda tidak dapat mengedit postingan milik pengguna lain',
@@ -166,12 +218,16 @@ class CommunityRepositoryImpl implements ICommunityRepository {
           {
             'category': normalizedCat,
             'caption': post.content,
-            'image_url': post.imagePath,
+            'image_url': effectiveImageUrl,
           },
           where: 'id = ?',
           whereArgs: [post.id],
         );
-        return Success(post.copyWith(category: normalizedCat, isAuthor: true));
+        return Success(post.copyWith(
+          category: normalizedCat,
+          imagePath: effectiveImageUrl,
+          isAuthor: true,
+        ));
       }
 
       // 2. Otherwise update directly on Firebase
@@ -183,7 +239,11 @@ class CommunityRepositoryImpl implements ICommunityRepository {
         if (existing == null) {
           return const Error(NotFoundFailure('Postingan tidak ditemukan'));
         }
-        if (existing.userId != null && existing.userId != user.numericId) {
+        final isOwner = existing.isAuthor ||
+            (existing.authorId != null && existing.authorId == user.stringId) ||
+            (existing.userId != null &&
+                (existing.userId == user.numericId || existing.userId == userId));
+        if (!isOwner) {
           return const Error(
             ValidationFailure(
               'Anda tidak dapat mengedit postingan milik pengguna lain',
@@ -191,8 +251,11 @@ class CommunityRepositoryImpl implements ICommunityRepository {
           );
         }
 
-        final updatedPost =
-            post.copyWith(category: normalizedCat, isAuthor: true);
+        final updatedPost = post.copyWith(
+          category: normalizedCat,
+          imagePath: effectiveImageUrl,
+          isAuthor: true,
+        );
         await _remoteDataSource.updatePost(updatedPost, userId: user.stringId);
         return Success(updatedPost);
       } catch (e) {
@@ -218,7 +281,11 @@ class CommunityRepositoryImpl implements ICommunityRepository {
 
       if (pending.isNotEmpty) {
         final pendingUserId = pending.first['user_id'] as int?;
-        if (pendingUserId != null && pendingUserId != user.numericId) {
+        final pendingUserIdStr = pending.first['user_id']?.toString();
+        final isPendingOwner = (pendingUserId != null &&
+                (pendingUserId == user.numericId || pendingUserId == userId)) ||
+            (pendingUserIdStr != null && pendingUserIdStr == user.stringId);
+        if (!isPendingOwner) {
           return const Error(
             ValidationFailure(
               'Anda tidak dapat menghapus postingan milik pengguna lain',
@@ -239,14 +306,18 @@ class CommunityRepositoryImpl implements ICommunityRepository {
           postId,
           currentUserId: user.stringId,
         );
-        if (existing != null &&
-            existing.userId != null &&
-            existing.userId != user.numericId) {
-          return const Error(
-            ValidationFailure(
-              'Anda tidak dapat menghapus postingan milik pengguna lain',
-            ),
-          );
+        if (existing != null) {
+          final isOwner = existing.isAuthor ||
+              (existing.authorId != null && existing.authorId == user.stringId) ||
+              (existing.userId != null &&
+                  (existing.userId == user.numericId || existing.userId == userId));
+          if (!isOwner) {
+            return const Error(
+              ValidationFailure(
+                'Anda tidak dapat menghapus postingan milik pengguna lain',
+              ),
+            );
+          }
         }
 
         await _remoteDataSource.deletePost(postId, userId: user.stringId);
@@ -423,8 +494,27 @@ class CommunityRepositoryImpl implements ICommunityRepository {
       for (final row in rows) {
         final post = _mapRowToCommunityPost(row);
         final userId = row['user_id']?.toString();
+        var postToUpload = post;
+        if (_storageRemoteDataSource != null &&
+            post.imagePath != null &&
+            post.imagePath!.trim().isNotEmpty &&
+            !post.imagePath!.startsWith('http://') &&
+            !post.imagePath!.startsWith('https://') &&
+            !post.imagePath!.startsWith('assets/')) {
+          try {
+            final uploadedUrl = await _storageRemoteDataSource.uploadFile(
+              filePath: post.imagePath!,
+              destinationPath:
+                  'community_posts/${post.id}/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            );
+            if (uploadedUrl.startsWith('http://') ||
+                uploadedUrl.startsWith('https://')) {
+              postToUpload = post.copyWith(imagePath: uploadedUrl);
+            }
+          } catch (_) {}
+        }
         try {
-          await _remoteDataSource.savePost(post, userId: userId);
+          await _remoteDataSource.savePost(postToUpload, userId: userId);
           // Successfully uploaded to Firebase -> delete from local pending storage
           await db.delete(
             DatabaseHelper.tableCommunityPosts,
@@ -562,11 +652,13 @@ class CommunityRepositoryImpl implements ICommunityRepository {
     }
 
     final postUserId = row['user_id'] as int? ?? 1;
+    final authorId = row['user_id']?.toString();
     final isAuthor = currentUserId == null || postUserId == currentUserId;
 
     return CommunityPost(
       id: row['id'] as String? ?? '',
       userId: postUserId,
+      authorId: authorId,
       authorName: row['author_name'] as String? ?? 'Penggemar Tanaman',
       authorAvatar: null,
       timeAgo: CommunityPost.formatTimeAgo(createdAt),

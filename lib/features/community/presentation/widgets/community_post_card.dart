@@ -226,19 +226,20 @@ class CommunityPostCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Spacer(),
-              onShareTap != null
-                  ? IconButton(
-                      onPressed: onShareTap,
-                      icon: const Icon(
-                        Icons.share_outlined,
-                        size: 19,
-                        color: AppColors.muted,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    )
-                  : const SizedBox.shrink(),
+              // Tombol share di-hide terlebih dahulu
+              // const Spacer(),
+              // onShareTap != null
+              //     ? IconButton(
+              //         onPressed: onShareTap,
+              //         icon: const Icon(
+              //           Icons.share_outlined,
+              //           size: 19,
+              //           color: AppColors.muted,
+              //         ),
+              //         padding: EdgeInsets.zero,
+              //         constraints: const BoxConstraints(),
+              //       )
+              //     : const SizedBox.shrink(),
             ],
           ),
         ],
@@ -432,20 +433,22 @@ class _PostImageAttachment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget imageWidget;
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    final trimmedPath = imagePath.trim();
+    if (trimmedPath.startsWith('http://') ||
+        trimmedPath.startsWith('https://')) {
       imageWidget = Image.network(
-        imagePath,
+        trimmedPath,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => _errorPlaceholder(),
       );
-    } else if (imagePath.startsWith('assets/')) {
+    } else if (trimmedPath.startsWith('assets/')) {
       imageWidget = Image.asset(
-        imagePath,
+        trimmedPath,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => _errorPlaceholder(),
       );
     } else {
-      final file = File(imagePath);
+      final file = File(trimmedPath);
       if (file.existsSync()) {
         imageWidget = Image.file(
           file,

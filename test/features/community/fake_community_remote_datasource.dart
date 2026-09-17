@@ -41,8 +41,12 @@ class FakeCommunityRemoteDataSource implements CommunityRemoteDataSource {
     if (post == null) return null;
     final isLiked = currentUserId != null &&
         (likes[postId]?.contains(currentUserId) ?? false);
+    final isAuthor = currentUserId != null &&
+        (post.authorId == currentUserId ||
+            (post.userId != null && post.userId.toString() == currentUserId));
     return post.copyWith(
       isLiked: isLiked,
+      isAuthor: isAuthor || post.isAuthor,
       likesCount: likes[postId]?.length ?? post.likesCount,
     );
   }
@@ -52,7 +56,9 @@ class FakeCommunityRemoteDataSource implements CommunityRemoteDataSource {
     if (shouldThrowOnSave) {
       throw Exception('Network error during savePost');
     }
-    posts[post.id] = post;
+    posts[post.id] = post.copyWith(
+      authorId: userId ?? post.authorId,
+    );
   }
 
   @override
@@ -134,6 +140,7 @@ class FakeCommunityRemoteDataSource implements CommunityRemoteDataSource {
   @override
   Future<bool> hasUserSharedBadge(String badgeId, String userId) async {
     return posts.values.any((p) =>
-        (p.userId?.toString() == userId) && (p.attachedBadge?.id == badgeId));
+        ((p.authorId == userId) || (p.userId?.toString() == userId)) &&
+        (p.attachedBadge?.id == badgeId));
   }
 }

@@ -1,11 +1,29 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
+import 'package:plenty/features/auth/domain/models/user_model.dart';
 import 'package:plenty/features/community/data/repositories/community_repository_impl.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
 import 'package:plenty/features/profile/domain/models/badge_item.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'fake_community_remote_datasource.dart';
+
+class FakeStorageRemoteDataSource implements StorageRemoteDataSource {
+  @override
+  Future<String> uploadFile({
+    required String filePath,
+    required String destinationPath,
+    String? contentType,
+  }) async {
+    return 'https://firebasestorage.googleapis.com/v0/b/plenty.appspot.com/o/${destinationPath.replaceAll('/', '%2F')}?alt=media';
+  }
+
+  @override
+  Future<void> deleteFile(String fileUrl) async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +38,8 @@ void main() {
   });
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await PreferenceHandler.logOut();
     dbHelper = DatabaseHelper.forTesting(
       'community_repo_test_${DateTime.now().microsecondsSinceEpoch}.db',
     );
@@ -47,6 +67,7 @@ void main() {
   });
 
   tearDown(() async {
+    await PreferenceHandler.logOut();
     await dbHelper.close();
   });
 
@@ -142,6 +163,30 @@ void main() {
       expect(found.attachedBadge?.title, 'Adopsi Pertama');
     });
 
+    test('createPost uploads local image to Firebase Storage and saves remote download URL', () async {
+      final fakeStorage = FakeStorageRemoteDataSource();
+      final repoWithStorage = CommunityRepositoryImpl(
+        dbHelper: dbHelper,
+        remoteDataSource: fakeRemote,
+        storageRemoteDataSource: fakeStorage,
+      );
+
+      final postWithImage = CommunityPost(
+        id: 'post_with_image',
+        authorName: 'User One',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Foto tanaman saya',
+        imagePath: '/data/user/0/cache/image_picker_123.jpg',
+        createdAt: DateTime.now(),
+      );
+
+      final result = await repoWithStorage.createPost(postWithImage, userId: 1);
+      expect(result.isSuccess, isTrue);
+      expect(result.dataOrNull?.imagePath, startsWith('https://firebasestorage.googleapis.com'));
+      expect(fakeRemote.posts['post_with_image']?.imagePath, startsWith('https://firebasestorage.googleapis.com'));
+    });
+
     test('toggleLike updates like status directly on Firebase', () async {
       final post = CommunityPost(
         id: 'post_like_test',
@@ -214,6 +259,32 @@ void main() {
       expect(deleteRes.isSuccess, isTrue);
 
       expect(fakeRemote.posts.containsKey('delete_test_post'), isFalse);
+    });
+
+    test('deletePost removes post from Firebase for author with string Firebase UID', () async {
+      await PreferenceHandler.setLoginSession(
+        const UserModel(
+          id: 'firebase_user_abc123',
+          email: 'fb@plenty.app',
+          displayName: 'Firebase User',
+          username: 'fbuser',
+        ),
+      );
+
+      final post = CommunityPost(
+        id: 'fb_delete_test_post',
+        authorName: 'Firebase User',
+        authorId: 'firebase_user_abc123',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Postingan pengguna firebase',
+        createdAt: DateTime.now(),
+      );
+      await repository.createPost(post);
+
+      final deleteRes = await repository.deletePost('fb_delete_test_post');
+      expect(deleteRes.isSuccess, isTrue);
+      expect(fakeRemote.posts.containsKey('fb_delete_test_post'), isFalse);
     });
 
     test('addComment, getComments, and deleteComment manage comments purely on Firebase', () async {
