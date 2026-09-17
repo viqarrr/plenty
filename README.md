@@ -6,6 +6,7 @@
 
   [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
   [![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
+  [![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
   [![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
   [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green?style=for-the-badge)]()
 
@@ -49,22 +50,23 @@ Dengan memadukan **habit tracker**, **gamifikasi (XP & Level)**, **sistem badge 
 
 ### 5. 🏆 Gamifikasi & Sistem Penghargaan (*Gamification & Badges*)
 - **XP & Leveling System**: Dapatkan poin pengalaman (*Experience Points / XP*) setiap kali menyelesaikan tugas perawatan harian dan tingkatkan level profil kebun Anda.
-- **Koleksi Lencana (*Badges*)**: Buka berbagai lencana pencapaian berdasarkan milestone aktivitas, seperti:
+- **Koleksi Lencana (*Badges*)**: Buka berbagai lencana pencapaian berdasarkan milestone aktivitas:
   - 🌱 *Adopsi Pertama*: Mengadopsi tanaman pertama.
-  - 💧 *Penyiram Setia*: Menyiram tanaman tepat waktu berturut-turut.
-  - ⏳ *Kapsul Waktu*: Membuat pesan kapsul waktu pertama.
-  - 🌳 *Kolektor Rimbun*: Mengoleksi tanaman aktif di kebun virtual.
-  - 🩺 *Dokter Tanaman*: Rajin mencatat jurnal kesehatan tanaman.
-  - ☀️ *Pencari Cahaya*: Menempatkan tanaman di pencahayaan ideal.
+  - 💧 *Penyiram Setia*: Menyiram tanaman tepat waktu selama 7 kali berturut-turut.
+  - ⏳ *Kapsul Waktu*: Membuat pesan kapsul waktu pertama saat menanam.
+  - 🌳 *Kolektor Rimbun*: Memiliki minimal 5 tanaman aktif di kebun virtual.
 
 ### 6. 👥 Komunitas Penggemar Tanaman (*Community Feed*)
-- Bagikan pencapaian (*milestones*), foto perkembangan tanaman, atau tips perawatan kepada sesama pengguna.
-- Berikan apresiasi berupa **Kudos** (suka) dan jalin interaksi dalam ekosistem pecinta tanaman.
+- **Integrasi Cloud Firestore & Storage**: Bagikan pencapaian (*milestones*), foto adopsi, atau tips perawatan tanaman ke feed komunitas dengan penyimpanan foto awan aman di **Firebase Cloud Storage**.
+- **Interaksi Sosial Real-Time**: Berikan apresiasi berupa **Kudos** (suka) dan bertukar wawasan melalui komentar interaktif.
+- **Manajemen Postingan Aman**: Pengguna dapat mengedit atau menghapus postingan milik sendiri yang divalidasi langsung berdasarkan UID Firebase.
+- **Dukungan Offline-First**: Postingan yang dibuat saat offline disimpan sementara di antrean lokal **SQLite** dan disinkronkan otomatis ke Firebase begitu koneksi internet terhubung kembali.
 
-### 7. 🔐 Onboarding Cerdas & Keamanan Data
-- **Onboarding Personalisasi**: Kuesioner awal untuk menyesuaikan rekomendasi berdasarkan tingkat pengalaman (*beginner/intermediate/expert*), waktu luang harian, dan kondisi rumah (anak/hewan peliharaan).
-- **Keamanan Akun**: Penyimpanan lokal aman dengan hashing kata sandi berbasis algoritma **BCrypt**.
-- **Offline-First Storage**: Penyimpanan basis data lokal andal menggunakan **SQLite** via `sqflite`.
+### 7. 🔐 Autentikasi, Onboarding & Sinkronisasi Data
+- **Onboarding Interaktif**: Alur orientasi yang memikat dengan animasi Lottie beresolusi tinggi dan kuesioner preferensi personalisasi kebiasaan berkebun.
+- **Autentikasi Firebase & Saran Username**: Registrasi multi-langkah cerdas dengan rekomendasi nama pengguna otomatis serta sesi login persisten di Splash Screen.
+- **Penyimpanan Hibrida (Cloud & Local)**: Kolaborasi handal antara **Firebase Cloud Firestore** untuk sinkronisasi antar perangkat dan **SQLite** (`sqflite`) untuk performa instan serta mode tanpa internet (*offline-first*).
+- **Keamanan Akun**: Proteksi kredensial lokal dengan hashing kata sandi berbasis algoritma **BCrypt**.
 
 ---
 
@@ -77,7 +79,8 @@ Plenty dibangun dengan prinsip **Clean Architecture & Feature-First Structure** 
 | :--- | :--- | :--- |
 | **Framework** | [Flutter](https://flutter.dev) (SDK ^3.12.2) | Cross-platform mobile app framework |
 | **Bahasa** | [Dart](https://dart.dev) | Modern typed language |
-| **Database Lokal** | [sqflite](https://pub.dev/packages/sqflite) | SQLite database untuk penyimpanan offline-first |
+| **Cloud Backend** | [Firebase](https://firebase.google.com/) (Auth, Firestore, Cloud Storage) | Backend awan untuk autentikasi, feed komunitas real-time, sinkronisasi data, & media storage |
+| **Database Lokal** | [sqflite](https://pub.dev/packages/sqflite) | SQLite database untuk penyimpanan & antrean offline-first |
 | **Database Viewer** | [sqlite_viewer2](https://pub.dev/packages/sqlite_viewer2) | Inspeksi database lokal saat masa pengembangan |
 | **State Management** | MVC / Controller with `ChangeNotifier` & `ListenableBuilder` | Manajemen status responsif & efisien tanpa boilerplate berlebih |
 | **Networking** | [Dio](https://pub.dev/packages/dio) & [Retrofit](https://pub.dev/packages/retrofit) | Klien HTTP terstruktur untuk integrasi REST API |
@@ -87,6 +90,7 @@ Plenty dibangun dengan prinsip **Clean Architecture & Feature-First Structure** 
 | **Media & Gambar** | [image_picker](https://pub.dev/packages/image_picker) | Pengambilan foto tanaman dari kamera dan galeri |
 | **Penyimpanan Key-Value**| [shared_preferences](https://pub.dev/packages/shared_preferences) | Manajemen sesi & preferensi aplikasi |
 | **Environment Config** | [flutter_dotenv](https://pub.dev/packages/flutter_dotenv) | Pengelolaan API keys & environment variables |
+| **App Launcher Icon** | [flutter_launcher_icons](https://pub.dev/packages/flutter_launcher_icons) | Pembuatan launcher icons adaptif untuk Android |
 | **External API** | [Perenual API](https://perenual.com/docs/api) | Database spesies tanaman, panduan perawatan, dan gambar botani |
 
 ---
@@ -157,12 +161,15 @@ Pastikan perangkat pengembangan Anda telah terinstal:
    ```
    *(Daftarkan akun di [Perenual API](https://perenual.com/docs/api) untuk mendapatkan API key).*
 
-4. **Jalankan Build Runner (Opsional jika memperbarui serialisasi/Retrofit)**:
+4. **Konfigurasi Firebase**:
+   Pastikan file `google-services.json` berada di direktori `android/app/` dan berkas konfigurasi `lib/firebase_options.dart` telah terhubung dengan proyek Firebase Anda.
+
+5. **Jalankan Build Runner (Opsional jika memperbarui serialisasi/Retrofit)**:
    ```bash
    dart run build_runner build --delete-conflicting-outputs
    ```
 
-5. **Jalankan Aplikasi**:
+6. **Jalankan Aplikasi**:
    ```bash
    flutter run
    ```
