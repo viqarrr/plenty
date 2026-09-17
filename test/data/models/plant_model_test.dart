@@ -63,5 +63,30 @@ void main() {
       expect(serialized['xp'], 140);
       expect(serialized['is_archived'], 0);
     });
+
+    test('PlantModel.fromMap resolves gs:// Firebase Storage URI to HTTPS download URL', () {
+      final mapWithGs = {
+        'id': 'plt_gs',
+        'nickname': 'Plant GS',
+        'cover_photo_path': 'gs://plenty-ae791.firebasestorage.app/plants/plt_gs/cover.jpg',
+      };
+      final plant = PlantModel.fromMap(mapWithGs);
+
+      expect(
+        plant.coverPhotoPath,
+        'https://firebasestorage.googleapis.com/v0/b/plenty-ae791.firebasestorage.app/o/plants%2Fplt_gs%2Fcover.jpg?alt=media',
+      );
+    });
+
+    test('PlantModel.fromMap extracts image from alternative keys like image_url or photo_url', () {
+      final mapWithImageUrl = {
+        'id': 'plt_alt',
+        'nickname': 'Plant Alt',
+        'image_url': 'https://example.com/custom_plant.jpg',
+      };
+      final plant = PlantModel.fromMap(mapWithImageUrl);
+
+      expect(plant.coverPhotoPath, 'https://example.com/custom_plant.jpg');
+    });
   });
 }

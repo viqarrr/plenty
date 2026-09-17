@@ -155,7 +155,27 @@ class PlantModel {
         (map['current_height'] as num?)?.toDouble() ??
         (map['initial_height'] as num?)?.toDouble() ??
         (rawHeight?.toDouble() ?? 30.0);
-    final photo = (map['image_path'] ?? map['cover_photo_path']) as String?;
+    final rawPhoto = (map['cover_photo_path'] ??
+        map['image_path'] ??
+        map['coverPhotoPath'] ??
+        map['imagePath'] ??
+        map['image_url'] ??
+        map['imageUrl'] ??
+        map['photo_url'] ??
+        map['photoUrl'] ??
+        map['photo']) as String?;
+    String? resolvedPhoto = rawPhoto?.trim();
+    if (resolvedPhoto != null && resolvedPhoto.startsWith('gs://')) {
+      final uri = Uri.tryParse(resolvedPhoto);
+      if (uri != null && uri.host.isNotEmpty) {
+        final bucket = uri.host;
+        final path =
+            uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+        resolvedPhoto =
+            'https://firebasestorage.googleapis.com/v0/b/$bucket/o/${Uri.encodeComponent(path)}?alt=media';
+      }
+    }
+    final photo = resolvedPhoto;
     final rawInterval = (map['watering_interval_days'] ??
         map['default_watering_interval']) as num?;
     final interval = rawInterval?.toInt() ?? 7;

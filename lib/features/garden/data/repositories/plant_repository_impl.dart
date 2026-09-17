@@ -787,8 +787,27 @@ class PlantRepositoryImpl implements IPlantRepository {
       final db = await _dbHelper.database;
       final values = <String, dynamic>{'nickname': nickname.trim()};
       if (updatePhoto) {
-        values['cover_photo_path'] = coverPhotoPath;
-        values['image_path'] = coverPhotoPath;
+        String? effectivePhoto = coverPhotoPath;
+        if (_storageRemoteDataSource != null &&
+            coverPhotoPath != null &&
+            coverPhotoPath.trim().isNotEmpty &&
+            !coverPhotoPath.startsWith('http://') &&
+            !coverPhotoPath.startsWith('https://') &&
+            !coverPhotoPath.startsWith('assets/')) {
+          try {
+            final uploaded = await _storageRemoteDataSource.uploadFile(
+              filePath: coverPhotoPath,
+              destinationPath:
+                  'plants/$plantId/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            );
+            if (uploaded.startsWith('http://') ||
+                uploaded.startsWith('https://')) {
+              effectivePhoto = uploaded;
+            }
+          } catch (_) {}
+        }
+        values['cover_photo_path'] = effectivePhoto;
+        values['image_path'] = effectivePhoto;
       }
       if (siteId != null) {
         values['site_id'] = siteId;
