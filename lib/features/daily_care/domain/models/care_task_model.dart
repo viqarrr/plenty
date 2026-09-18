@@ -10,11 +10,13 @@ class CareTaskModel {
   final PlantModel plant;
   final TaskType type;
   final String description;
+  final bool isCompleted;
 
   const CareTaskModel({
     required this.plant,
     required this.type,
     required this.description,
+    this.isCompleted = false,
     String? id,
     String? userPlantId,
   });
@@ -26,11 +28,13 @@ class CareTaskModel {
     PlantModel? plant,
     TaskType? type,
     String? description,
+    bool? isCompleted,
   }) {
     return CareTaskModel(
       plant: plant ?? this.plant,
       type: type ?? this.type,
       description: description ?? this.description,
+      isCompleted: isCompleted ?? this.isCompleted,
     );
   }
 
@@ -39,6 +43,7 @@ class CareTaskModel {
       plant: PlantModel.fromMap(map['plant'] as Map<String, dynamic>),
       type: TaskType.fromId(map['type'] as String? ?? 'siram'),
       description: (map['description'] as String?) ?? '',
+      isCompleted: (map['is_completed'] as bool?) ?? false,
     );
   }
 
@@ -47,6 +52,7 @@ class CareTaskModel {
       'plant': plant.toMap(),
       'type': type.id,
       'description': description,
+      'is_completed': isCompleted,
     };
   }
 

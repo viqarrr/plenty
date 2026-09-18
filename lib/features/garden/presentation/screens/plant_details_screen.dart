@@ -496,8 +496,19 @@ class _PlantDetailsScreenState extends State<PlantDetailsScreen> {
   }
 
   Widget _buildPlantCover(PlantModel plant) {
-    final photo = plant.coverPhotoPath;
+    var photo = plant.coverPhotoPath?.trim();
     if (photo != null && photo.isNotEmpty) {
+      if (photo.startsWith('gs://')) {
+        final uri = Uri.tryParse(photo);
+        if (uri != null && uri.host.isNotEmpty) {
+          final bucket = uri.host;
+          final path =
+              uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+          photo =
+              'https://firebasestorage.googleapis.com/v0/b/$bucket/o/${Uri.encodeComponent(path)}?alt=media';
+        }
+      }
+
       if (photo.startsWith('http://') || photo.startsWith('https://')) {
         return Image.network(
           photo,

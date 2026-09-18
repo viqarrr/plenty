@@ -1,17 +1,30 @@
 import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
+import 'package:plenty/features/garden/data/datasources/growth_remote_datasource.dart';
 import 'package:plenty/features/garden/domain/models/growth_log_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/growth_repository.dart';
+import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Repository implementation managing historical plant growth records, photo timelines, and time capsules.
 class GrowthRepositoryImpl implements IGrowthRepository {
   final DatabaseHelper _dbHelper;
+  final GrowthRemoteDataSource? _remoteDataSource;
+  final IBadgeRepository? _badgeRepo;
+  final StorageRemoteDataSource? _storageRemoteDataSource;
 
-  GrowthRepositoryImpl({DatabaseHelper? dbHelper})
-    : _dbHelper = dbHelper ?? DatabaseHelper.instance;
+  GrowthRepositoryImpl({
+    DatabaseHelper? dbHelper,
+    GrowthRemoteDataSource? remoteDataSource,
+    IBadgeRepository? badgeRepo,
+    StorageRemoteDataSource? storageRemoteDataSource,
+  })  : _dbHelper = dbHelper ?? DatabaseHelper.instance,
+        _remoteDataSource = remoteDataSource,
+        _badgeRepo = badgeRepo,
+        _storageRemoteDataSource = storageRemoteDataSource;
 
   @override
   Future<Result<List<GrowthLogModel>>> getHeightSeries(
@@ -19,6 +32,20 @@ class GrowthRepositoryImpl implements IGrowthRepository {
   ) async {
     try {
       final db = await _dbHelper.database;
+
+      if (_remoteDataSource != null) {
+        try {
+          final remoteLogs = await _remoteDataSource.getGrowthLogs(userPlantId);
+          for (final log in remoteLogs) {
+            await db.insert(
+              DatabaseHelper.tableGrowthLogs,
+              log.toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        } catch (_) {}
+      }
+
       final maps = await db.query(
         DatabaseHelper.tableGrowthLogs,
         where: 'user_plant_id = ? AND height_cm IS NOT NULL',
@@ -39,6 +66,20 @@ class GrowthRepositoryImpl implements IGrowthRepository {
   ) async {
     try {
       final db = await _dbHelper.database;
+
+      if (_remoteDataSource != null) {
+        try {
+          final remoteLogs = await _remoteDataSource.getGrowthLogs(userPlantId);
+          for (final log in remoteLogs) {
+            await db.insert(
+              DatabaseHelper.tableGrowthLogs,
+              log.toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        } catch (_) {}
+      }
+
       final maps = await db.query(
         DatabaseHelper.tableGrowthLogs,
         where: 'user_plant_id = ?',
@@ -82,8 +123,26 @@ class GrowthRepositoryImpl implements IGrowthRepository {
         limit: 1,
       );
 
-      if (maps.isEmpty) return const Success(null);
-      return Success(TimeCapsuleModel.fromMap(maps.first));
+      if (maps.isNotEmpty) {
+        return Success(TimeCapsuleModel.fromMap(maps.first));
+      }
+
+      if (_remoteDataSource != null) {
+        try {
+          final remoteCapsule =
+              await _remoteDataSource.getTimeCapsule(userPlantId);
+          if (remoteCapsule != null) {
+            await db.insert(
+              DatabaseHelper.tableTimeCapsules,
+              remoteCapsule.toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+            return Success(remoteCapsule);
+          }
+        } catch (_) {}
+      }
+
+      return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
     }
@@ -97,6 +156,7 @@ class GrowthRepositoryImpl implements IGrowthRepository {
     try {
       final db = await _dbHelper.database;
       bool isFirstTimeCapsule = false;
+      int effectiveUserId = userId;
 
       await db.transaction((txn) async {
         await txn.insert(
@@ -105,7 +165,6 @@ class GrowthRepositoryImpl implements IGrowthRepository {
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
 
-        int effectiveUserId = userId;
         final plantRows = await txn.query(
           DatabaseHelper.tableUserPlants,
           columns: ['user_id'],
@@ -192,6 +251,51 @@ class GrowthRepositoryImpl implements IGrowthRepository {
         }
       });
 
+      // Dual-write to Cloud Storage & Cloud Firestore
+      String remotePhotoUrl = capsule.photoPath;
+      if (_storageRemoteDataSource != null &&
+          capsule.photoPath.isNotEmpty &&
+          !capsule.photoPath.startsWith('http://') &&
+          !capsule.photoPath.startsWith('https://')) {
+        try {
+          final uploadedUrl = await _storageRemoteDataSource.uploadFile(
+            filePath: capsule.photoPath,
+            destinationPath:
+                'time_capsules/${capsule.userPlantId}/capsule_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploadedUrl.isNotEmpty &&
+              (uploadedUrl.startsWith('http://') ||
+                  uploadedUrl.startsWith('https://'))) {
+            remotePhotoUrl = uploadedUrl;
+            await db.update(
+              DatabaseHelper.tableTimeCapsules,
+              {'photo_path': remotePhotoUrl},
+              where: 'id = ?',
+              whereArgs: [capsule.id],
+            );
+          }
+        } catch (_) {}
+      }
+
+      if (_remoteDataSource != null) {
+        try {
+          final capsuleToSave = remotePhotoUrl.isNotEmpty
+              ? capsule.copyWith(photoPath: remotePhotoUrl)
+              : capsule;
+          await _remoteDataSource.saveTimeCapsule(capsuleToSave);
+        } catch (_) {}
+      }
+
+      // Sync badge to Cloud Firestore
+      if (isFirstTimeCapsule && _badgeRepo != null) {
+        try {
+          await _badgeRepo.awardBadge(
+            userId: effectiveUserId.toString(),
+            badgeId: 'time_capsule',
+          );
+        } catch (_) {}
+      }
+
       return Success(isFirstTimeCapsule);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -204,10 +308,17 @@ class GrowthRepositoryImpl implements IGrowthRepository {
       final db = await _dbHelper.database;
       await db.update(
         DatabaseHelper.tableTimeCapsules,
-        {'is_unlocked': 1, 'unlocked_at': DateTime.now().toIso8601String()},
+        {'is_unlocked': 1},
         where: 'id = ?',
         whereArgs: [capsuleId],
       );
+
+      if (_remoteDataSource != null) {
+        try {
+          await _remoteDataSource.unlockTimeCapsule(capsuleId);
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -223,6 +334,42 @@ class GrowthRepositoryImpl implements IGrowthRepository {
         log.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
+
+      String remotePhotoUrl = log.photoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          log.photoPath != null &&
+          log.photoPath!.isNotEmpty &&
+          !log.photoPath!.startsWith('http://') &&
+          !log.photoPath!.startsWith('https://')) {
+        try {
+          final uploadedUrl = await _storageRemoteDataSource.uploadFile(
+            filePath: log.photoPath!,
+            destinationPath:
+                'growth_logs/${log.userPlantId}/growth_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploadedUrl.isNotEmpty &&
+              (uploadedUrl.startsWith('http://') ||
+                  uploadedUrl.startsWith('https://'))) {
+            remotePhotoUrl = uploadedUrl;
+            await db.update(
+              DatabaseHelper.tableGrowthLogs,
+              {'photo_path': remotePhotoUrl},
+              where: 'id = ?',
+              whereArgs: [log.id],
+            );
+          }
+        } catch (_) {}
+      }
+
+      if (_remoteDataSource != null) {
+        try {
+          final logToSave = remotePhotoUrl.isNotEmpty
+              ? log.copyWith(photoPath: remotePhotoUrl)
+              : log;
+          await _remoteDataSource.saveGrowthLog(logToSave);
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));

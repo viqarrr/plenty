@@ -5,8 +5,8 @@ import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/core/widgets/custom_text_field.dart';
+import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
-import 'package:plenty/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:plenty/features/auth/domain/repositories/auth_repository.dart';
 import 'package:plenty/features/auth/presentation/screens/register_screen.dart';
 import 'package:plenty/features/garden/presentation/screens/home_screen.dart';
@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _authRepository = widget.authRepository ?? AuthRepositoryImpl();
+    _authRepository = widget.authRepository ?? Injector.authRepository;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _emailFocusNode.requestFocus();

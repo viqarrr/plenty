@@ -145,7 +145,9 @@ class PlantModel {
         (map['species_name'] ?? map['common_name']) as String?;
     final isIndoorVal = map['placement_type'] != null
         ? (map['placement_type'] == 'Indoor')
-        : ((map['is_indoor'] as int? ?? 1) == 1);
+        : (map['is_indoor'] is bool
+            ? (map['is_indoor'] as bool)
+            : ((map['is_indoor'] as int? ?? 1) == 1));
     final rawHeight = (map['initial_height_cm'] ??
         map['current_height'] ??
         map['initial_height']) as num?;
@@ -153,13 +155,35 @@ class PlantModel {
         (map['current_height'] as num?)?.toDouble() ??
         (map['initial_height'] as num?)?.toDouble() ??
         (rawHeight?.toDouble() ?? 30.0);
-    final photo = (map['image_path'] ?? map['cover_photo_path']) as String?;
-    final interval = (map['watering_interval_days'] ??
-        map['default_watering_interval']) as int? ??
-        7;
-    final petFriendly = (map['is_pet_friendly'] as int? ??
-            (map['is_toxic'] != null && map['is_toxic'] == 0 ? 1 : 0)) ==
-        1;
+    final rawPhoto = (map['cover_photo_path'] ??
+        map['image_path'] ??
+        map['coverPhotoPath'] ??
+        map['imagePath'] ??
+        map['image_url'] ??
+        map['imageUrl'] ??
+        map['photo_url'] ??
+        map['photoUrl'] ??
+        map['photo']) as String?;
+    String? resolvedPhoto = rawPhoto?.trim();
+    if (resolvedPhoto != null && resolvedPhoto.startsWith('gs://')) {
+      final uri = Uri.tryParse(resolvedPhoto);
+      if (uri != null && uri.host.isNotEmpty) {
+        final bucket = uri.host;
+        final path =
+            uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+        resolvedPhoto =
+            'https://firebasestorage.googleapis.com/v0/b/$bucket/o/${Uri.encodeComponent(path)}?alt=media';
+      }
+    }
+    final photo = resolvedPhoto;
+    final rawInterval = (map['watering_interval_days'] ??
+        map['default_watering_interval']) as num?;
+    final interval = rawInterval?.toInt() ?? 7;
+    final petFriendly = map['is_pet_friendly'] is bool
+        ? (map['is_pet_friendly'] as bool)
+        : ((map['is_pet_friendly'] as int? ??
+                (map['is_toxic'] != null && map['is_toxic'] == 0 ? 1 : 0)) ==
+            1);
 
     DateTime? parseAdoptedAt(dynamic val) {
       if (val == null) return null;
@@ -193,9 +217,11 @@ class PlantModel {
       coverPhotoPath: photo,
       imagePath: photo,
       healthStatus: map['health_status'] as String? ?? 'healthy',
-      level: map['level'] as int? ?? 1,
-      xp: map['xp'] as int? ?? 0,
-      isArchived: (map['is_archived'] as int? ?? 0) == 1,
+      level: (map['level'] as num?)?.toInt() ?? 1,
+      xp: (map['xp'] as num?)?.toInt() ?? 0,
+      isArchived: map['is_archived'] is bool
+          ? (map['is_archived'] as bool)
+          : ((map['is_archived'] as int? ?? 0) == 1),
       commonName: commonNameVal,
       speciesName: commonNameVal,
       scientificName: map['scientific_name'] as String?,
@@ -247,6 +273,13 @@ class PlantModel {
         'growth_cycle': growthCycle,
         'pruning_season': pruningSeason,
         'flower_status': flowerStatus,
+      };
+
+  Map<String, dynamic> toFirestoreMap() => {
+        ...toMap(),
+        'is_indoor': isIndoor,
+        'is_pet_friendly': isPetFriendly,
+        'is_archived': isArchived,
       };
 
   factory PlantModel.fromJson(Map<String, dynamic> json) =>

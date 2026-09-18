@@ -28,6 +28,20 @@ void main() {
       'change_password_test_${DateTime.now().microsecondsSinceEpoch}.db',
     );
     await dbHelper.deleteDb();
+    final db = await dbHelper.database;
+    await db.insert(DatabaseHelper.tableUsers, {
+      'id': 1,
+      'email': 'default@plenty.app',
+      'username': 'user_default',
+      'password': '',
+      'display_name': 'Pecinta Tanaman',
+      'streak_count': 0,
+      'longest_streak': 0,
+      'total_xp': 0,
+      'level': 1,
+      'unlocked_badges_count': 0,
+      'created_at': DateTime.now().toIso8601String(),
+    });
     userRepository = UserRepositoryImpl(dbHelper: dbHelper);
     Injector.databaseHelper = dbHelper;
     Injector.userRepository = userRepository;

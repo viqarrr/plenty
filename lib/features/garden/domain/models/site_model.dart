@@ -27,11 +27,18 @@ class SiteModel {
     userId: map['user_id']?.toString() ?? '1',
     name: map['name'] as String,
     iconCode: (map['icon_code'] as num?)?.toInt() ?? 58428,
-    isIndoor: (map['is_indoor'] as int? ?? 1) == 1,
-    isCustom: (map['is_custom'] as int? ?? 1) == 1,
+    isIndoor: map['is_indoor'] is bool
+        ? (map['is_indoor'] as bool)
+        : (map['is_indoor'] as int? ?? 1) == 1,
+    isCustom: map['is_custom'] is bool
+        ? (map['is_custom'] as bool)
+        : (map['is_custom'] as int? ?? 1) == 1,
     createdAt: DateTime.tryParse(map['created_at']?.toString() ?? '') ??
         DateTime.now(),
   );
+
+  factory SiteModel.fromJson(Map<String, dynamic> json) =>
+      SiteModel.fromMap(json);
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -42,6 +49,18 @@ class SiteModel {
     'is_custom': isCustom ? 1 : 0,
     'created_at': createdAt.toIso8601String(),
   };
+
+  Map<String, dynamic> toFirestoreMap() => {
+    'id': id,
+    'user_id': userId,
+    'name': name,
+    'icon_code': iconCode,
+    'is_indoor': isIndoor,
+    'is_custom': isCustom,
+    'created_at': createdAt.toIso8601String(),
+  };
+
+  Map<String, dynamic> toJson() => toFirestoreMap();
 
   SiteModel copyWith({
     String? id,

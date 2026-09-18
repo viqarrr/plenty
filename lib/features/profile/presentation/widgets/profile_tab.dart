@@ -43,7 +43,10 @@ class ProfileTab extends StatefulWidget {
     this.badgeRepository,
     this.onProfileUpdated,
     required this.onLogout,
+    this.email,
   });
+
+  final String? email;
 
   @override
   State<ProfileTab> createState() => _ProfileTabState();
@@ -104,6 +107,7 @@ class _ProfileTabState extends State<ProfileTab> {
           ProfileHeader(
             profileName: widget.profileName,
             username: widget.username,
+            email: widget.email,
             avatarPath: widget.avatarPath,
             onSettingsTap: () async {
               await context.push(
@@ -111,6 +115,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   onLogout: widget.onLogout,
                   initialDisplayName: widget.profileName,
                   initialUsername: widget.username,
+                  initialEmail: widget.email ?? 'alex@gardner.com',
                   initialBio:
                       widget.bio ?? 'Urban gardener berlokasi di Jakarta...',
                   initialAvatarPath: widget.avatarPath,

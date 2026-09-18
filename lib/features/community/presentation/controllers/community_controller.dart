@@ -3,6 +3,7 @@ import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
+import 'package:plenty/features/community/domain/models/post_comment_model.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
 import 'package:plenty/features/profile/domain/models/badge_item.dart';
 
@@ -180,7 +181,7 @@ class CommunityController extends ChangeNotifier {
       final user = await PreferenceHandler.getUser();
       final result = await _repository.updatePost(
         updatedDraft,
-        userId: user?.id,
+        userId: user?.numericId,
       );
       switch (result) {
         case Success(:final data):
@@ -202,11 +203,96 @@ class CommunityController extends ChangeNotifier {
   Future<bool> deletePost(String postId) async {
     try {
       final user = await PreferenceHandler.getUser();
-      final result = await _repository.deletePost(postId, userId: user?.id);
+      final result = await _repository.deletePost(postId, userId: user?.numericId);
       switch (result) {
         case Success():
           _posts = _posts.where((p) => p.id != postId).toList();
           notifyListeners();
+          return true;
+        case Error(:final failure):
+          _errorMessage = failure.message;
+          notifyListeners();
+          return false;
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Fetches comments for a specific post.
+  Future<List<PostCommentModel>> getComments(String postId) async {
+    final result = await _repository.getComments(postId);
+    switch (result) {
+      case Success(:final data):
+        return data;
+      case Error(:final failure):
+        _errorMessage = failure.message;
+        notifyListeners();
+        return [];
+    }
+  }
+
+  /// Adds a comment to a post and increments the local comment count.
+  Future<PostCommentModel?> addComment(String postId, String content) async {
+    try {
+      final user = await PreferenceHandler.getUser();
+      final result = await _repository.addComment(
+        postId: postId,
+        content: content,
+        userId: user?.numericId,
+        authorName: user?.username.isNotEmpty == true
+            ? user?.username
+            : user?.displayName,
+        authorAvatarUrl: user?.avatarUrl,
+      );
+      switch (result) {
+        case Success(:final data):
+          final postIdx = _posts.indexWhere((p) => p.id == postId);
+          if (postIdx != -1) {
+            final post = _posts[postIdx];
+            final updatedList = List<CommunityPost>.from(_posts);
+            updatedList[postIdx] = post.copyWith(
+              commentsCount: post.commentsCount + 1,
+            );
+            _posts = updatedList;
+            notifyListeners();
+          }
+          return data;
+        case Error(:final failure):
+          _errorMessage = failure.message;
+          notifyListeners();
+          return null;
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Deletes a comment from a post and decrements the local comment count.
+  Future<bool> deleteComment(String postId, String commentId) async {
+    try {
+      final user = await PreferenceHandler.getUser();
+      final result = await _repository.deleteComment(
+        postId: postId,
+        commentId: commentId,
+        userId: user?.numericId,
+      );
+      switch (result) {
+        case Success():
+          final postIdx = _posts.indexWhere((p) => p.id == postId);
+          if (postIdx != -1) {
+            final post = _posts[postIdx];
+            final updatedList = List<CommunityPost>.from(_posts);
+            updatedList[postIdx] = post.copyWith(
+              commentsCount: (post.commentsCount - 1).clamp(0, 999999),
+            );
+            _posts = updatedList;
+            notifyListeners();
+          }
           return true;
         case Error(:final failure):
           _errorMessage = failure.message;

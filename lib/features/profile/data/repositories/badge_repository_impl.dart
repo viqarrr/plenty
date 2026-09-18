@@ -2,23 +2,45 @@ import 'package:plenty/core/database/database_helper.dart';
 import 'package:plenty/core/error/failure.dart';
 import 'package:plenty/core/error/result.dart';
 import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/features/profile/data/datasources/profile_remote_datasource.dart';
 import 'package:plenty/features/profile/domain/models/badge_item.dart';
 import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
-/// Implementation of IBadgeRepository for SQLite database.
+/// Implementation of IBadgeRepository combining Cloud Firestore and local SQLite caching.
 class BadgeRepositoryImpl implements IBadgeRepository {
   final DatabaseHelper _dbHelper;
+  final ProfileRemoteDataSource _remoteDataSource;
 
-  BadgeRepositoryImpl({DatabaseHelper? dbHelper})
-    : _dbHelper = dbHelper ?? DatabaseHelper.instance;
+  BadgeRepositoryImpl({
+    DatabaseHelper? dbHelper,
+    ProfileRemoteDataSource? remoteDataSource,
+  })  : _dbHelper = dbHelper ?? DatabaseHelper.instance,
+        _remoteDataSource =
+            remoteDataSource ?? FirestoreProfileRemoteDataSourceImpl();
 
   Future<int> _resolveUserId(int? userId) async {
     if (userId != null && userId != 0) return userId;
     try {
       final activeUser = await PreferenceHandler.getUser();
-      if (activeUser != null && activeUser.id != null && activeUser.id != 0) {
-        return activeUser.id!;
+      if (activeUser?.email != null && activeUser!.email.isNotEmpty) {
+        final db = await _dbHelper.database;
+        final rows = await db.query(
+          DatabaseHelper.tableUsers,
+          columns: ['id'],
+          where: 'email = ?',
+          whereArgs: [activeUser.email],
+          limit: 1,
+        );
+        if (rows.isNotEmpty) {
+          final foundId = rows.first['id'] as int;
+          return foundId;
+        }
+      }
+      if (activeUser != null &&
+          activeUser.numericId != null &&
+          activeUser.numericId != 0) {
+        return activeUser.numericId!;
       }
     } catch (_) {}
     return 1;
@@ -53,7 +75,103 @@ class BadgeRepositoryImpl implements IBadgeRepository {
         [effectiveUserId],
       );
 
-      final badges = rows.map(_mapRowToBadgeItem).toList();
+      var badges = rows
+          .map(_mapRowToBadgeItem)
+          .where((b) => b.id != 'doctor_green' && b.id != 'sun_master')
+          .toList();
+
+      final now = DateTime.now();
+      const months = [
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
+      ];
+      final formattedDate = '${now.day} ${months[now.month - 1]} ${now.year}';
+
+      // Merge badges from Cloud Firestore if available
+      try {
+        final activeUser = await PreferenceHandler.getUser();
+        final uid = (activeUser?.id != null && activeUser!.id!.isNotEmpty)
+            ? activeUser.id!
+            : (userId?.toString() ?? '1');
+        if (uid.isNotEmpty && uid != '0' && uid != '1' && uid != 'usr_default') {
+          final remoteBadges = await _remoteDataSource.getUserBadges(uid);
+          final remoteUnlockedMap = {
+            for (final b in remoteBadges)
+              if (b['is_unlocked'] == true || b['is_unlocked'] == 1)
+                b['badge_id'] as String?: b,
+          };
+
+          badges = badges.map((badge) {
+            final remote = remoteUnlockedMap[badge.id];
+            if (remote != null && !badge.isUnlocked) {
+              return badge.copyWith(
+                isUnlocked: true,
+                unlockedDate: remote['unlocked_at'] as String?,
+                progress:
+                    (remote['current_progress'] as num?)?.toInt() ?? badge.total,
+              );
+            }
+            return badge;
+          }).toList();
+
+          // Push any locally unlocked badges to remote Firestore if missing remotely
+          for (final b in badges) {
+            if (b.isUnlocked && !remoteUnlockedMap.containsKey(b.id)) {
+              try {
+                await _remoteDataSource.awardBadge(
+                  uid,
+                  b.id,
+                  b.unlockedDate ?? formattedDate,
+                );
+              } catch (_) {}
+            }
+          }
+
+          // Auto-check and backfill earned badges from existing local plants & streak
+          final plantRows = await db.rawQuery(
+            '''
+            SELECT COUNT(*) as count FROM ${DatabaseHelper.tableUserPlants}
+            WHERE (user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = 'usr_default') AND is_archived = 0
+            ''',
+            [effectiveUserId, uid],
+          );
+          final plantCount = (plantRows.first['count'] as int?) ?? 0;
+          if (plantCount >= 1 && !badges.any((b) => b.id == 'first_plant' && b.isUnlocked)) {
+            await awardBadge(userId: uid, badgeId: 'first_plant');
+            badges = badges.map((b) => b.id == 'first_plant' ? b.copyWith(isUnlocked: true) : b).toList();
+          }
+          if (plantCount >= 5 && !badges.any((b) => b.id == 'plant_collector' && b.isUnlocked)) {
+            await awardBadge(userId: uid, badgeId: 'plant_collector');
+            badges = badges.map((b) => b.id == 'plant_collector' ? b.copyWith(isUnlocked: true) : b).toList();
+          }
+
+          final streakRows = await db.rawQuery(
+            '''
+            SELECT streak_count FROM ${DatabaseHelper.tableUsers}
+            WHERE id = ? OR email = ?
+            ''',
+            [effectiveUserId, activeUser?.email ?? ''],
+          );
+          final streakVal = streakRows.isNotEmpty
+              ? (streakRows.first['streak_count'] as int? ?? 0)
+              : (activeUser?.streakCount ?? 0);
+          if (streakVal >= 7 && !badges.any((b) => b.id == 'water_streak' && b.isUnlocked)) {
+            await awardBadge(userId: uid, badgeId: 'water_streak');
+            badges = badges.map((b) => b.id == 'water_streak' ? b.copyWith(isUnlocked: true) : b).toList();
+          }
+        }
+      } catch (_) {}
+
       return Success(badges);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
@@ -74,21 +192,9 @@ class BadgeRepositoryImpl implements IBadgeRepository {
   @override
   Future<Result<int>> getUnlockedBadgeCount({int? userId}) async {
     try {
-      final effectiveUserId = await _resolveUserId(userId);
-      final db = await _dbHelper.database;
-      final result = await db.rawQuery(
-        '''
-        SELECT COUNT(DISTINCT badge_id) as count 
-        FROM ${DatabaseHelper.tableUserBadges}
-        WHERE user_id = ? AND is_unlocked = 1
-      ''',
-        [effectiveUserId],
-      );
-
-      if (result.isNotEmpty) {
-        return Success((result.first['count'] as int?) ?? 0);
-      }
-      return const Success(0);
+      final allBadgesResult = await getBadges(userId: userId);
+      final allBadges = allBadgesResult.dataOrNull ?? [];
+      return Success(allBadges.where((b) => b.isUnlocked).length);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));
     }
@@ -162,6 +268,19 @@ class BadgeRepositoryImpl implements IBadgeRepository {
       ];
       final formattedDate = '${now.day} ${months[now.month - 1]} ${now.year}';
 
+      // 1. Sync badge award to Cloud Firestore unconditionally if user is authenticated
+      try {
+        final activeUser = await PreferenceHandler.getUser();
+        final rawUid = userId?.toString() ?? '';
+        final uid = (rawUid.isNotEmpty && rawUid != '1' && rawUid != '0' && rawUid != 'usr_default')
+            ? rawUid
+            : (activeUser?.id ?? '');
+        if (uid.isNotEmpty && uid != '0' && uid != '1' && uid != 'usr_default') {
+          await _remoteDataSource.awardBadge(uid, badgeId, formattedDate);
+        }
+      } catch (_) {}
+
+      // 2. Check local SQLite record
       final existing = await db.query(
         DatabaseHelper.tableUserBadges,
         where: 'user_id = ? AND badge_id = ?',
@@ -216,6 +335,7 @@ class BadgeRepositoryImpl implements IBadgeRepository {
         where: 'id = ?',
         whereArgs: [effectiveUserId],
       );
+
       return const Success(true);
     } catch (e) {
       return Error(DatabaseFailure(e.toString()));

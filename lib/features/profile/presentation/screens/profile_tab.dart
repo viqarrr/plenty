@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/di/injector.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/features/profile/domain/models/badge_item.dart';
@@ -54,26 +56,56 @@ class ProfileTab extends StatefulWidget {
 class _ProfileTabState extends State<ProfileTab> {
   late final IBadgeRepository _badgeRepository;
   List<BadgeItem> _badges = const [];
+  late String _effectiveEmail;
 
   @override
   void initState() {
     super.initState();
+    _effectiveEmail = widget.email;
     _badgeRepository = widget.badgeRepository ?? Injector.badgeRepository;
     if (widget.badges != null) {
       _badges = widget.badges!;
     } else {
       _loadBadges();
     }
+    _resolveEmailIfNeeded();
   }
 
   @override
   void didUpdateWidget(covariant ProfileTab oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.email.isNotEmpty && widget.email != _effectiveEmail) {
+      _effectiveEmail = widget.email;
+    }
     if (widget.badges != null) {
       _badges = widget.badges!;
     } else {
       _loadBadges();
     }
+    _resolveEmailIfNeeded();
+  }
+
+  Future<void> _resolveEmailIfNeeded() async {
+    if (_effectiveEmail.trim().isNotEmpty) return;
+    try {
+      final user = await PreferenceHandler.getUser();
+      String found = (user?.email != null && user!.email.trim().isNotEmpty)
+          ? user.email.trim()
+          : '';
+      if (found.isEmpty) {
+        try {
+          final fbEmail = FirebaseAuth.instance.currentUser?.email;
+          if (fbEmail != null && fbEmail.trim().isNotEmpty) {
+            found = fbEmail.trim();
+          }
+        } catch (_) {}
+      }
+      if (found.isNotEmpty && mounted) {
+        setState(() {
+          _effectiveEmail = found;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadBadges() async {
@@ -91,6 +123,9 @@ class _ProfileTabState extends State<ProfileTab> {
         ? widget.badgeCount
         : _badges.where((b) => b.isUnlocked).length;
 
+    final displayEmail =
+        _effectiveEmail.isNotEmpty ? _effectiveEmail : widget.email;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -99,6 +134,7 @@ class _ProfileTabState extends State<ProfileTab> {
           ProfileHeader(
             profileName: widget.profileName,
             username: widget.username,
+            email: displayEmail,
             avatarPath: widget.avatarPath,
             onSettingsTap: () async {
               await context.push(
@@ -106,7 +142,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   onLogout: widget.onLogout,
                   initialDisplayName: widget.profileName,
                   initialUsername: widget.username,
-                  initialEmail: widget.email,
+                  initialEmail: displayEmail,
                   initialBio:
                       widget.bio ?? 'Urban gardener berlokasi di Jakarta...',
                   initialAvatarPath: widget.avatarPath,

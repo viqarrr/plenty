@@ -115,12 +115,12 @@ void main() {
 
       // 2. Left Streak Card
       expect(find.text('5'), findsOneWidget);
-      expect(find.text('Hari Konsisten'), findsOneWidget);
+      expect(find.text('Streak'), findsOneWidget);
       expect(find.byIcon(Icons.local_fire_department_rounded), findsOneWidget);
 
       // 3. Right Tasks Card
       expect(
-        find.textContaining('tanaman butuh perhatianmu hari ini'),
+        find.textContaining('tugas belum dikerjakan'),
         findsOneWidget,
       );
       expect(find.text('Periksa Sekarang'), findsOneWidget);

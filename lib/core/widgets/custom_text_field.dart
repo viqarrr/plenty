@@ -187,11 +187,15 @@ class _CustomTextFieldState extends State<CustomTextField> {
               Padding(
                 padding: const EdgeInsets.only(left: 4),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 16,
-                      color: AppColors.error,
+                    const Padding(
+                      padding: EdgeInsets.only(top: 1.5),
+                      child: Icon(
+                        Icons.error_outline,
+                        size: 16,
+                        color: AppColors.error,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Expanded(

@@ -4,14 +4,110 @@ import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/widgets/custom_button.dart';
 import 'package:plenty/core/widgets/custom_text_field.dart';
+import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/features/auth/domain/models/user_model.dart';
-import 'package:plenty/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:plenty/features/auth/domain/repositories/auth_repository.dart';
 import 'package:plenty/features/auth/presentation/screens/login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
-  final AuthRepositoryImpl? authRepository;
+  final IAuthRepository? authRepository;
 
   const RegisterScreen({super.key, this.authRepository});
+
+  /// Validates password complexity:
+  /// - Not empty
+  /// - Minimal 8 characters
+  /// - At least one uppercase letter (A-Z)
+  /// - At least one lowercase letter (a-z)
+  /// - At least one number (0-9)
+  /// - At least one symbol/special character
+  ///
+  /// If multiple criteria fail, displays all missing requirements together.
+  static String? validatePassword(String? v) {
+    if (v == null || v.isEmpty) {
+      return 'Kata sandi tidak boleh kosong';
+    }
+
+    final missing = <String>[];
+    if (v.length < 8) {
+      missing.add('minimal 8 karakter');
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(v)) {
+      missing.add('huruf besar');
+    }
+    if (!RegExp(r'[a-z]').hasMatch(v)) {
+      missing.add('huruf kecil');
+    }
+    if (!RegExp(r'[0-9]').hasMatch(v)) {
+      missing.add('angka');
+    }
+    if (!RegExp(r'[^a-zA-Z0-9\s]').hasMatch(v)) {
+      missing.add('simbol');
+    }
+
+    if (missing.isEmpty) return null;
+
+    if (missing.length == 1) {
+      if (missing.first == 'minimal 8 karakter') {
+        return 'Kata sandi minimal 8 karakter';
+      }
+      return 'Kata sandi harus menyertakan ${missing.first}';
+    }
+
+    final String formatted;
+    if (missing.length == 2) {
+      formatted = '${missing[0]} dan ${missing[1]}';
+    } else {
+      final allExceptLast = missing.sublist(0, missing.length - 1).join(', ');
+      formatted = '$allExceptLast, dan ${missing.last}';
+    }
+    return 'Kata sandi harus menyertakan $formatted';
+  }
+
+  /// Generates clean, valid username suggestions based on user's display name.
+  /// Converts to lowercase, strips accents & non-alphanumerics, and generates
+  /// variations (e.g., 'budihartono', 'budi_hartono', 'b_hartono', 'budi_2026').
+  static List<String> generateUsernameSuggestions(String displayName) {
+    final clean = displayName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), '')
+        .trim();
+    if (clean.isEmpty) return const [];
+
+    final words =
+        clean.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) return const [];
+
+    final suggestions = <String>{};
+
+    if (words.length == 1) {
+      final w = words.first;
+      if (w.length >= 3) suggestions.add(w);
+      suggestions.add('${w}_plant');
+      suggestions.add('${w}_green');
+      suggestions.add('${w}_${DateTime.now().year}');
+    } else {
+      final first = words.first;
+      final last = words.last;
+      final full = words.join('');
+      final under = words.join('_');
+      if (full.length >= 3) suggestions.add(full);
+      if (under.length >= 3) suggestions.add(under);
+      if (first.isNotEmpty && last.isNotEmpty) {
+        final initial = '${first[0]}_$last';
+        if (initial.length >= 3) suggestions.add(initial);
+      }
+      suggestions.add('${first}_${DateTime.now().year}');
+    }
+
+    return suggestions
+        .where((s) =>
+            s.length >= 3 &&
+            !s.contains(' ') &&
+            RegExp(r'^[a-z0-9_]+$').hasMatch(s))
+        .take(4)
+        .toList();
+  }
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -35,7 +131,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  late final AuthRepositoryImpl _authRepository;
+  late final IAuthRepository _authRepository;
   int _currentStep = 0;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -44,7 +140,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    _authRepository = widget.authRepository ?? AuthRepositoryImpl();
+    _authRepository = widget.authRepository ?? Injector.authRepository;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _focusNodes.isNotEmpty) {
         _focusNodes[0].requestFocus();
@@ -124,6 +220,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           return null;
         },
       ),
+      extraContent: _buildUsernameSuggestions(),
     ),
     _buildStepPage(
       stepIndex: 2,
@@ -156,7 +253,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _buildStepPage(
       stepIndex: 3,
       title: 'Buat kata sandi yang aman',
-      desc: 'Minimal 8 karakter kombinasi huruf & angka.',
+      desc: 'Minimal 8 karakter kombinasi huruf besar, kecil, angka, dan simbol.',
       inputField: CustomTextField(
         controller: _passwordController,
         focusNode: _focusNodes[3],
@@ -173,18 +270,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
-        supportingText: 'Minimal 8 karakter kombinasi huruf & angka',
+        supportingText:
+            'Kombinasi huruf besar, kecil, angka & simbol (min. 8 karakter)',
         textInputAction: TextInputAction.next,
         onSubmitted: (_) => _nextStep(),
-        validator: (v) {
-          if (v == null || v.isEmpty) {
-            return 'Kata sandi tidak boleh kosong';
-          }
-          if (v.length < 8) {
-            return 'Minimal 8 karakter kombinasi huruf & angka';
-          }
-          return null;
-        },
+        validator: RegisterScreen.validatePassword,
       ),
     ),
     _buildStepPage(
@@ -217,7 +307,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             return 'Konfirmasi kata sandi tidak boleh kosong';
           }
           if (v != _passwordController.text) {
-            return 'Konfirmasi kata sandi tidak cocok';
+            return 'Kata sandi tidak cocok';
           }
           return null;
         },
@@ -225,11 +315,87 @@ class _RegisterScreenState extends State<RegisterScreen> {
     ),
   ];
 
+  Widget? _buildUsernameSuggestions() {
+    final suggestions = RegisterScreen.generateUsernameSuggestions(
+      _displayNameC.text,
+    );
+    if (suggestions.isEmpty) return null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Pilihan saran username:',
+          style: AppTypography.caption1Bold.copyWith(
+            color: AppColors.muted,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: suggestions.map((suggestion) {
+            final isSelected = _usernameC.text == suggestion;
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _usernameC.text = suggestion;
+                });
+                _formKeys[1].currentState?.validate();
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.forest
+                      : AppColors.pastelGreenBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.forest
+                        : AppColors.forest.withValues(alpha: 0.25),
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.alternate_email,
+                      size: 13,
+                      color: isSelected ? Colors.white : AppColors.forest,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      suggestion,
+                      style: AppTypography.caption1Bold.copyWith(
+                        color:
+                            isSelected ? Colors.white : AppColors.forest,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStepPage({
     required int stepIndex,
     required String title,
     required String desc,
     required Widget inputField,
+    Widget? extraContent,
   }) {
     return Form(
       key: _formKeys[stepIndex],
@@ -254,6 +420,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 36),
             inputField,
+            if (extraContent != null) ...[
+              const SizedBox(height: 16),
+              extraContent,
+            ],
           ],
         ),
       ),

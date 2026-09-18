@@ -89,7 +89,9 @@ class DailyTasksCard extends StatelessWidget {
           if (i > 0) const SizedBox(height: 8),
           TaskCard(
             task: tasks[i],
+            isCompleted: tasks[i].isCompleted,
             onAction: () {
+              if (tasks[i].isCompleted) return;
               if (tasks[i].type == TaskType.monitor) {
                 context.showAppBottomSheet(
                   MonitorTinggiInputSheet(

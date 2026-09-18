@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/constants/app_images.dart';
 import 'package:plenty/core/theme/app_typography.dart';
@@ -20,8 +21,23 @@ class AuthSelectionScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(children: [Image.asset(AppImages.logoLight, height: 64)]),
-              const Spacer(),
+              Row(
+                children: [
+                  Image.asset(
+                    AppImages.logoLight,
+                    height: 64,
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Center(
+                  child: Lottie.asset(
+                    'assets/animations/watering_plants.json',
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                  ),
+                ),
+              ),
               Text(
                 'Selamat datang di Plenty',
                 style: AppTypography.subheadlineBold.copyWith(
@@ -38,16 +54,18 @@ class AuthSelectionScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
+
               // Primary Register button
               CustomButton(
                 text: 'Daftar',
-                height: 54,
-                borderRadius: BorderRadius.circular(30),
+                height: 52,
+                borderRadius: BorderRadius.circular(28),
                 onPressed: () {
                   context.push(const RegisterScreen());
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
               // Separator
               Row(
                 children: [
@@ -68,18 +86,20 @@ class AuthSelectionScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
               // Masuk dengan Email
               CustomButton(
                 text: 'Masuk dengan Email',
                 isOutlined: true,
-                height: 54,
-                borderRadius: BorderRadius.circular(30),
+                height: 52,
+                borderRadius: BorderRadius.circular(28),
                 icon: Icons.mail_outline,
                 onPressed: () {
                   context.push(const LoginScreen());
                 },
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),

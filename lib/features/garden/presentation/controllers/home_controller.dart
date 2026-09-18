@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:plenty/core/constants/xp_config.dart';
 import 'package:plenty/core/di/injector.dart';
@@ -23,6 +25,7 @@ class HomeState {
   final String selectedRoomFilter;
   final int streakCount;
   final int streakTier;
+  final bool isStreakActive;
   final int totalXp;
   final int userLevel;
   final int badgeCount;
@@ -42,6 +45,7 @@ class HomeState {
     this.selectedRoomFilter = 'Semua',
     this.streakCount = 0,
     this.streakTier = 1,
+    this.isStreakActive = false,
     this.totalXp = 0,
     this.userLevel = 1,
     this.badgeCount = 0,
@@ -62,6 +66,7 @@ class HomeState {
     String? selectedRoomFilter,
     int? streakCount,
     int? streakTier,
+    bool? isStreakActive,
     int? totalXp,
     int? userLevel,
     int? badgeCount,
@@ -81,6 +86,7 @@ class HomeState {
       selectedRoomFilter: selectedRoomFilter ?? this.selectedRoomFilter,
       streakCount: streakCount ?? this.streakCount,
       streakTier: streakTier ?? this.streakTier,
+      isStreakActive: isStreakActive ?? this.isStreakActive,
       totalXp: totalXp ?? this.totalXp,
       userLevel: userLevel ?? this.userLevel,
       badgeCount: badgeCount ?? this.badgeCount,
@@ -186,28 +192,38 @@ class HomeController extends ChangeNotifier {
     loadDashboard();
   }
 
+  final StreamController<HomeState> _stateController =
+      StreamController<HomeState>.broadcast();
+  Stream<HomeState> get stateStream => _stateController.stream;
+
   @override
   void dispose() {
     _isDisposed = true;
+    _stateController.close();
     super.dispose();
   }
 
   void _updateState(HomeState newState) {
     if (_isDisposed) return;
     _state = newState;
+    if (!_stateController.isClosed) {
+      _stateController.add(newState);
+    }
     notifyListeners();
   }
 
-  Future<void> loadDashboard() async {
-    _updateState(_state.copyWith(isLoading: true, errorMessage: null));
+  Future<void> loadDashboard({bool silent = false}) async {
+    if (!silent) {
+      _updateState(_state.copyWith(isLoading: true, errorMessage: null));
+    }
 
     try {
       final userProfileResult = await _userRepo.getUserProfile();
       final user =
           userProfileResult.dataOrNull ?? await PreferenceHandler.getUser();
       final userIdVal = user?.id;
-      final effectiveUserId = (userIdVal != null && userIdVal > 0)
-          ? userIdVal.toString()
+      final effectiveUserId = (userIdVal != null && userIdVal.isNotEmpty && userIdVal != '0')
+          ? userIdVal
           : (userId.isNotEmpty ? userId : 'usr_default');
 
       final plantsResult = await _plantRepo.getUserPlants(effectiveUserId);
@@ -217,7 +233,19 @@ class HomeController extends ChangeNotifier {
       final streakModel = streakResult.dataOrNull;
 
       final xpResult = await _careRepo.getTotalUserXp(effectiveUserId);
-      final totalXp = xpResult.dataOrNull ?? 0;
+      final totalXpFromCare = xpResult.dataOrNull ?? 0;
+      final totalXpFromUser = user?.totalXp ?? 0;
+      final totalXp =
+          totalXpFromCare > totalXpFromUser ? totalXpFromCare : totalXpFromUser;
+
+      if (user != null && totalXp != user.totalXp) {
+        await PreferenceHandler.setUser(
+          user.copyWith(
+            totalXp: totalXp,
+            level: XpConfig.levelForXp(totalXp),
+          ),
+        );
+      }
 
       final badgeCountResult = await _badgeRepo.getUserBadgeCount(
         effectiveUserId,
@@ -234,15 +262,42 @@ class HomeController extends ChangeNotifier {
                   _state.profileName != 'Teman Plenty'
               ? _state.profileName
               : 'Alice');
+      final userEmail = user?.email.trim();
+      String emailVal = '';
+      if (userEmail != null && userEmail.isNotEmpty && userEmail.contains('@')) {
+        emailVal = userEmail;
+      } else {
+        try {
+          final fbEmail = FirebaseAuth.instance.currentUser?.email?.trim();
+          if (fbEmail != null && fbEmail.isNotEmpty && fbEmail.contains('@')) {
+            emailVal = fbEmail;
+          }
+        } catch (_) {}
+
+        if (emailVal.isEmpty) {
+          try {
+            final authEmail = Injector.authRepository.currentUser?.email.trim();
+            if (authEmail != null && authEmail.isNotEmpty && authEmail.contains('@')) {
+              emailVal = authEmail;
+            }
+          } catch (_) {}
+        }
+
+        if (emailVal.isEmpty && userEmail != null && userEmail.isNotEmpty) {
+          emailVal = userEmail;
+        }
+      }
+
+      if (user != null && user.email != emailVal && emailVal.isNotEmpty) {
+        try {
+          await PreferenceHandler.setUser(user.copyWith(email: emailVal));
+        } catch (_) {}
+      }
+
       final usernameVal = (user?.username.trim().isNotEmpty ?? false)
           ? user!.username
-          : (user?.email.contains('@') ?? false
-              ? user!.email.split('@').first
-              : 'alex_plants');
-      final emailVal = (user?.email.trim().isNotEmpty ?? false)
-          ? user!.email
-          : (user?.email.contains('@') ?? false
-              ? user!.email.split('@').first
+          : (emailVal.contains('@')
+              ? emailVal.split('@').first
               : 'alex_plants');
       final avatarUrlVal = user?.avatarUrl;
       final bioVal = user?.bio;
@@ -256,6 +311,7 @@ class HomeController extends ChangeNotifier {
             sites: sites,
             streakCount: streakModel?.currentStreak ?? 0,
             streakTier: streakModel?.currentTier ?? 1,
+            isStreakActive: false,
             totalXp: totalXp,
             userLevel: userLevel,
             badgeCount: badgeCount,
@@ -276,10 +332,14 @@ class HomeController extends ChangeNotifier {
         final taskTypes = taskTypesResult.dataOrNull ?? [];
         for (final typeStr in taskTypes) {
           final type = TaskType.fromDbString(typeStr);
+          final alreadyCompleted = _state.dailyTasks.any(
+            (t) => t.plant.id == plant.id && t.type == type && t.isCompleted,
+          );
           tasks.add(
             CareTaskModel(
               plant: plant,
               type: type,
+              isCompleted: alreadyCompleted,
               description: switch (type) {
                 TaskType.siram => 'Siram tanah sampai lembap merata',
                 TaskType.bersih => 'Bersihkan debu dari permukaan daun',
@@ -290,6 +350,10 @@ class HomeController extends ChangeNotifier {
         }
       }
 
+      final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+      final isStreakActive = (plants.isNotEmpty && tasks.isEmpty) ||
+          (streakModel?.lastStreakDate == todayStr && (streakModel?.currentStreak ?? 0) > 0);
+
       _updateState(
         _state.copyWith(
           status: HomeStatus.populated,
@@ -298,11 +362,13 @@ class HomeController extends ChangeNotifier {
           sites: sites,
           streakCount: streakModel?.currentStreak ?? 0,
           streakTier: streakModel?.currentTier ?? 1,
+          isStreakActive: isStreakActive,
           totalXp: totalXp,
           userLevel: userLevel,
           badgeCount: badgeCount,
           profileName: name,
           username: usernameVal,
+          email: emailVal,
           avatarUrl: avatarUrlVal,
           bio: bioVal,
           isLoading: false,
@@ -323,13 +389,21 @@ class HomeController extends ChangeNotifier {
   }
 
   Future<void> completeTask(CareTaskModel task) async {
+    final updatedTasks = _state.dailyTasks.map((t) {
+      if (t.id == task.id) {
+        return t.copyWith(isCompleted: true);
+      }
+      return t;
+    }).toList();
+    _updateState(_state.copyWith(dailyTasks: updatedTasks));
+
     final result = await _careRepo.completeRoutineTask(
       plant: task.plant,
       taskType: task.type.dbString,
     );
     switch (result) {
       case Success():
-        await loadDashboard();
+        await loadDashboard(silent: true);
       case Error(:final failure):
         _updateState(_state.copyWith(errorMessage: failure.message));
     }

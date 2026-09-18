@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:plenty/core/constants/app_colors.dart';
 import 'package:plenty/core/di/injector.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
 import 'package:plenty/core/theme/app_typography.dart';
 import 'package:plenty/core/utils/extensions/navigator_extension.dart';
 import 'package:plenty/core/utils/image_picker_helper.dart';
@@ -70,6 +72,30 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     _bio = widget.initialBio;
     _email = widget.initialEmail;
     _avatarPath = widget.initialAvatarPath;
+    _resolveEmailIfNeeded();
+  }
+
+  Future<void> _resolveEmailIfNeeded() async {
+    if (_email.trim().isNotEmpty && _email != 'alex@gardner.com') return;
+    try {
+      final user = await PreferenceHandler.getUser();
+      String found = (user?.email != null && user!.email.trim().isNotEmpty)
+          ? user.email.trim()
+          : '';
+      if (found.isEmpty) {
+        try {
+          final fbEmail = FirebaseAuth.instance.currentUser?.email;
+          if (fbEmail != null && fbEmail.trim().isNotEmpty) {
+            found = fbEmail.trim();
+          }
+        } catch (_) {}
+      }
+      if (found.isNotEmpty && mounted) {
+        setState(() {
+          _email = found;
+        });
+      }
+    } catch (_) {}
   }
 
   // ── Handlers ──────────────────────────────────────────────

@@ -21,17 +21,29 @@ class CareActionLogModel {
     this.notes,
   });
 
-  factory CareActionLogModel.fromMap(Map<String, dynamic> map) => CareActionLogModel(
+  factory CareActionLogModel.fromMap(Map<String, dynamic> map) =>
+      CareActionLogModel(
         id: map['id'] as String,
         userPlantId: map['user_plant_id'] as String,
         taskType: map['task_type'] as String,
-        completedAt: DateTime.parse(map['completed_at'] as String),
+        completedAt:
+            DateTime.tryParse(map['completed_at'].toString()) ?? DateTime.now(),
         logDate: map['log_date'] as String,
-        xpAwarded: map['xp_awarded'] as int? ?? 0,
+        xpAwarded: (map['xp_awarded'] as num?)?.toInt() ?? 0,
         notes: map['notes'] as String?,
       );
 
   Map<String, dynamic> toMap() => {
+        'id': id,
+        'user_plant_id': userPlantId,
+        'task_type': taskType,
+        'completed_at': completedAt.toIso8601String(),
+        'log_date': logDate,
+        'xp_awarded': xpAwarded,
+        'notes': notes,
+      };
+
+  Map<String, dynamic> toFirestoreMap() => {
         'id': id,
         'user_plant_id': userPlantId,
         'task_type': taskType,

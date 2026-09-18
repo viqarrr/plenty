@@ -85,23 +85,21 @@ void main() {
 
       // Verify initial master badges seeded
       final masterBadges = await db.query(DatabaseHelper.tableBadges);
-      expect(masterBadges.length, equals(6));
+      expect(masterBadges.length, equals(4));
 
-      // Verify initial user badges seeded
-      final userBadges = await db.query(
-        DatabaseHelper.tableUserBadges,
-        where: 'user_id = ?',
-        whereArgs: [1],
-      );
-      expect(userBadges.length, equals(6));
-      final unlockedUserBadges =
-          userBadges.where((b) => b['is_unlocked'] == 1).toList();
-      expect(unlockedUserBadges.length, equals(0));
+      // Verify user badges are NOT pre-seeded for dummy accounts (clean state)
+      final userBadges = await db.query(DatabaseHelper.tableUserBadges);
+      expect(userBadges.isEmpty, isTrue);
 
-      // Verify default user seeded
+      // Verify no default dummy user is seeded (security best practice: no hardcoded accounts)
       final users = await db.query(DatabaseHelper.tableUsers);
-      expect(users.isNotEmpty, isTrue);
-      expect(users.first['email'], 'default@plenty.app');
+      expect(users.isEmpty, isTrue);
+
+      // Verify obsolete tables (post_comments, post_likes) are not created
+      final obsoleteTables = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('post_comments', 'post_likes')",
+      );
+      expect(obsoleteTables.isEmpty, isTrue);
 
       await dbHelper.close();
     });

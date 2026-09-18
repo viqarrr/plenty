@@ -109,19 +109,20 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _controller,
-      builder: (context, _) {
-        final state = _controller.state;
+    return StreamBuilder<DailyCareState>(
+      stream: _controller.stateStream,
+      initialData: _controller.state,
+      builder: (context, snapshot) {
+        final state = snapshot.data ?? _controller.state;
 
         return Scaffold(
           backgroundColor: AppColors.canvasDefault,
-          body: state.isLoading
+          body: (state.isLoading && state.hasNoTasksScheduled)
               ? const Center(
                   child: CircularProgressIndicator(color: AppColors.forest),
                 )
               : RefreshIndicator(
-                  onRefresh: _controller.loadTodayCare,
+                  onRefresh: () => _controller.loadTodayCare(silent: true),
                   color: AppColors.forest,
                   child: CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -222,7 +223,8 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
                     ],
                   ),
                 ),
-          bottomSheet: state.isLoading || state.hasNoTasksScheduled
+          bottomSheet: (state.isLoading && state.hasNoTasksScheduled) ||
+                  state.hasNoTasksScheduled
               ? null
               : Container(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
@@ -365,8 +367,9 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
                           fontSize: 15,
                           decoration: isDone
                               ? TextDecoration.lineThrough
-                              : null,
+                              : TextDecoration.none,
                           decorationColor: AppColors.muted,
+                          decorationThickness: 1.5,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -404,8 +407,11 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
                   style: AppTypography.caption1Regular.copyWith(
                     color: isDone ? AppColors.muted : AppColors.muted,
                     fontSize: 13,
-                    decoration: isDone ? TextDecoration.lineThrough : null,
+                    decoration: isDone
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
                     decorationColor: AppColors.muted,
+                    decorationThickness: 1.5,
                   ),
                 ),
               ],
@@ -477,7 +483,6 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDone
             ? AppColors.surface.withValues(alpha: 0.8)
@@ -489,71 +494,87 @@ class _DailyCareScreenState extends State<DailyCareScreen> {
               : AppColors.border,
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: isDone
-                  ? AppColors.pastelGreenBg.withValues(alpha: 0.6)
-                  : AppColors.pastelGreenBg,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: isDone ? AppColors.muted : AppColors.forest,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: isDone ? null : () => controller.completeCyclicTask(item),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                Text(
-                  '${item.title} · ${item.plant.nickname}',
-                  style: AppTypography.calloutBold.copyWith(
-                    color: isDone ? AppColors.muted : AppColors.inkSoft,
-                    fontSize: 15,
-                    decoration: isDone ? TextDecoration.lineThrough : null,
-                    decorationColor: AppColors.muted,
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: isDone
+                        ? AppColors.pastelGreenBg.withValues(alpha: 0.6)
+                        : AppColors.pastelGreenBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isDone ? AppColors.muted : AppColors.forest,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  item.subtitle,
-                  style: AppTypography.caption1Regular.copyWith(
-                    color: AppColors.muted,
-                    fontSize: 13,
-                    decoration: isDone ? TextDecoration.lineThrough : null,
-                    decorationColor: AppColors.muted,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${item.title} · ${item.plant.nickname}',
+                        style: AppTypography.calloutBold.copyWith(
+                          color: isDone ? AppColors.muted : AppColors.inkSoft,
+                          fontSize: 15,
+                          decoration: isDone
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
+                          decorationColor: AppColors.muted,
+                          decorationThickness: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.subtitle,
+                        style: AppTypography.caption1Regular.copyWith(
+                          color: AppColors.muted,
+                          fontSize: 13,
+                          decoration: isDone
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
+                          decorationColor: AppColors.muted,
+                          decorationThickness: 1.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                if (isDone)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: AppColors.forest,
+                      size: 26,
+                    ),
+                  )
+                else
+                  IconButton(
+                    onPressed: () => controller.completeCyclicTask(item),
+                    icon: const Icon(
+                      Icons.radio_button_unchecked,
+                      color: AppColors.forest,
+                      size: 26,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                  ),
               ],
             ),
           ),
-          if (isDone)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4),
-              child: Icon(
-                Icons.check_circle,
-                color: AppColors.forest,
-                size: 26,
-              ),
-            )
-          else
-            IconButton(
-              onPressed: () => controller.completeCyclicTask(item),
-              icon: const Icon(
-                Icons.radio_button_unchecked,
-                color: AppColors.forest,
-                size: 26,
-              ),
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-            ),
-        ],
+        ),
       ),
     );
   }

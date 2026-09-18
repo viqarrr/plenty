@@ -12,6 +12,13 @@ import 'package:plenty/features/garden/domain/models/perenual/plant_catalog_mode
 import 'package:plenty/features/garden/domain/models/plant_model.dart';
 import 'package:plenty/features/garden/domain/models/time_capsule_model.dart';
 import 'package:plenty/features/garden/domain/repositories/plant_repository.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
+import 'package:plenty/features/auth/domain/models/user_model.dart';
+import 'package:plenty/features/daily_care/data/datasources/care_remote_datasource.dart';
+import 'package:plenty/features/garden/data/datasources/garden_remote_datasource.dart';
+import 'package:plenty/features/garden/data/datasources/growth_remote_datasource.dart';
+import 'package:plenty/features/profile/domain/repositories/badge_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Implementation of [IPlantRepository] using Direct API calls + In-Memory Session Cache
@@ -19,6 +26,11 @@ import 'package:sqflite/sqflite.dart';
 class PlantRepositoryImpl implements IPlantRepository {
   final DatabaseHelper _dbHelper;
   final PlantRemoteDataSource _remoteDataSource;
+  final GardenRemoteDataSource? _gardenRemoteDataSource;
+  final IBadgeRepository? _badgeRepo;
+  final CareRemoteDataSource? _careRemoteDataSource;
+  final GrowthRemoteDataSource? _growthRemoteDataSource;
+  final StorageRemoteDataSource? _storageRemoteDataSource;
 
   // In-Memory Session Caches (zero SQLite disk hoarding)
   final Map<String, List<PlantCatalogModel>> _sessionCatalogCache = {};
@@ -28,8 +40,18 @@ class PlantRepositoryImpl implements IPlantRepository {
   PlantRepositoryImpl({
     DatabaseHelper? dbHelper,
     PlantRemoteDataSource? remoteDataSource,
+    GardenRemoteDataSource? gardenRemoteDataSource,
+    IBadgeRepository? badgeRepo,
+    CareRemoteDataSource? careRemoteDataSource,
+    GrowthRemoteDataSource? growthRemoteDataSource,
+    StorageRemoteDataSource? storageRemoteDataSource,
   }) : _dbHelper = dbHelper ?? DatabaseHelper.instance,
-       _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl();
+       _remoteDataSource = remoteDataSource ?? PlantRemoteDataSourceImpl(),
+       _gardenRemoteDataSource = gardenRemoteDataSource,
+       _badgeRepo = badgeRepo,
+       _careRemoteDataSource = careRemoteDataSource,
+       _growthRemoteDataSource = growthRemoteDataSource,
+       _storageRemoteDataSource = storageRemoteDataSource;
 
   /// Clears in-memory session cache.
   void clearSessionCache() {
@@ -69,19 +91,13 @@ class PlantRepositoryImpl implements IPlantRepository {
 
       // If empty response from API, return empty list
       return const Success([]);
-    } on Failure catch (failure) {
+    } on Failure catch (_) {
       // On network failure or rate limit, provide in-memory seed fallback for smooth offline UX
       final fallbackSeeds = await _loadInMemorySeeds(query: q);
-      if (fallbackSeeds.isNotEmpty) {
-        return Success(fallbackSeeds);
-      }
-      return Error(failure);
-    } catch (e) {
+      return Success(fallbackSeeds);
+    } catch (_) {
       final fallbackSeeds = await _loadInMemorySeeds(query: q);
-      if (fallbackSeeds.isNotEmpty) {
-        return Success(fallbackSeeds);
-      }
-      return Error(ServerFailure('Gagal memuat katalog tanaman: $e'));
+      return Success(fallbackSeeds);
     }
   }
 
@@ -187,7 +203,25 @@ class PlantRepositoryImpl implements IPlantRepository {
   }) async {
     try {
       final db = await _dbHelper.database;
-      final int parsedUserId = int.tryParse(userId.toString()) ?? 1;
+      UserModel? activeUser;
+      try {
+        activeUser = await PreferenceHandler.getUser();
+      } catch (_) {}
+      final resolvedId = (userId.isNotEmpty &&
+              userId != 'usr_default' &&
+              userId != '1' &&
+              userId != '0')
+          ? userId
+          : ((activeUser?.id != null && activeUser!.id!.isNotEmpty && activeUser.id != '0')
+              ? activeUser.id!
+              : (userId.isNotEmpty && userId != '0' ? userId : '1'));
+      final effectiveUserId = resolvedId == '0' ? '1' : resolvedId;
+      final int rawParsed = int.tryParse(effectiveUserId.toString()) ?? (activeUser?.numericId ?? 1);
+      final int parsedUserId = rawParsed > 0 ? rawParsed : 1;
+
+      GrowthLogModel? createdInitialLog;
+      List<CareScheduleModel>? createdSchedules;
+      TimeCapsuleModel? createdTimeCapsule;
 
       final result = await db.transaction<AddPlantResult>((txn) async {
         // 1. Ensure user row exists for relational integrity
@@ -200,19 +234,24 @@ class PlantRepositoryImpl implements IPlantRepository {
         if (userRows.isEmpty) {
           await txn.insert(DatabaseHelper.tableUsers, {
             'id': parsedUserId,
-            'email': 'user_$parsedUserId@plenty.app',
-            'username': 'user_$parsedUserId',
+            'email': activeUser?.email ?? 'user_$parsedUserId@plenty.app',
+            'username': activeUser?.username ?? 'user_$parsedUserId',
             'password': '',
-            'display_name': 'Pecinta Tanaman',
+            'display_name': activeUser?.displayName ?? 'Pecinta Tanaman',
             'created_at': DateTime.now().toIso8601String(),
           }, conflictAlgorithm: ConflictAlgorithm.ignore);
         }
 
         // Check if this is truly the user's first plant adoption ever
+        final isDefaultUser = effectiveUserId == 'usr_default' ||
+            effectiveUserId == '1' ||
+            effectiveUserId == 'user_1';
         final existingPlants = await txn.query(
           DatabaseHelper.tableUserPlants,
-          where: 'user_id = ? AND is_archived = 0',
-          whereArgs: [parsedUserId],
+          where: isDefaultUser
+              ? "(user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = '1' OR user_id = 'user_1' OR user_id = 'usr_default') AND is_archived = 0"
+              : '(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0',
+          whereArgs: [effectiveUserId, effectiveUserId],
         );
 
         final userBadgeRows = await txn.query(
@@ -248,7 +287,7 @@ class PlantRepositoryImpl implements IPlantRepository {
         // 2. Insert self-contained snapshot into user_plants (ZERO disk catalog dependency)
         final plant = PlantModel(
           id: plantId,
-          userId: userId,
+          userId: effectiveUserId,
           speciesId: speciesIdNum,
           catalogId: species?.id ?? catalogId,
           nickname: nickname,
@@ -297,6 +336,7 @@ class PlantRepositoryImpl implements IPlantRepository {
           note: 'Adopsi pertama $nickname',
         );
         await txn.insert(DatabaseHelper.tableGrowthLogs, initialLog.toMap());
+        createdInitialLog = initialLog;
 
         // 4. Insert care schedules
         final now = DateTime.now();
@@ -330,6 +370,7 @@ class PlantRepositoryImpl implements IPlantRepository {
         for (final s in schedules) {
           await txn.insert(DatabaseHelper.tableCareSchedules, s.toMap());
         }
+        createdSchedules = schedules;
 
         // 5. Check first plant badge
         if (isFirstPlant) {
@@ -395,6 +436,7 @@ class PlantRepositoryImpl implements IPlantRepository {
             DatabaseHelper.tableTimeCapsules,
             capsuleModel.toMap(),
           );
+          createdTimeCapsule = capsuleModel;
 
           // Check if time_capsule badge is already unlocked
           final tcBadgeRows = await txn.query(
@@ -462,6 +504,141 @@ class PlantRepositoryImpl implements IPlantRepository {
         );
       });
 
+      // Synchronize badges with IBadgeRepository & Cloud Firestore
+      final badgeRepoToUse = _badgeRepo;
+      if (result.isFirstPlant) {
+        await badgeRepoToUse?.awardBadge(userId: effectiveUserId, badgeId: 'first_plant');
+      }
+      if (result.isFirstTimeCapsule) {
+        await badgeRepoToUse?.awardBadge(userId: effectiveUserId, badgeId: 'time_capsule');
+      }
+      try {
+        final allPlantsRes = await getUserPlants(effectiveUserId);
+        final plantsList = allPlantsRes.dataOrNull ?? [];
+        if (plantsList.isNotEmpty) {
+          await badgeRepoToUse?.awardBadge(userId: effectiveUserId, badgeId: 'first_plant');
+        }
+        if (plantsList.length >= 5) {
+          await badgeRepoToUse?.awardBadge(userId: effectiveUserId, badgeId: 'plant_collector');
+        }
+      } catch (_) {}
+
+      // Migrate any legacy orphaned plants to effective user
+      if (effectiveUserId.isNotEmpty &&
+          effectiveUserId != 'usr_default' &&
+          effectiveUserId != '1') {
+        try {
+          await db.update(
+            DatabaseHelper.tableUserPlants,
+            {'user_id': effectiveUserId},
+            where: "user_id = 'usr_default' OR user_id = '1'",
+          );
+        } catch (_) {}
+      }
+
+      // Dual-write to Firebase Cloud Storage
+      final initialLogSnapshot = createdInitialLog;
+      String remoteCoverPhoto = result.plant.coverPhotoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          result.plant.coverPhotoPath != null &&
+          result.plant.coverPhotoPath!.isNotEmpty &&
+          !result.plant.coverPhotoPath!.startsWith('http://') &&
+          !result.plant.coverPhotoPath!.startsWith('https://') &&
+          !result.plant.coverPhotoPath!.startsWith('assets/')) {
+        try {
+          final uploaded = await _storageRemoteDataSource.uploadFile(
+            filePath: result.plant.coverPhotoPath!,
+            destinationPath:
+                'plants/${result.plant.id}/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploaded.startsWith('http://') || uploaded.startsWith('https://')) {
+            remoteCoverPhoto = uploaded;
+            await db.update(
+              DatabaseHelper.tableUserPlants,
+              {'cover_photo_path': remoteCoverPhoto, 'image_path': remoteCoverPhoto},
+              where: 'id = ?',
+              whereArgs: [result.plant.id],
+            );
+            if (initialLogSnapshot != null) {
+              await db.update(
+                DatabaseHelper.tableGrowthLogs,
+                {'photo_path': remoteCoverPhoto},
+                where: 'id = ?',
+                whereArgs: [initialLogSnapshot.id],
+              );
+            }
+          }
+        } catch (_) {}
+      }
+
+      final capsuleSnapshot = createdTimeCapsule;
+      String remoteCapsulePhoto = capsuleSnapshot?.photoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          capsuleSnapshot != null &&
+          capsuleSnapshot.photoPath.isNotEmpty &&
+          !capsuleSnapshot.photoPath.startsWith('http://') &&
+          !capsuleSnapshot.photoPath.startsWith('https://') &&
+          !capsuleSnapshot.photoPath.startsWith('assets/')) {
+        try {
+          final uploaded = await _storageRemoteDataSource.uploadFile(
+            filePath: capsuleSnapshot.photoPath,
+            destinationPath:
+                'time_capsules/${result.plant.id}/capsule_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploaded.startsWith('http://') || uploaded.startsWith('https://')) {
+            remoteCapsulePhoto = uploaded;
+            await db.update(
+              DatabaseHelper.tableTimeCapsules,
+              {'photo_path': remoteCapsulePhoto},
+              where: 'id = ?',
+              whereArgs: [capsuleSnapshot.id],
+            );
+          }
+        } catch (_) {}
+      }
+
+      // Dual-write to Cloud Firestore
+      if (_gardenRemoteDataSource != null &&
+          effectiveUserId.isNotEmpty &&
+          effectiveUserId != 'usr_default') {
+        try {
+          final plantToSave = remoteCoverPhoto.isNotEmpty
+              ? result.plant.copyWith(
+                  coverPhotoPath: remoteCoverPhoto,
+                  imagePath: remoteCoverPhoto,
+                )
+              : result.plant;
+          await _gardenRemoteDataSource.savePlant(plantToSave);
+        } catch (_) {
+          // Offline resilience: SQLite persistence completed successfully
+        }
+      }
+
+      if (_growthRemoteDataSource != null) {
+        try {
+          if (initialLogSnapshot != null) {
+            final logToSave = remoteCoverPhoto.isNotEmpty
+                ? initialLogSnapshot.copyWith(photoPath: remoteCoverPhoto)
+                : initialLogSnapshot;
+            await _growthRemoteDataSource.saveGrowthLog(logToSave);
+          }
+          if (capsuleSnapshot != null) {
+            final capToSave = remoteCapsulePhoto.isNotEmpty
+                ? capsuleSnapshot.copyWith(photoPath: remoteCapsulePhoto)
+                : capsuleSnapshot;
+            await _growthRemoteDataSource.saveTimeCapsule(capToSave);
+          }
+        } catch (_) {}
+      }
+
+      if (_careRemoteDataSource != null && createdSchedules != null) {
+        try {
+          for (final s in createdSchedules!) {
+            await _careRemoteDataSource.saveSchedule(s);
+          }
+        } catch (_) {}
+      }
+
       return Success(result);
     } catch (e) {
       return Error(DatabaseFailure('Gagal menambahkan tanaman: $e'));
@@ -474,13 +651,52 @@ class PlantRepositoryImpl implements IPlantRepository {
   ]) async {
     try {
       final db = await _dbHelper.database;
-      final parsedUserId = int.tryParse(userId.toString());
+      UserModel? activeUser;
+      try {
+        activeUser = await PreferenceHandler.getUser();
+      } catch (_) {}
+      final effectiveUserId = (userId.isNotEmpty && userId != 'usr_default')
+          ? userId
+          : (activeUser?.id ?? userId);
+      final parsedUserId = int.tryParse(effectiveUserId.toString());
 
-      // Query user_plants directly - 100% self-contained snapshot with zero catalog joins
+      // Cloud sync from Firestore if remote data source is available
+      if (_gardenRemoteDataSource != null &&
+          effectiveUserId.isNotEmpty &&
+          effectiveUserId != 'usr_default') {
+        try {
+          final remotePlants =
+              await _gardenRemoteDataSource.getUserPlants(effectiveUserId);
+          for (final plant in remotePlants) {
+            final count = await db.update(
+              DatabaseHelper.tableUserPlants,
+              plant.toMap(),
+              where: 'id = ?',
+              whereArgs: [plant.id],
+            );
+            if (count == 0) {
+              await db.insert(
+                DatabaseHelper.tableUserPlants,
+                plant.toMap(),
+                conflictAlgorithm: ConflictAlgorithm.ignore,
+              );
+            }
+          }
+        } catch (_) {
+          // Graceful fallback to SQLite local cache
+        }
+      }
+
+      // Query user_plants directly - matches user ID, string UID, or legacy usr_default
       final maps = await db.query(
         DatabaseHelper.tableUserPlants,
-        where: '(user_id = ? OR CAST(user_id AS TEXT) = ?) AND is_archived = 0',
-        whereArgs: [parsedUserId ?? userId, userId.toString()],
+        where:
+            "(user_id = ? OR CAST(user_id AS TEXT) = ? OR user_id = ? OR user_id = 'usr_default') AND is_archived = 0",
+        whereArgs: [
+          parsedUserId ?? effectiveUserId,
+          effectiveUserId.toString(),
+          activeUser?.id ?? '',
+        ],
         orderBy: 'adopted_at DESC',
       );
 
@@ -502,8 +718,35 @@ class PlantRepositoryImpl implements IPlantRepository {
         limit: 1,
       );
 
-      if (maps.isEmpty) return const Success(null);
-      return Success(PlantModel.fromMap(maps.first));
+      if (maps.isNotEmpty) {
+        return Success(PlantModel.fromMap(maps.first));
+      }
+
+      // Check Cloud Firestore if absent from SQLite local cache
+      if (_gardenRemoteDataSource != null) {
+        try {
+          final remotePlant =
+              await _gardenRemoteDataSource.getPlantById(plantId);
+          if (remotePlant != null) {
+            final count = await db.update(
+              DatabaseHelper.tableUserPlants,
+              remotePlant.toMap(),
+              where: 'id = ?',
+              whereArgs: [remotePlant.id],
+            );
+            if (count == 0) {
+              await db.insert(
+                DatabaseHelper.tableUserPlants,
+                remotePlant.toMap(),
+                conflictAlgorithm: ConflictAlgorithm.ignore,
+              );
+            }
+            return Success(remotePlant);
+          }
+        } catch (_) {}
+      }
+
+      return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal mengambil tanaman: $e'));
     }
@@ -519,6 +762,13 @@ class PlantRepositoryImpl implements IPlantRepository {
         where: 'id = ?',
         whereArgs: [plantId],
       );
+
+      if (_gardenRemoteDataSource != null) {
+        try {
+          await _gardenRemoteDataSource.archivePlant(plantId);
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal mengarsipkan tanaman: $e'));
@@ -537,8 +787,27 @@ class PlantRepositoryImpl implements IPlantRepository {
       final db = await _dbHelper.database;
       final values = <String, dynamic>{'nickname': nickname.trim()};
       if (updatePhoto) {
-        values['cover_photo_path'] = coverPhotoPath;
-        values['image_path'] = coverPhotoPath;
+        String? effectivePhoto = coverPhotoPath;
+        if (_storageRemoteDataSource != null &&
+            coverPhotoPath != null &&
+            coverPhotoPath.trim().isNotEmpty &&
+            !coverPhotoPath.startsWith('http://') &&
+            !coverPhotoPath.startsWith('https://') &&
+            !coverPhotoPath.startsWith('assets/')) {
+          try {
+            final uploaded = await _storageRemoteDataSource.uploadFile(
+              filePath: coverPhotoPath,
+              destinationPath:
+                  'plants/$plantId/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            );
+            if (uploaded.startsWith('http://') ||
+                uploaded.startsWith('https://')) {
+              effectivePhoto = uploaded;
+            }
+          } catch (_) {}
+        }
+        values['cover_photo_path'] = effectivePhoto;
+        values['image_path'] = effectivePhoto;
       }
       if (siteId != null) {
         values['site_id'] = siteId;
@@ -549,6 +818,13 @@ class PlantRepositoryImpl implements IPlantRepository {
         where: 'id = ?',
         whereArgs: [plantId],
       );
+
+      if (_gardenRemoteDataSource != null) {
+        try {
+          await _gardenRemoteDataSource.updatePlant(plantId, values);
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal memperbarui informasi tanaman: $e'));
@@ -568,6 +844,42 @@ class PlantRepositoryImpl implements IPlantRepository {
         where: 'id = ?',
         whereArgs: [plantId],
       );
+
+      String effectivePhoto = photoPath ?? '';
+      if (_storageRemoteDataSource != null &&
+          photoPath != null &&
+          photoPath.isNotEmpty &&
+          !photoPath.startsWith('http://') &&
+          !photoPath.startsWith('https://')) {
+        try {
+          final uploadedUrl = await _storageRemoteDataSource.uploadFile(
+            filePath: photoPath,
+            destinationPath:
+                'plants/$plantId/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          if (uploadedUrl.isNotEmpty &&
+              (uploadedUrl.startsWith('http://') ||
+                  uploadedUrl.startsWith('https://'))) {
+            effectivePhoto = uploadedUrl;
+            await db.update(
+              DatabaseHelper.tableUserPlants,
+              {'cover_photo_path': effectivePhoto, 'image_path': effectivePhoto},
+              where: 'id = ?',
+              whereArgs: [plantId],
+            );
+          }
+        } catch (_) {}
+      }
+
+      if (_gardenRemoteDataSource != null) {
+        try {
+          await _gardenRemoteDataSource.updatePlant(plantId, {
+            'cover_photo_path': effectivePhoto,
+            'image_path': effectivePhoto,
+          });
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal memperbarui foto tanaman: $e'));
@@ -605,6 +917,13 @@ class PlantRepositoryImpl implements IPlantRepository {
           whereArgs: [plantId],
         );
       });
+
+      if (_gardenRemoteDataSource != null) {
+        try {
+          await _gardenRemoteDataSource.deletePlant(plantId);
+        } catch (_) {}
+      }
+
       return const Success(null);
     } catch (e) {
       return Error(DatabaseFailure('Gagal menghapus tanaman: $e'));

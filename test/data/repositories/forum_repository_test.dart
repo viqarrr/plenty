@@ -4,9 +4,11 @@ import 'package:plenty/features/community/data/repositories/community_repository
 import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import '../../features/community/fake_community_remote_datasource.dart';
 
 void main() {
   late DatabaseHelper dbHelper;
+  late FakeCommunityRemoteDataSource fakeRemote;
   late ICommunityRepository communityRepo;
 
   setUpAll(() {
@@ -17,7 +19,11 @@ void main() {
   setUp(() async {
     dbHelper = DatabaseHelper.forTesting('community_repo_suite_test.db');
     await dbHelper.deleteDb();
-    communityRepo = CommunityRepositoryImpl(dbHelper: dbHelper);
+    fakeRemote = FakeCommunityRemoteDataSource();
+    communityRepo = CommunityRepositoryImpl(
+      dbHelper: dbHelper,
+      remoteDataSource: fakeRemote,
+    );
 
     final db = await dbHelper.database;
     await db.insert(
@@ -30,6 +36,24 @@ void main() {
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+
+    // Initial remote posts
+    await fakeRemote.savePost(CommunityPost(
+      id: 'init_p1',
+      authorName: 'Alex',
+      timeAgo: 'Baru saja',
+      category: 'tips',
+      content: 'Tips rawat monstera',
+      createdAt: DateTime.now(),
+    ));
+    await fakeRemote.savePost(CommunityPost(
+      id: 'init_p2',
+      authorName: 'Rian',
+      timeAgo: 'Baru saja',
+      category: 'pertanyaan',
+      content: 'Tanya pupuk organik',
+      createdAt: DateTime.now(),
+    ));
   });
 
   tearDown(() async {
@@ -37,7 +61,7 @@ void main() {
   });
 
   group('CommunityRepository Suite Tests', () {
-    test('getPosts auto-seeds default posts and filters by category', () async {
+    test('getPosts returns posts and filters by category', () async {
       final allPostsRes = await communityRepo.getPosts();
       final allPosts = allPostsRes.dataOrNull ?? [];
       expect(allPosts.isNotEmpty, isTrue);

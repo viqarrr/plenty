@@ -22,10 +22,14 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   Future<bool> registerUser(UserModel user) async {
     final db = await _dbService.database;
     try {
-      final userMap = user.toMap();
+      final userMap = user.toMap(includePassword: true);
       if (userMap['created_at'] == null ||
           (userMap['created_at'] as String).isEmpty) {
         userMap['created_at'] = DateTime.now().toIso8601String();
+      }
+
+      if (user.id != null) {
+        userMap['id'] = int.tryParse(user.id!) ?? user.numericId;
       }
 
       // Hash password using BCrypt before storing
@@ -36,7 +40,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       final id = await db.insert(
         DatabaseHelper.tableUsers,
         userMap,
-        conflictAlgorithm: ConflictAlgorithm.abort,
+        conflictAlgorithm: ConflictAlgorithm.replace,
       );
       return id > 0;
     } catch (_) {

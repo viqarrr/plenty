@@ -140,7 +140,13 @@ class _DualCardOverviewBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(flex: 5, child: _StreakCard(streakCount: state.streakCount)),
+          Expanded(
+            flex: 5,
+            child: _StreakCard(
+              streakCount: state.streakCount,
+              isStreakActive: state.isStreakActive,
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             flex: 6,
@@ -159,16 +165,26 @@ class _DualCardOverviewBanner extends StatelessWidget {
 /// Left Card displaying current streak with watermark flame graphic.
 class _StreakCard extends StatelessWidget {
   final int streakCount;
+  final bool isStreakActive;
 
-  const _StreakCard({required this.streakCount});
+  const _StreakCard({
+    required this.streakCount,
+    this.isStreakActive = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = isStreakActive ? const Color(0xFFF2A33A) : const Color(0xFFCBD5E1);
+    final fgColor = isStreakActive ? Colors.white : const Color(0xFF475569);
+    final watermarkColor = isStreakActive
+        ? Colors.white.withValues(alpha: 0.20)
+        : const Color(0xFF64748B).withValues(alpha: 0.25);
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: Container(
         height: 144,
-        decoration: const BoxDecoration(color: Color(0xFFF2A33A)),
+        decoration: BoxDecoration(color: bgColor),
         child: Stack(
           children: [
             Positioned(
@@ -177,7 +193,7 @@ class _StreakCard extends StatelessWidget {
               child: Icon(
                 Icons.local_fire_department_rounded,
                 size: 144,
-                color: Colors.white.withValues(alpha: 0.20),
+                color: watermarkColor,
               ),
             ),
             Padding(
@@ -188,7 +204,7 @@ class _StreakCard extends StatelessWidget {
                   Text(
                     '$streakCount',
                     style: AppTypography.displayLarge.copyWith(
-                      color: Colors.white,
+                      color: fgColor,
                       fontSize: 34,
                       fontWeight: FontWeight.w800,
                       height: 1.1,
@@ -198,7 +214,7 @@ class _StreakCard extends StatelessWidget {
                   Text(
                     'Streak',
                     style: AppTypography.caption1Bold.copyWith(
-                      color: Colors.white.withValues(alpha: 0.95),
+                      color: fgColor.withValues(alpha: isStreakActive ? 0.95 : 0.85),
                       fontSize: 18,
                       height: 1.2,
                     ),

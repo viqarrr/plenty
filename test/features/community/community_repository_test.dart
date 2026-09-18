@@ -1,15 +1,35 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plenty/core/database/database_helper.dart';
+import 'package:plenty/core/storage/preference_handler.dart';
+import 'package:plenty/core/storage/storage_remote_datasource.dart';
+import 'package:plenty/features/auth/domain/models/user_model.dart';
 import 'package:plenty/features/community/data/repositories/community_repository_impl.dart';
 import 'package:plenty/features/community/domain/models/community_post.dart';
 import 'package:plenty/features/community/domain/repositories/community_repository.dart';
 import 'package:plenty/features/profile/domain/models/badge_item.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'fake_community_remote_datasource.dart';
+
+class FakeStorageRemoteDataSource implements StorageRemoteDataSource {
+  @override
+  Future<String> uploadFile({
+    required String filePath,
+    required String destinationPath,
+    String? contentType,
+  }) async {
+    return 'https://firebasestorage.googleapis.com/v0/b/plenty.appspot.com/o/${destinationPath.replaceAll('/', '%2F')}?alt=media';
+  }
+
+  @override
+  Future<void> deleteFile(String fileUrl) async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DatabaseHelper dbHelper;
+  late FakeCommunityRemoteDataSource fakeRemote;
   late ICommunityRepository repository;
 
   setUpAll(() {
@@ -18,6 +38,8 @@ void main() {
   });
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await PreferenceHandler.logOut();
     dbHelper = DatabaseHelper.forTesting(
       'community_repo_test_${DateTime.now().microsecondsSinceEpoch}.db',
     );
@@ -36,247 +58,414 @@ void main() {
       'unlocked_badges_count': 0,
       'created_at': DateTime.now().toIso8601String(),
     }, conflictAlgorithm: ConflictAlgorithm.ignore);
-    repository = CommunityRepositoryImpl(dbHelper: dbHelper);
+
+    fakeRemote = FakeCommunityRemoteDataSource();
+    repository = CommunityRepositoryImpl(
+      dbHelper: dbHelper,
+      remoteDataSource: fakeRemote,
+    );
   });
 
   tearDown(() async {
+    await PreferenceHandler.logOut();
     await dbHelper.close();
   });
 
-  group('CommunityRepository Unit Tests', () {
-    test(
-      'getPosts auto-seeds default posts and new user has isLiked false on all',
-      () async {
-        final postsRes = await repository.getPosts(currentUserId: 2);
-        final posts = postsRes.dataOrNull ?? [];
-        expect(posts.isNotEmpty, isTrue);
-        expect(posts.length, greaterThanOrEqualTo(3));
-        // For a new user (ID: 2), all posts should have isLiked == false
-        expect(posts.every((p) => p.isLiked == false), isTrue);
-      },
-    );
+  group('CommunityRepository Firebase-backed Operations', () {
+    test('getPosts returns posts from Firebase filtered by category', () async {
+      final post1 = CommunityPost(
+        id: 'p_tanya',
+        authorName: 'Rian',
+        timeAgo: 'Baru saja',
+        category: 'pertanyaan',
+        content: 'Tanya siram?',
+        createdAt: DateTime.now(),
+      );
+      final post2 = CommunityPost(
+        id: 'p_tips',
+        authorName: 'Alex',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Tips pupuk',
+        createdAt: DateTime.now(),
+      );
 
-    test('getPosts filters accurately by category', () async {
-      final tanyaPostsRes = await repository.getPosts(category: 'pertanyaan');
-      final tanyaPosts = tanyaPostsRes.dataOrNull ?? [];
-      expect(tanyaPosts.every((p) => p.category == 'pertanyaan'), isTrue);
+      await repository.createPost(post1, userId: 1);
+      await repository.createPost(post2, userId: 1);
 
-      final capaiPostsRes = await repository.getPosts(category: 'pencapaian');
-      final capaiPosts = capaiPostsRes.dataOrNull ?? [];
-      expect(capaiPosts.every((p) => p.category == 'pencapaian'), isTrue);
+      final tanyaRes = await repository.getPosts(category: 'pertanyaan');
+      final tanyaPosts = tanyaRes.dataOrNull ?? [];
+      expect(tanyaPosts.length, 1);
+      expect(tanyaPosts.first.id, 'p_tanya');
 
-      final tipsPostsRes = await repository.getPosts(category: 'tips');
-      final tipsPosts = tipsPostsRes.dataOrNull ?? [];
-      expect(tipsPosts.every((p) => p.category == 'tips'), isTrue);
+      final tipsRes = await repository.getPosts(category: 'tips');
+      final tipsPosts = tipsRes.dataOrNull ?? [];
+      expect(tipsPosts.length, 1);
+      expect(tipsPosts.first.id, 'p_tips');
+
+      final allRes = await repository.getPosts(category: 'all');
+      expect(allRes.dataOrNull?.length, 2);
     });
 
-    test(
-      'createPost inserts new post and retrieves it with user attribution',
-      () async {
-        final newPost = CommunityPost(
-          id: 'test_post_1',
-          authorName: 'rian_plant',
-          timeAgo: 'Baru saja',
-          category: 'pertanyaan',
-          content: 'Bagaimana cara mengatasi kutu putih pada aglonema?',
-          createdAt: DateTime.now(),
-        );
-
-        final createdRes = await repository.createPost(newPost, userId: 1);
-        final created = createdRes.dataOrNull!;
-        expect(created.id, 'test_post_1');
-
-        final postsRes = await repository.getPosts(category: 'pertanyaan');
-        final posts = postsRes.dataOrNull ?? [];
-        expect(posts.any((p) => p.id == 'test_post_1'), isTrue);
-      },
-    );
-
-    test(
-      'createPost with attached badge saves and retrieves badge relation',
-      () async {
-        const badge = BadgeItem(
-          id: 'first_plant',
-          title: 'Adopsi Pertama',
-          desc: 'Mengadopsi tanaman pertama',
-          iconName: 'eco',
-          isUnlocked: true,
-          level: 1,
-          progress: 1,
-          total: 1,
-          bgColorHex: '#EBF7F1',
-          accentColorHex: '#2D6A4F',
-        );
-
-        final postWithBadge = CommunityPost(
-          id: 'badge_post_1',
-          authorName: 'alex_green',
-          timeAgo: 'Baru saja',
-          category: 'pencapaian',
-          content: 'Berhasil membuka lencana Adopsi Pertama!',
-          attachedBadge: badge,
-          createdAt: DateTime.now(),
-        );
-
-        await repository.createPost(postWithBadge, userId: 1);
-
-        final postsRes = await repository.getPosts(category: 'pencapaian');
-        final posts = postsRes.dataOrNull ?? [];
-        final found = posts.firstWhere((p) => p.id == 'badge_post_1');
-        expect(found.attachedBadge, isNotNull);
-        expect(found.attachedBadge?.id, 'first_plant');
-      },
-    );
-
-    test('toggleLike isolates like states between different users', () async {
-      final initialPostsRes = await repository.getPosts(currentUserId: 1);
-      final targetPost = initialPostsRes.dataOrNull!.first;
-
-      // User 1 likes post
-      final user1PostRes = await repository.toggleLike(
-        targetPost.id,
-        userId: 1,
-      );
-      final user1Post = user1PostRes.dataOrNull!;
-      expect(user1Post.isLiked, isTrue);
-
-      // User 2 checks post -> should NOT be liked for user 2
-      final user2PostsRes = await repository.getPosts(currentUserId: 2);
-      final user2Posts = user2PostsRes.dataOrNull ?? [];
-      final user2Post = user2Posts.firstWhere((p) => p.id == targetPost.id);
-      expect(user2Post.isLiked, isFalse);
-      expect(user2Post.likesCount, user1Post.likesCount);
-
-      // User 2 likes post as well -> count increments
-      final user2PostAfterLikeRes = await repository.toggleLike(
-        targetPost.id,
-        userId: 2,
-      );
-      final user2PostAfterLike = user2PostAfterLikeRes.dataOrNull!;
-      expect(user2PostAfterLike.isLiked, isTrue);
-      expect(user2PostAfterLike.likesCount, user1Post.likesCount + 1);
-
-      // User 1 unlikes post -> user 2 still has isLiked == true
-      final user1PostAfterUnlikeRes = await repository.toggleLike(
-        targetPost.id,
-        userId: 1,
-      );
-      final user1PostAfterUnlike = user1PostAfterUnlikeRes.dataOrNull!;
-      expect(user1PostAfterUnlike.isLiked, isFalse);
-
-      final user2PostsFinalRes = await repository.getPosts(currentUserId: 2);
-      final user2PostsFinal = user2PostsFinalRes.dataOrNull ?? [];
-      final user2PostFinal = user2PostsFinal.firstWhere(
-        (p) => p.id == targetPost.id,
-      );
-      expect(user2PostFinal.isLiked, isTrue);
-    });
-
-    test('updatePost updates post content and category', () async {
+    test('createPost saves post directly to Firebase when online', () async {
       final newPost = CommunityPost(
+        id: 'test_post_1',
+        authorName: 'rian_plant',
+        timeAgo: 'Baru saja',
+        category: 'pertanyaan',
+        content: 'Bagaimana cara mengatasi kutu putih pada aglonema?',
+        createdAt: DateTime.now(),
+      );
+
+      final createdRes = await repository.createPost(newPost, userId: 1);
+      expect(createdRes.isSuccess, isTrue);
+
+      // Verify post exists on remote Firebase datasource
+      expect(fakeRemote.posts.containsKey('test_post_1'), isTrue);
+
+      // Verify SQLite tableCommunityPosts does NOT store online posts
+      final db = await dbHelper.database;
+      final localRows = await db.query(DatabaseHelper.tableCommunityPosts);
+      expect(localRows.isEmpty, isTrue);
+    });
+
+    test('createPost with attached badge saves badge details to Firebase', () async {
+      const badge = BadgeItem(
+        id: 'first_plant',
+        title: 'Adopsi Pertama',
+        desc: 'Mengadopsi tanaman pertama',
+        iconName: 'eco',
+        isUnlocked: true,
+        level: 1,
+        progress: 1,
+        total: 1,
+        bgColorHex: '#EBF7F1',
+        accentColorHex: '#2D6A4F',
+      );
+
+      final postWithBadge = CommunityPost(
+        id: 'badge_post_1',
+        authorName: 'alex_green',
+        timeAgo: 'Baru saja',
+        category: 'pencapaian',
+        content: 'Berhasil membuka lencana Adopsi Pertama!',
+        attachedBadge: badge,
+        createdAt: DateTime.now(),
+      );
+
+      await repository.createPost(postWithBadge, userId: 1);
+
+      final postsRes = await repository.getPosts(category: 'pencapaian');
+      final posts = postsRes.dataOrNull ?? [];
+      final found = posts.firstWhere((p) => p.id == 'badge_post_1');
+      expect(found.attachedBadge, isNotNull);
+      expect(found.attachedBadge?.id, 'first_plant');
+      expect(found.attachedBadge?.title, 'Adopsi Pertama');
+    });
+
+    test('createPost uploads local image to Firebase Storage and saves remote download URL', () async {
+      final fakeStorage = FakeStorageRemoteDataSource();
+      final repoWithStorage = CommunityRepositoryImpl(
+        dbHelper: dbHelper,
+        remoteDataSource: fakeRemote,
+        storageRemoteDataSource: fakeStorage,
+      );
+
+      final postWithImage = CommunityPost(
+        id: 'post_with_image',
+        authorName: 'User One',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Foto tanaman saya',
+        imagePath: '/data/user/0/cache/image_picker_123.jpg',
+        createdAt: DateTime.now(),
+      );
+
+      final result = await repoWithStorage.createPost(postWithImage, userId: 1);
+      expect(result.isSuccess, isTrue);
+      expect(result.dataOrNull?.imagePath, startsWith('https://firebasestorage.googleapis.com'));
+      expect(fakeRemote.posts['post_with_image']?.imagePath, startsWith('https://firebasestorage.googleapis.com'));
+    });
+
+    test('toggleLike updates like status directly on Firebase', () async {
+      final post = CommunityPost(
+        id: 'post_like_test',
+        authorName: 'Botanist',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Tips daun rimbun',
+        likesCount: 0,
+        createdAt: DateTime.now(),
+      );
+      await repository.createPost(post, userId: 1);
+
+      // User 1 likes
+      final likedRes = await repository.toggleLike('post_like_test', userId: 1);
+      final likedPost = likedRes.dataOrNull!;
+      expect(likedPost.isLiked, isTrue);
+      expect(likedPost.likesCount, 1);
+
+      // User 2 fetches posts
+      final user2Posts = await repository.getPosts(currentUserId: 2);
+      final user2Post = user2Posts.dataOrNull!.firstWhere((p) => p.id == 'post_like_test');
+      expect(user2Post.isLiked, isFalse);
+      expect(user2Post.likesCount, 1);
+
+      // User 1 unlikes
+      final unlikedRes = await repository.toggleLike('post_like_test', userId: 1);
+      expect(unlikedRes.dataOrNull!.isLiked, isFalse);
+      expect(unlikedRes.dataOrNull!.likesCount, 0);
+    });
+
+    test('updatePost updates post on Firebase', () async {
+      final post = CommunityPost(
         id: 'edit_test_post',
         authorName: 'rian_plant',
         timeAgo: 'Baru saja',
         category: 'pertanyaan',
         content: 'Konten sebelum diedit',
+        userId: 1,
         createdAt: DateTime.now(),
       );
+      await repository.createPost(post, userId: 1);
 
-      await repository.createPost(newPost, userId: 1);
-
-      final updateDraft = newPost.copyWith(
+      final updateDraft = post.copyWith(
         category: 'tips',
         content: 'Konten berhasil diperbarui dan diedit!',
       );
 
       final updateRes = await repository.updatePost(updateDraft, userId: 1);
       expect(updateRes.isSuccess, isTrue);
-      final updated = updateRes.dataOrNull!;
-      expect(updated.category, 'tips');
-      expect(updated.content, 'Konten berhasil diperbarui dan diedit!');
+      expect(updateRes.dataOrNull!.content, 'Konten berhasil diperbarui dan diedit!');
+      expect(updateRes.dataOrNull!.category, 'tips');
 
-      final postsRes = await repository.getPosts(category: 'tips');
-      final posts = postsRes.dataOrNull ?? [];
-      final found = posts.firstWhere((p) => p.id == 'edit_test_post');
-      expect(found.content, 'Konten berhasil diperbarui dan diedit!');
+      expect(fakeRemote.posts['edit_test_post']?.content,
+          'Konten berhasil diperbarui dan diedit!');
     });
 
-    test('deletePost removes post from database for author', () async {
-      final newPost = CommunityPost(
+    test('deletePost removes post from Firebase for author', () async {
+      final post = CommunityPost(
         id: 'delete_test_post',
         authorName: 'rian_plant',
         timeAgo: 'Baru saja',
         category: 'tips',
         content: 'Postingan ini akan segera dihapus',
+        userId: 1,
         createdAt: DateTime.now(),
       );
+      await repository.createPost(post, userId: 1);
 
-      await repository.createPost(newPost, userId: 1);
-
-      final deleteRes = await repository.deletePost(
-        'delete_test_post',
-        userId: 1,
-      );
+      final deleteRes = await repository.deletePost('delete_test_post', userId: 1);
       expect(deleteRes.isSuccess, isTrue);
 
-      final postsRes = await repository.getPosts();
-      final posts = postsRes.dataOrNull ?? [];
-      expect(posts.any((p) => p.id == 'delete_test_post'), isFalse);
+      expect(fakeRemote.posts.containsKey('delete_test_post'), isFalse);
     });
 
-    test(
-      'deletePost rejects deletion when performed by a non-author',
-      () async {
-        final newPost = CommunityPost(
-          id: 'user1_post',
-          authorName: 'rian_plant',
-          timeAgo: 'Baru saja',
-          category: 'tips',
-          content: 'Postingan milik user 1',
-          createdAt: DateTime.now(),
-        );
+    test('deletePost removes post from Firebase for author with string Firebase UID', () async {
+      await PreferenceHandler.setLoginSession(
+        const UserModel(
+          id: 'firebase_user_abc123',
+          email: 'fb@plenty.app',
+          displayName: 'Firebase User',
+          username: 'fbuser',
+        ),
+      );
 
-        await repository.createPost(newPost, userId: 1);
-
-        // Attempt deletion as user 2
-        final deleteRes = await repository.deletePost('user1_post', userId: 2);
-        expect(deleteRes.isError, isTrue);
-
-        // Post should still exist
-        final postsRes = await repository.getPosts();
-        final posts = postsRes.dataOrNull ?? [];
-        expect(posts.any((p) => p.id == 'user1_post'), isTrue);
-      },
-    );
-
-    test('updatePost rejects editing when performed by a non-author', () async {
-      final newPost = CommunityPost(
-        id: 'user1_post_for_edit',
-        authorName: 'rian_plant',
+      final post = CommunityPost(
+        id: 'fb_delete_test_post',
+        authorName: 'Firebase User',
+        authorId: 'firebase_user_abc123',
         timeAgo: 'Baru saja',
         category: 'tips',
-        content: 'Konten asli',
+        content: 'Postingan pengguna firebase',
+        createdAt: DateTime.now(),
+      );
+      await repository.createPost(post);
+
+      final deleteRes = await repository.deletePost('fb_delete_test_post');
+      expect(deleteRes.isSuccess, isTrue);
+      expect(fakeRemote.posts.containsKey('fb_delete_test_post'), isFalse);
+    });
+
+    test('addComment, getComments, and deleteComment manage comments purely on Firebase', () async {
+      final post = CommunityPost(
+        id: 'comm_post',
+        authorName: 'rian_plant',
+        timeAgo: 'Baru saja',
+        category: 'pertanyaan',
+        content: 'Diskusi tanaman',
+        createdAt: DateTime.now(),
+      );
+      await repository.createPost(post, userId: 1);
+
+      final addRes = await repository.addComment(
+        postId: 'comm_post',
+        content: 'Komentar pertama',
+        userId: 2,
+        authorName: 'User Two',
+      );
+      expect(addRes.isSuccess, isTrue);
+      final comment = addRes.dataOrNull!;
+      expect(comment.content, 'Komentar pertama');
+      expect(comment.authorName, 'User Two');
+
+      final getRes = await repository.getComments('comm_post');
+      expect(getRes.isSuccess, isTrue);
+      expect(getRes.dataOrNull?.length, 1);
+
+      final delRes = await repository.deleteComment(
+        postId: 'comm_post',
+        commentId: comment.id,
+        userId: 2,
+      );
+      expect(delRes.isSuccess, isTrue);
+
+      final getAfterDel = await repository.getComments('comm_post');
+      expect(getAfterDel.dataOrNull?.isEmpty, isTrue);
+    });
+
+    test('hasUserSharedBadge checks badge sharing state', () async {
+      final hasSharedBefore = await repository.hasUserSharedBadge('first_plant', userId: 1);
+      expect(hasSharedBefore.dataOrNull, isFalse);
+
+      const badge = BadgeItem(
+        id: 'first_plant',
+        title: 'Adopsi Pertama',
+        desc: 'Desc',
+        isUnlocked: true,
+        level: 1,
+        progress: 1,
+        total: 1,
+      );
+
+      final post = CommunityPost(
+        id: 'badge_share_post',
+        authorName: 'User One',
+        timeAgo: 'Baru saja',
+        category: 'pencapaian',
+        content: 'Shared badge',
+        attachedBadge: badge,
+        userId: 1,
+        createdAt: DateTime.now(),
+      );
+      await repository.createPost(post, userId: 1);
+
+      final hasSharedAfter = await repository.hasUserSharedBadge('first_plant', userId: 1);
+      expect(hasSharedAfter.dataOrNull, isTrue);
+    });
+  });
+
+  group('CommunityRepository SQLite Offline Upload & Sync Tests', () {
+    test('createPost saves to SQLite tableCommunityPosts when offline', () async {
+      fakeRemote.shouldThrowOnSave = true;
+
+      final offlinePost = CommunityPost(
+        id: 'offline_post_1',
+        authorName: 'Offline User',
+        timeAgo: 'Baru saja',
+        category: 'pertanyaan',
+        content: 'Post dibuat saat tidak ada internet',
         createdAt: DateTime.now(),
       );
 
-      await repository.createPost(newPost, userId: 1);
+      final result = await repository.createPost(offlinePost, userId: 1);
+      expect(result.isSuccess, isTrue);
 
-      final unauthorizedDraft = newPost.copyWith(
-        content: 'Konten diubah oleh hacker/user lain!',
+      // Verify NOT saved to Firebase
+      expect(fakeRemote.posts.containsKey('offline_post_1'), isFalse);
+
+      // Verify saved to SQLite tableCommunityPosts as pending upload
+      final db = await dbHelper.database;
+      final localRows = await db.query(
+        DatabaseHelper.tableCommunityPosts,
+        where: 'id = ?',
+        whereArgs: ['offline_post_1'],
       );
+      expect(localRows.length, 1);
+      expect(localRows.first['caption'], 'Post dibuat saat tidak ada internet');
+    });
 
-      // Attempt edit as user 2
-      final updateRes = await repository.updatePost(
-        unauthorizedDraft,
-        userId: 2,
+    test('getPosts returns offline pending posts when remote fails', () async {
+      fakeRemote.shouldThrowOnSave = true;
+
+      final offlinePost = CommunityPost(
+        id: 'offline_feed_post',
+        authorName: 'Offline User',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Tips offline',
+        createdAt: DateTime.now(),
       );
-      expect(updateRes.isError, isTrue);
+      await repository.createPost(offlinePost, userId: 1);
 
-      // Content remains original
-      final postsRes = await repository.getPosts();
+      // Simulate remote fetch failing due to no internet
+      fakeRemote.shouldThrowOnGet = true;
+
+      final postsRes = await repository.getPosts(category: 'tips', currentUserId: 1);
+      expect(postsRes.isSuccess, isTrue);
       final posts = postsRes.dataOrNull ?? [];
-      final post = posts.firstWhere((p) => p.id == 'user1_post_for_edit');
-      expect(post.content, 'Konten asli');
+      expect(posts.length, 1);
+      expect(posts.first.id, 'offline_feed_post');
+      expect(posts.first.content, 'Tips offline');
+    });
+
+    test('syncPendingPosts uploads offline posts to Firebase when internet returns and deletes from SQLite', () async {
+      // 1. User creates post while offline
+      fakeRemote.shouldThrowOnSave = true;
+      final offlinePost = CommunityPost(
+        id: 'sync_me_post',
+        authorName: 'Offline User',
+        timeAgo: 'Baru saja',
+        category: 'tips',
+        content: 'Unggahan yang menunggu internet kembali',
+        createdAt: DateTime.now(),
+      );
+      await repository.createPost(offlinePost, userId: 1);
+
+      // Verify in SQLite
+      final db = await dbHelper.database;
+      expect((await db.query(DatabaseHelper.tableCommunityPosts)).length, 1);
+      expect(fakeRemote.posts.containsKey('sync_me_post'), isFalse);
+
+      // 2. Internet becomes active again!
+      fakeRemote.shouldThrowOnSave = false;
+      fakeRemote.shouldThrowOnGet = false;
+
+      // Trigger sync
+      await repository.syncPendingPosts();
+
+      // 3. Verify uploaded to Firebase!
+      expect(fakeRemote.posts.containsKey('sync_me_post'), isTrue);
+      expect(fakeRemote.posts['sync_me_post']?.content,
+          'Unggahan yang menunggu internet kembali');
+
+      // 4. Verify DELETED from SQLite pending queue!
+      final remainingRows = await db.query(DatabaseHelper.tableCommunityPosts);
+      expect(remainingRows.isEmpty, isTrue);
+    });
+
+    test('deletePost removes offline pending post before it is uploaded', () async {
+      fakeRemote.shouldThrowOnSave = true;
+      final offlinePost = CommunityPost(
+        id: 'cancel_offline_post',
+        authorName: 'User',
+        timeAgo: 'Baru saja',
+        category: 'pertanyaan',
+        content: 'Dibatalkan sebelum internet aktif',
+        createdAt: DateTime.now(),
+      );
+      await repository.createPost(offlinePost, userId: 1);
+
+      final db = await dbHelper.database;
+      expect((await db.query(DatabaseHelper.tableCommunityPosts)).length, 1);
+
+      // User deletes the pending post
+      final deleteRes = await repository.deletePost('cancel_offline_post', userId: 1);
+      expect(deleteRes.isSuccess, isTrue);
+
+      // Verify removed from SQLite
+      final remaining = await db.query(DatabaseHelper.tableCommunityPosts);
+      expect(remaining.isEmpty, isTrue);
     });
   });
 }

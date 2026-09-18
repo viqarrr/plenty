@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:plenty/core/di/injector.dart';
 import 'package:plenty/core/error/result.dart';
-import 'package:plenty/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:plenty/features/auth/domain/models/user_model.dart';
 import 'package:plenty/features/auth/domain/repositories/auth_repository.dart';
 
@@ -29,19 +30,32 @@ class AuthState {
 }
 
 class AuthController extends ChangeNotifier {
-  final AuthRepository _authRepo;
+  final IAuthRepository _authRepo;
+  StreamSubscription<UserModel?>? _authSubscription;
 
   AuthState _state = const AuthState();
   AuthState get state => _state;
 
   bool _isDisposed = false;
 
-  AuthController({AuthRepository? authRepo})
-      : _authRepo = authRepo ?? AuthRepositoryImpl();
+  AuthController({IAuthRepository? authRepo})
+      : _authRepo = authRepo ?? Injector.authRepository {
+    _initAuthListener();
+  }
+
+  void _initAuthListener() {
+    _state = _state.copyWith(user: _authRepo.currentUser);
+    _authSubscription = _authRepo.authStateChanges.listen((user) {
+      if (!_isDisposed) {
+        _updateState(_state.copyWith(user: user));
+      }
+    });
+  }
 
   @override
   void dispose() {
     _isDisposed = true;
+    _authSubscription?.cancel();
     super.dispose();
   }
 
@@ -59,7 +73,9 @@ class AuthController extends ChangeNotifier {
         _updateState(_state.copyWith(user: user, isLoading: false));
         return true;
       case Error(failure: final failure):
-        _updateState(_state.copyWith(isLoading: false, errorMessage: failure.message));
+        _updateState(
+          _state.copyWith(isLoading: false, errorMessage: failure.message),
+        );
         return false;
     }
   }
@@ -80,7 +96,24 @@ class AuthController extends ChangeNotifier {
         _updateState(_state.copyWith(user: user, isLoading: false));
         return true;
       case Error(failure: final failure):
-        _updateState(_state.copyWith(isLoading: false, errorMessage: failure.message));
+        _updateState(
+          _state.copyWith(isLoading: false, errorMessage: failure.message),
+        );
+        return false;
+    }
+  }
+
+  Future<bool> sendPasswordResetEmail(String email) async {
+    _updateState(_state.copyWith(isLoading: true, errorMessage: null));
+    final result = await _authRepo.sendPasswordResetEmail(email);
+    switch (result) {
+      case Success():
+        _updateState(_state.copyWith(isLoading: false));
+        return true;
+      case Error(failure: final failure):
+        _updateState(
+          _state.copyWith(isLoading: false, errorMessage: failure.message),
+        );
         return false;
     }
   }

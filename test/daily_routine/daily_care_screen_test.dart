@@ -180,5 +180,33 @@ void main() {
       expect(find.byType(MonitorTinggiInputSheet), findsOneWidget);
       expect(find.text('Simpan Perubahan'), findsOneWidget);
     });
+
+    testWidgets('Tapping cyclic task immediately marks it completed with strikethrough without reload', (tester) async {
+      late final DailyCareController controller;
+      await tester.runAsync(() async {
+        controller = DailyCareController(
+          repository: careRepo,
+        );
+        await controller.loadTodayCare();
+      });
+
+      await tester.pumpWidget(createTestWidget(controller));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.radio_button_unchecked), findsWidgets);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      // Tap the first unchecked circle button to complete the task
+      await tester.tap(find.byIcon(Icons.radio_button_unchecked).first);
+      await tester.pump();
+
+      // Immediately checked and no loading spinner shown
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      // Verify Text has strikethrough effect
+      final textWidget = tester.widget<Text>(find.text('Penyiraman · Fiddle Leaf'));
+      expect(textWidget.style?.decoration, TextDecoration.lineThrough);
+    });
   });
 }

@@ -228,6 +228,7 @@ void main() {
         // Verify Header
         expect(find.text('Sarah Gardener'), findsOneWidget);
         expect(find.text('@sarah_green'), findsOneWidget);
+        expect(find.text('@sarahgreen.gmail.com'), findsOneWidget);
 
         // Verify CurrentProgressCard
         expect(find.text('Level 2'), findsOneWidget);
